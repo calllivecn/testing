@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+#coding=utf-8
+
+import socket,time,os,hashlib,sqlite3
+
+ServerDirPath='/home/zx/sync'
+
+ClientDirPath=''
+
+database='Dir_Tee_database.db'
+
+SlefDataDir=ServerDirPath+os.path.sep+database
+
+
+def md5(filename):
+
+		f=open(filename,'rb')
+		m=hashlib.md5()
+		while True:
+
+				data = f.read(4096)
+
+				if len(data) < 4096:
+								m.update(data)
+								break
+				else:
+								m.update(data)
+
+		f.close()
+		return filename,m.hexdigest()
+
+
+#sqlite3.connect()
+
+
+
+# test block
+f,m = md5('zx')
+print(f,m)				
+				
+
+

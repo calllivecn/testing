@@ -1,0 +1,31 @@
+#!/usr/bin/python3
+#coding=utf-8
+
+i = 2
+while(i < 100):
+   j = 2
+   while(j <= (i/j)):
+      if not(i%j): break
+      j = j + 1
+   if (j > i/j) : print i, " 是素数"
+   i = i + 1
+
+print "Good bye"
+
+list1=[0,'s',3,5,1,5,];
+
+a=0
+while a<6:
+		print "list1 :",list1[a]
+		a+=1		
+
+
+import sys
+
+print sys.path
+
+import math
+
+content=dir(math)
+print content
+print __name__,__file__

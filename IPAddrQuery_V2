@@ -1,0 +1,89 @@
+#!/usr/bin/python3
+#coding=utf-8
+
+import urllib3,sys
+
+from html.parser import HTMLParser
+
+
+class  MyParser(HTMLParser):
+	text=False
+	def   __init__ (self):
+		HTMLParser. __init__ (self)        
+        
+	def  handle_starttag(self, tag, attrs):
+         #  这里重新定义了处理开始标签的函数
+		if  tag  ==   'strong' :
+		 #  判断标签<a>的属性
+			self.text=True
+			'''for  name,value  in  attrs:
+				if  name  ==   'href' :
+					print(value)'''
+	def handle_endtag(self,tag):
+		if tag=='strong':
+			self.text=False
+
+	def handle_data(self,data):
+		if self.text and '查询结果' in data:
+			
+			data1=data.split("==>>")
+			addr=data1[2]
+			ip=data1[0].split(' ')[1]
+			print("{}\t{}".format(ip,addr))
+
+
+ipsearch='http://ip.chinaz.com/?IP='
+
+ip1=1;ip2=1;ip3=1;ip4=1
+
+i=0
+count=264
+
+
+html=''
+
+ipsearchaddr=''
+
+http=urllib3.PoolManager()
+
+my=MyParser()
+
+while ip1<=254:
+	if ip1==10 or ip1==127 or ip1==192:
+		ip1+=1
+		continue
+	while ip2<=254:
+		if 16<ip2<32 or ip2==168:
+			ip2+=1
+			continue
+		while ip3<=254:
+		
+			htmllist=[]
+			
+			
+			while ip4<=254:
+				ipsearchaddr=str(ipsearch)+str(ip1)+'.'+str(ip2)+'.'+str(ip3)+'.'+str(ip4)
+				html=http.request('GET',ipsearchaddr)
+				htmllist.append(html.data)
+				i+=1
+				if i>=count:
+					break
+				ip4+=1
+				
+				
+			for t in htmllist:
+				my.feed(t.decode('utf-8'))
+			
+			ip3+=1
+			ip4=1
+		ip2+=1
+		ip3=1
+	ip1+=1
+	ip2=1
+
+
+
+
+
+
+

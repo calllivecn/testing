@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+#coding=utf-8
+
+import argparse
+
+#argv=[('-h',action="store_true",help="print this message.")]
+
+parse=argparse.ArgumentParser(description="akjsfiaj lskjdfaijlsajfkslakdf")
+
+parse.add_argument('-t',action="store_true",help="print this message.")
+parse.add_argument('-T',action="store",nargs="*",help="print this message.")
+parse.add_argument('-f',action="append_count",nargs='*',help="read file lists")
+parse.add_argument('--file',action="append",help="read file lists")
+
+parse.add_argument('-c', action='store_const',
+
+                   const='C',
+
+                   help='Store a constant value')
+
+arglist=parse.parse_args()
+
+print(arglist)
+
+

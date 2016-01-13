@@ -1,0 +1,24 @@
+#!/usr/bin/python3
+#-*-coding:utf-8-*-
+print("sdkljflksjadlf alksdjfl askdjf alskjdflk asldkjflalksdjfd无可奈何 地asdfa 顶戴村在在一一下遥的腺体肝人")
+
+
+import sys,os
+
+
+这是一个中文变量=0
+
+for a in sys.argv[1:]:
+	print(这是一个中文变量,':',a)
+	这是一个中文变量=这是一个中文变量+1
+
+
+print('uid: ',os.getuid())
+
+print('euid: ',os.geteuid())
+
+print('''这只是个测试~~~~~''')
+
+
+
+print('this is %d %s ' %(3,'不知道的~'))

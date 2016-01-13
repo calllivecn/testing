@@ -1,0 +1,41 @@
+#!/usr/bin/env python
+# coding:UTF-8
+import time
+import pexpect
+import smtplib
+from email.mime.text import MIMEText
+ 
+mail_host = "smtp.163.com"        #定义smtp服务器
+mail_to = "baojingtongzhi@163.com"  #邮件收件人
+mail_from = "monitor@163.com"      #邮件发件人
+mail_pass = "123456"            #邮件发件人邮箱密码
+ 
+while True:
+    def Mail(error_ip):
+        date = time.strftime('%Y-%m-%d %H:%M:%S')
+        msg = MIMEText("%s Ping %s failed from 255.252." % (date, error_ip))
+        msg['Subject'] = "Ping %s failed." % error_ip    #定义邮件主题
+        msg['From'] = mail_from
+        msg['To'] = mail_to
+        try:
+            s = smtplib.SMTP()                #创建一个SMTP()对象
+            s.connect(mail_host, "25")            #通过connect方法连接smtp主机
+            s.starttls()                    #启动安全传输模式
+            s.login(mail_from,mail_pass)          #邮箱账户登录认证
+            s.sendmail(mail_from, mail_to, msg.as_string())  #邮件发送
+            s.quit()      #断开smtp连接
+        except Exception, e:
+            print str(e)
+    ip_list = ['192.168.18.10',
+        '192.168.18.11',
+        '192.168.18.12']
+    for ip in ip_list:
+        ping = pexpect.spawn('ping -c 1 %s' % ip)
+        check = ping.expect([pexpect.TIMEOUT,"1 packets transmitted, 1 received, 0% packet loss"],2)    #2代表超时时间
+        if check == 0:
+            Mail(ip)
+            print "Ping %s failed,Have email." % ip
+        if check == 1:
+            print "Ping %s successful." % ip
+    print "Sleep 10s..."
+    time.sleep(10)
