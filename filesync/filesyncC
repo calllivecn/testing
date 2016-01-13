@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+#coding=utf-8
+
+
+PATH='/home/zx/mypython'
+
+database='Dir_Tree_database.db'
+
+PORT=5996
+
+
+import sys,os,socket,time,sqlite3
+
+
+def sendfile(filename,size):
+		SOCK=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+		SOCK.bind(('0.0.0.0',PORT))
+		
+
+def recvfile():
+
+
+
+
+def testfile(path):
+		
+
+
+
+
+for r,d,f in os.walk(PATH):
+		r=r+os.path.sep
+		r=r.lstrip(PATH)
+		for file in f:
+				print(r+file)
+
+
+
+
+
+

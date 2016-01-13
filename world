@@ -1,0 +1,26 @@
+#!/usr/bin/python3
+#coding=utf-8
+
+
+class Zx:
+	def p(self):
+		self.v=1
+		self.b=2
+		print("a self 测试",self.v+self.b)
+
+zx=Zx()
+
+zx.p()
+
+
+
+def main():
+	v=1
+	b=2
+	print(v+b)
+	def fun():
+		print(v+b)
+	fun()
+
+
+main()

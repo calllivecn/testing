@@ -1,0 +1,26 @@
+jaskdjf a;lshdf hajksdhfj55555555555555555555555555555555555555555555555555555555555555555555555555555555555555555k
+['/home/zx/mypython', '/usr/lib/python3.4', '/usr/lib/python3.Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'f' is not defined
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+KeyError: 0
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+KeyError: 'linux'
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+KeyError: 'platfrom'
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 're' is not defined
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 're' is not defined
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 're' is not defined
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 're' is not defined
+

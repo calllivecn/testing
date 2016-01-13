@@ -1,0 +1,94 @@
+#!/usr/bin/env python3
+#coding=utf-8
+
+import socket as s
+
+import struct,sys,array,argparse
+
+
+
+parse=argparse.ArgumentParser()
+
+parse.add_argument('-da','--dip',action='store',default='127.0.0.1')
+
+parse.add_argument('-dp','--dport',type=int,default=6789)
+
+parse.add_argument('-sa','--sip',action='store',default='127.0.0.2')
+
+parse.add_argument('-sp','--sport',type=int,default=6788)
+
+parse.add_argument('-r','--recv',action='store_false')
+
+parse.add_argument('--data',default='hello world!',help='recv data')
+
+args=parse.parse_args()
+
+rs=s.socket(s.AF_INET,s.SOCK_RAW,s.IPPROTO_UDP)
+
+#rs.setsockopt(s.IPPROTO_IP,s.IP_HDRINCL,True)
+
+
+
+if args.recv:
+
+	udp_data=bytes(args.data,'utf-8')
+	
+	dip=s.gethostbyname(args.dip)
+
+	dport=args.dport
+
+	address_remote=(dip,dport)
+
+	rs.connect((dip,dport))
+
+	sip,sport=rs.getsockname()
+	print('local :',sip,sport,'remote :',dip,dport)
+	
+	
+	def pack(data):
+		data_len=len(data)
+		return struct.pack('!HHHH',sport,dport,8+data_len,0)
+	
+	def udp_checksum(data):
+	
+		data_len=len(data)
+		if data_len % 2 != 0 :
+			data_v=data+bytes(1)
+		else:
+			data_v=data
+	
+		ssip = s.inet_aton(sip)
+		ddip = s.inet_aton(dip)
+	
+		ip=struct.unpack('!I',ddip)[0]
+		print(hex(ip))
+		
+		check = (ssip) + (ddip) + struct.pack('!BBH',0,17,8+data_len) + struct.pack('!HHHH',sport,dport,8+data_len,0) + data_v
+		checksum=0
+	
+		A=array.array("H",check)
+		for i in range(len(check)//2):
+			checksum+=A[i]
+	
+		checksum = (checksum>>16) + (checksum&0xffff)
+		checksum += (checksum>>16)
+		checksum=(checksum^0xffff)
+		return struct.pack('!HHH',sport,dport,8+data_len) + struct.pack('H',checksum) + data
+	
+	
+	udp_data=udp_checksum(udp_data)
+	print(udp_data)
+	
+	pkt=rs.sendto(udp_data,address_remote)
+	
+	print(pkt)
+	
+	#print(rs.getsockopt(s.SOL_SOCKET,s.SO_TYPE))
+
+else:
+	
+	d , a=rs.recvfrom(1024)
+	print('data :',d)
+	print('address :',a)
+print(args.recv)
+rs.close()

@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+#coding=utf-8
+import sys
+
+
+f=open('zx','w')
+
+sys.stdout=f
+
+
+
+print('jaskdjf a;lshdf hajksdhfj55555555555555555555555555555555555555555555555555555555555555555555555555555555555555555k')
+print(sys.path)

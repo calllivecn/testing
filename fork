@@ -1,0 +1,16 @@
+#!/usr/bin/env python3 
+#coding=utf-8
+
+import os,time
+
+print('starting....')
+
+
+if os.fork():
+	
+	print('q j bb jftk PID :',os.getpid())
+	for v in range(30):
+		print('i am son')
+		time.sleep(3)
+
+print('done exit')

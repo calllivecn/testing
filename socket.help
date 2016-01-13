@@ -1,0 +1,1203 @@
+Help on module socket:
+
+NNAAMMEE
+    socket
+
+MMOODDUULLEE  RREEFFEERREENNCCEE
+    http://docs.python.org/3.4/library/socket
+    
+    The following documentation is automatically generated from the Python
+    source files.  It may be incomplete, incorrect or include features that
+    are considered implementation detail and may vary between Python
+    implementations.  When in doubt, consult the module reference at the
+    location listed above.
+
+DDEESSCCRRIIPPTTIIOONN
+    This module provides socket operations and some related functions.
+    On Unix, it supports IP (Internet Protocol) and Unix domain sockets.
+    On other systems, it only supports IP. Functions specific for a
+    socket are available as methods of the socket object.
+    
+    Functions:
+    
+    socket() -- create a new socket object
+    socketpair() -- create a pair of new socket objects [*]
+    fromfd() -- create a socket object from an open file descriptor [*]
+    fromshare() -- create a socket object from data received from socket.share() [*]
+    gethostname() -- return the current hostname
+    gethostbyname() -- map a hostname to its IP number
+    gethostbyaddr() -- map an IP number or hostname to DNS info
+    getservbyname() -- map a service name and a protocol name to a port number
+    getprotobyname() -- map a protocol name (e.g. 'tcp') to a number
+    ntohs(), ntohl() -- convert 16, 32 bit int from network to host byte order
+    htons(), htonl() -- convert 16, 32 bit int from host to network byte order
+    inet_aton() -- convert IP addr string (123.45.67.89) to 32-bit packed format
+    inet_ntoa() -- convert 32-bit packed format IP to string (123.45.67.89)
+    socket.getdefaulttimeout() -- get the default timeout value
+    socket.setdefaulttimeout() -- set the default timeout value
+    create_connection() -- connects to an address, with an optional timeout and
+                           optional source address.
+    
+     [*] not available on all platforms!
+    
+    Special objects:
+    
+    SocketType -- type object for socket objects
+    error -- exception raised for I/O errors
+    has_ipv6 -- boolean value indicating if IPv6 is supported
+    
+    Integer constants:
+    
+    AF_INET, AF_UNIX -- socket domains (first argument to socket() call)
+    SOCK_STREAM, SOCK_DGRAM, SOCK_RAW -- socket types (second argument)
+    
+    Many other constants may be defined; these may be used in calls to
+    the setsockopt() and getsockopt() methods.
+
+CCLLAASSSSEESS
+    _socket.socket(builtins.object)
+        socket
+    builtins.Exception(builtins.BaseException)
+        builtins.OSError
+            gaierror
+            herror
+            timeout
+    enum.IntEnum(builtins.int, enum.Enum)
+        SocketType
+    
+    class SSoocckkeettTTyyppee(enum.IntEnum)
+     |  Method resolution order:
+     |      SocketType
+     |      enum.IntEnum
+     |      builtins.int
+     |      enum.Enum
+     |      builtins.object
+     |  
+     |  Data and other attributes defined here:
+     |  
+     |  SSOOCCKK__CCLLOOEEXXEECC = <SocketType.SOCK_CLOEXEC: 524288>
+     |  
+     |  SSOOCCKK__DDGGRRAAMM = <SocketType.SOCK_DGRAM: 2>
+     |  
+     |  SSOOCCKK__NNOONNBBLLOOCCKK = <SocketType.SOCK_NONBLOCK: 2048>
+     |  
+     |  SSOOCCKK__RRAAWW = <SocketType.SOCK_RAW: 3>
+     |  
+     |  SSOOCCKK__RRDDMM = <SocketType.SOCK_RDM: 4>
+     |  
+     |  SSOOCCKK__SSEEQQPPAACCKKEETT = <SocketType.SOCK_SEQPACKET: 5>
+     |  
+     |  SSOOCCKK__SSTTRREEAAMM = <SocketType.SOCK_STREAM: 1>
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors inherited from enum.Enum:
+     |  
+     |  nnaammee
+     |      The name of the Enum member.
+     |  
+     |  vvaalluuee
+     |      The value of the Enum member.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors inherited from enum.EnumMeta:
+     |  
+     |  ____mmeemmbbeerrss____
+     |      Returns a mapping of member name->value.
+     |      
+     |      This mapping lists all enum members, including aliases. Note that this
+     |      is a read-only view of the internal mapping.
+    
+    eerrrroorr = class OSError(Exception)
+     |  Base class for I/O related errors.
+     |  
+     |  Method resolution order:
+     |      OSError
+     |      Exception
+     |      BaseException
+     |      object
+     |  
+     |  Methods defined here:
+     |  
+     |  ____iinniitt____(self, /, *args, **kwargs)
+     |      Initialize self.  See help(type(self)) for accurate signature.
+     |  
+     |  ____nneeww____(*args, **kwargs) from builtins.type
+     |      Create and return a new object.  See help(type) for accurate signature.
+     |  
+     |  ____rreedduuccee____(...)
+     |  
+     |  ____ssttrr____(self, /)
+     |      Return str(self).
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors defined here:
+     |  
+     |  cchhaarraacctteerrss__wwrriitttteenn
+     |  
+     |  eerrrrnnoo
+     |      POSIX exception code
+     |  
+     |  ffiilleennaammee
+     |      exception filename
+     |  
+     |  ffiilleennaammee22
+     |      second exception filename
+     |  
+     |  ssttrreerrrroorr
+     |      exception strerror
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from BaseException:
+     |  
+     |  ____ddeellaattttrr____(self, name, /)
+     |      Implement delattr(self, name).
+     |  
+     |  ____ggeettaattttrriibbuuttee____(self, name, /)
+     |      Return getattr(self, name).
+     |  
+     |  ____rreepprr____(self, /)
+     |      Return repr(self).
+     |  
+     |  ____sseettaattttrr____(self, name, value, /)
+     |      Implement setattr(self, name, value).
+     |  
+     |  ____sseettssttaattee____(...)
+     |  
+     |  wwiitthh__ttrraacceebbaacckk(...)
+     |      Exception.with_traceback(tb) --
+     |      set self.__traceback__ to tb and return self.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors inherited from BaseException:
+     |  
+     |  ____ccaauussee____
+     |      exception cause
+     |  
+     |  ____ccoonntteexxtt____
+     |      exception context
+     |  
+     |  ____ddiicctt____
+     |  
+     |  ____ssuupppprreessss__ccoonntteexxtt____
+     |  
+     |  ____ttrraacceebbaacckk____
+     |  
+     |  aarrggss
+    
+    class ggaaiieerrrroorr(builtins.OSError)
+     |  Method resolution order:
+     |      gaierror
+     |      builtins.OSError
+     |      builtins.Exception
+     |      builtins.BaseException
+     |      builtins.object
+     |  
+     |  Data descriptors defined here:
+     |  
+     |  ____wweeaakkrreeff____
+     |      list of weak references to the object (if defined)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from builtins.OSError:
+     |  
+     |  ____iinniitt____(self, /, *args, **kwargs)
+     |      Initialize self.  See help(type(self)) for accurate signature.
+     |  
+     |  ____nneeww____(*args, **kwargs) from builtins.type
+     |      Create and return a new object.  See help(type) for accurate signature.
+     |  
+     |  ____rreedduuccee____(...)
+     |  
+     |  ____ssttrr____(self, /)
+     |      Return str(self).
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors inherited from builtins.OSError:
+     |  
+     |  cchhaarraacctteerrss__wwrriitttteenn
+     |  
+     |  eerrrrnnoo
+     |      POSIX exception code
+     |  
+     |  ffiilleennaammee
+     |      exception filename
+     |  
+     |  ffiilleennaammee22
+     |      second exception filename
+     |  
+     |  ssttrreerrrroorr
+     |      exception strerror
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from builtins.BaseException:
+     |  
+     |  ____ddeellaattttrr____(self, name, /)
+     |      Implement delattr(self, name).
+     |  
+     |  ____ggeettaattttrriibbuuttee____(self, name, /)
+     |      Return getattr(self, name).
+     |  
+     |  ____rreepprr____(self, /)
+     |      Return repr(self).
+     |  
+     |  ____sseettaattttrr____(self, name, value, /)
+     |      Implement setattr(self, name, value).
+     |  
+     |  ____sseettssttaattee____(...)
+     |  
+     |  wwiitthh__ttrraacceebbaacckk(...)
+     |      Exception.with_traceback(tb) --
+     |      set self.__traceback__ to tb and return self.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors inherited from builtins.BaseException:
+     |  
+     |  ____ccaauussee____
+     |      exception cause
+     |  
+     |  ____ccoonntteexxtt____
+     |      exception context
+     |  
+     |  ____ddiicctt____
+     |  
+     |  ____ssuupppprreessss__ccoonntteexxtt____
+     |  
+     |  ____ttrraacceebbaacckk____
+     |  
+     |  aarrggss
+    
+    class hheerrrroorr(builtins.OSError)
+     |  Method resolution order:
+     |      herror
+     |      builtins.OSError
+     |      builtins.Exception
+     |      builtins.BaseException
+     |      builtins.object
+     |  
+     |  Data descriptors defined here:
+     |  
+     |  ____wweeaakkrreeff____
+     |      list of weak references to the object (if defined)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from builtins.OSError:
+     |  
+     |  ____iinniitt____(self, /, *args, **kwargs)
+     |      Initialize self.  See help(type(self)) for accurate signature.
+     |  
+     |  ____nneeww____(*args, **kwargs) from builtins.type
+     |      Create and return a new object.  See help(type) for accurate signature.
+     |  
+     |  ____rreedduuccee____(...)
+     |  
+     |  ____ssttrr____(self, /)
+     |      Return str(self).
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors inherited from builtins.OSError:
+     |  
+     |  cchhaarraacctteerrss__wwrriitttteenn
+     |  
+     |  eerrrrnnoo
+     |      POSIX exception code
+     |  
+     |  ffiilleennaammee
+     |      exception filename
+     |  
+     |  ffiilleennaammee22
+     |      second exception filename
+     |  
+     |  ssttrreerrrroorr
+     |      exception strerror
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from builtins.BaseException:
+     |  
+     |  ____ddeellaattttrr____(self, name, /)
+     |      Implement delattr(self, name).
+     |  
+     |  ____ggeettaattttrriibbuuttee____(self, name, /)
+     |      Return getattr(self, name).
+     |  
+     |  ____rreepprr____(self, /)
+     |      Return repr(self).
+     |  
+     |  ____sseettaattttrr____(self, name, value, /)
+     |      Implement setattr(self, name, value).
+     |  
+     |  ____sseettssttaattee____(...)
+     |  
+     |  wwiitthh__ttrraacceebbaacckk(...)
+     |      Exception.with_traceback(tb) --
+     |      set self.__traceback__ to tb and return self.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors inherited from builtins.BaseException:
+     |  
+     |  ____ccaauussee____
+     |      exception cause
+     |  
+     |  ____ccoonntteexxtt____
+     |      exception context
+     |  
+     |  ____ddiicctt____
+     |  
+     |  ____ssuupppprreessss__ccoonntteexxtt____
+     |  
+     |  ____ttrraacceebbaacckk____
+     |  
+     |  aarrggss
+    
+    class ssoocckkeett(_socket.socket)
+     |  A subclass of _socket.socket adding the makefile() method.
+     |  
+     |  Method resolution order:
+     |      socket
+     |      _socket.socket
+     |      builtins.object
+     |  
+     |  Methods defined here:
+     |  
+     |  ____eenntteerr____(self)
+     |  
+     |  ____eexxiitt____(self, *args)
+     |  
+     |  ____ggeettssttaattee____(self)
+     |  
+     |  ____iinniitt____(self, family=<AddressFamily.AF_INET: 2>, type=<SocketType.SOCK_STREAM: 1>, proto=0, fileno=None)
+     |  
+     |  ____rreepprr____(self)
+     |      Wrap __repr__() to reveal the real class name and socket
+     |      address(es).
+     |  
+     |  aacccceepptt(self)
+     |      accept() -> (socket object, address info)
+     |      
+     |      Wait for an incoming connection.  Return a new socket
+     |      representing the connection, and the address of the client.
+     |      For IP sockets, the address info is a pair (hostaddr, port).
+     |  
+     |  cclloossee(self)
+     |  
+     |  ddeettaacchh(self)
+     |      detach() -> file descriptor
+     |      
+     |      Close the socket object without closing the underlying file descriptor.
+     |      The object cannot be used after this call, but the file descriptor
+     |      can be reused for other purposes.  The file descriptor is returned.
+     |  
+     |  dduupp(self)
+     |      dup() -> socket object
+     |      
+     |      Duplicate the socket. Return a new socket object connected to the same
+     |      system resource. The new socket is non-inheritable.
+     |  
+     |  ggeett__iinnhheerriittaabbllee(self)
+     |      Get the inheritable flag of the socket
+     |  
+     |  mmaakkeeffiillee(self, mode='r', buffering=None, *, encoding=None, errors=None, newline=None)
+     |      makefile(...) -> an I/O stream connected to the socket
+     |      
+     |      The arguments are as for io.open() after the filename,
+     |      except the only mode characters supported are 'r', 'w' and 'b'.
+     |      The semantics are similar too.  (XXX refactor to share code?)
+     |  
+     |  sseett__iinnhheerriittaabbllee(self, inheritable)
+     |      Set the inheritable flag of the socket
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors defined here:
+     |  
+     |  ____wweeaakkrreeff____
+     |      list of weak references to the object (if defined)
+     |  
+     |  ffaammiillyy
+     |      Read-only access to the address family for this socket.
+     |  
+     |  ttyyppee
+     |      Read-only access to the socket type.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from _socket.socket:
+     |  
+     |  ____ggeettaattttrriibbuuttee____(self, name, /)
+     |      Return getattr(self, name).
+     |  
+     |  ____nneeww____(*args, **kwargs) from builtins.type
+     |      Create and return a new object.  See help(type) for accurate signature.
+     |  
+     |  bbiinndd(...)
+     |      bind(address)
+     |      
+     |      Bind the socket to a local address.  For IP sockets, the address is a
+     |      pair (host, port); the host must refer to the local host. For raw packet
+     |      sockets the address is a tuple (ifname, proto [,pkttype [,hatype]])
+     |  
+     |  ccoonnnneecctt(...)
+     |      connect(address)
+     |      
+     |      Connect the socket to a remote address.  For IP sockets, the address
+     |      is a pair (host, port).
+     |  
+     |  ccoonnnneecctt__eexx(...)
+     |      connect_ex(address) -> errno
+     |      
+     |      This is like connect(address), but returns an error code (the errno value)
+     |      instead of raising an exception when an error occurs.
+     |  
+     |  ffiilleennoo(...)
+     |      fileno() -> integer
+     |      
+     |      Return the integer file descriptor of the socket.
+     |  
+     |  ggeettppeeeerrnnaammee(...)
+     |      getpeername() -> address info
+     |      
+     |      Return the address of the remote endpoint.  For IP sockets, the address
+     |      info is a pair (hostaddr, port).
+     |  
+     |  ggeettssoocckknnaammee(...)
+     |      getsockname() -> address info
+     |      
+     |      Return the address of the local endpoint.  For IP sockets, the address
+     |      info is a pair (hostaddr, port).
+     |  
+     |  ggeettssoocckkoopptt(...)
+     |      getsockopt(level, option[, buffersize]) -> value
+     |      
+     |      Get a socket option.  See the Unix manual for level and option.
+     |      If a nonzero buffersize argument is given, the return value is a
+     |      string of that length; otherwise it is an integer.
+     |  
+     |  ggeettttiimmeeoouutt(...)
+     |      gettimeout() -> timeout
+     |      
+     |      Returns the timeout in seconds (float) associated with socket 
+     |      operations. A timeout of None indicates that timeouts on socket 
+     |      operations are disabled.
+     |  
+     |  lliisstteenn(...)
+     |      listen(backlog)
+     |      
+     |      Enable a server to accept connections.  The backlog argument must be at
+     |      least 0 (if it is lower, it is set to 0); it specifies the number of
+     |      unaccepted connections that the system will allow before refusing new
+     |      connections.
+     |  
+     |  rreeccvv(...)
+     |      recv(buffersize[, flags]) -> data
+     |      
+     |      Receive up to buffersize bytes from the socket.  For the optional flags
+     |      argument, see the Unix manual.  When no data is available, block until
+     |      at least one byte is available or until the remote end is closed.  When
+     |      the remote end is closed and all data is read, return the empty string.
+     |  
+     |  rreeccvv__iinnttoo(...)
+     |      recv_into(buffer, [nbytes[, flags]]) -> nbytes_read
+     |      
+     |      A version of recv() that stores its data into a buffer rather than creating 
+     |      a new string.  Receive up to buffersize bytes from the socket.  If buffersize 
+     |      is not specified (or 0), receive up to the size available in the given buffer.
+     |      
+     |      See recv() for documentation about the flags.
+     |  
+     |  rreeccvvffrroomm(...)
+     |      recvfrom(buffersize[, flags]) -> (data, address info)
+     |      
+     |      Like recv(buffersize, flags) but also return the sender's address info.
+     |  
+     |  rreeccvvffrroomm__iinnttoo(...)
+     |      recvfrom_into(buffer[, nbytes[, flags]]) -> (nbytes, address info)
+     |      
+     |      Like recv_into(buffer[, nbytes[, flags]]) but also return the sender's address info.
+     |  
+     |  rreeccvvmmssgg(...)
+     |      recvmsg(bufsize[, ancbufsize[, flags]]) -> (data, ancdata, msg_flags, address)
+     |      
+     |      Receive normal data (up to bufsize bytes) and ancillary data from the
+     |      socket.  The ancbufsize argument sets the size in bytes of the
+     |      internal buffer used to receive the ancillary data; it defaults to 0,
+     |      meaning that no ancillary data will be received.  Appropriate buffer
+     |      sizes for ancillary data can be calculated using CMSG_SPACE() or
+     |      CMSG_LEN(), and items which do not fit into the buffer might be
+     |      truncated or discarded.  The flags argument defaults to 0 and has the
+     |      same meaning as for recv().
+     |      
+     |      The return value is a 4-tuple: (data, ancdata, msg_flags, address).
+     |      The data item is a bytes object holding the non-ancillary data
+     |      received.  The ancdata item is a list of zero or more tuples
+     |      (cmsg_level, cmsg_type, cmsg_data) representing the ancillary data
+     |      (control messages) received: cmsg_level and cmsg_type are integers
+     |      specifying the protocol level and protocol-specific type respectively,
+     |      and cmsg_data is a bytes object holding the associated data.  The
+     |      msg_flags item is the bitwise OR of various flags indicating
+     |      conditions on the received message; see your system documentation for
+     |      details.  If the receiving socket is unconnected, address is the
+     |      address of the sending socket, if available; otherwise, its value is
+     |      unspecified.
+     |      
+     |      If recvmsg() raises an exception after the system call returns, it
+     |      will first attempt to close any file descriptors received via the
+     |      SCM_RIGHTS mechanism.
+     |  
+     |  rreeccvvmmssgg__iinnttoo(...)
+     |      recvmsg_into(buffers[, ancbufsize[, flags]]) -> (nbytes, ancdata, msg_flags, address)
+     |      
+     |      Receive normal data and ancillary data from the socket, scattering the
+     |      non-ancillary data into a series of buffers.  The buffers argument
+     |      must be an iterable of objects that export writable buffers
+     |      (e.g. bytearray objects); these will be filled with successive chunks
+     |      of the non-ancillary data until it has all been written or there are
+     |      no more buffers.  The ancbufsize argument sets the size in bytes of
+     |      the internal buffer used to receive the ancillary data; it defaults to
+     |      0, meaning that no ancillary data will be received.  Appropriate
+     |      buffer sizes for ancillary data can be calculated using CMSG_SPACE()
+     |      or CMSG_LEN(), and items which do not fit into the buffer might be
+     |      truncated or discarded.  The flags argument defaults to 0 and has the
+     |      same meaning as for recv().
+     |      
+     |      The return value is a 4-tuple: (nbytes, ancdata, msg_flags, address).
+     |      The nbytes item is the total number of bytes of non-ancillary data
+     |      written into the buffers.  The ancdata item is a list of zero or more
+     |      tuples (cmsg_level, cmsg_type, cmsg_data) representing the ancillary
+     |      data (control messages) received: cmsg_level and cmsg_type are
+     |      integers specifying the protocol level and protocol-specific type
+     |      respectively, and cmsg_data is a bytes object holding the associated
+     |      data.  The msg_flags item is the bitwise OR of various flags
+     |      indicating conditions on the received message; see your system
+     |      documentation for details.  If the receiving socket is unconnected,
+     |      address is the address of the sending socket, if available; otherwise,
+     |      its value is unspecified.
+     |      
+     |      If recvmsg_into() raises an exception after the system call returns,
+     |      it will first attempt to close any file descriptors received via the
+     |      SCM_RIGHTS mechanism.
+     |  
+     |  sseenndd(...)
+     |      send(data[, flags]) -> count
+     |      
+     |      Send a data string to the socket.  For the optional flags
+     |      argument, see the Unix manual.  Return the number of bytes
+     |      sent; this may be less than len(data) if the network is busy.
+     |  
+     |  sseennddaallll(...)
+     |      sendall(data[, flags])
+     |      
+     |      Send a data string to the socket.  For the optional flags
+     |      argument, see the Unix manual.  This calls send() repeatedly
+     |      until all data is sent.  If an error occurs, it's impossible
+     |      to tell how much data has been sent.
+     |  
+     |  sseennddmmssgg(...)
+     |      sendmsg(buffers[, ancdata[, flags[, address]]]) -> count
+     |      
+     |      Send normal and ancillary data to the socket, gathering the
+     |      non-ancillary data from a series of buffers and concatenating it into
+     |      a single message.  The buffers argument specifies the non-ancillary
+     |      data as an iterable of buffer-compatible objects (e.g. bytes objects).
+     |      The ancdata argument specifies the ancillary data (control messages)
+     |      as an iterable of zero or more tuples (cmsg_level, cmsg_type,
+     |      cmsg_data), where cmsg_level and cmsg_type are integers specifying the
+     |      protocol level and protocol-specific type respectively, and cmsg_data
+     |      is a buffer-compatible object holding the associated data.  The flags
+     |      argument defaults to 0 and has the same meaning as for send().  If
+     |      address is supplied and not None, it sets a destination address for
+     |      the message.  The return value is the number of bytes of non-ancillary
+     |      data sent.
+     |  
+     |  sseennddttoo(...)
+     |      sendto(data[, flags], address) -> count
+     |      
+     |      Like send(data, flags) but allows specifying the destination address.
+     |      For IP sockets, the address is a pair (hostaddr, port).
+     |  
+     |  sseettbblloocckkiinngg(...)
+     |      setblocking(flag)
+     |      
+     |      Set the socket to blocking (flag is true) or non-blocking (false).
+     |      setblocking(True) is equivalent to settimeout(None);
+     |      setblocking(False) is equivalent to settimeout(0.0).
+     |  
+     |  sseettssoocckkoopptt(...)
+     |      setsockopt(level, option, value)
+     |      
+     |      Set a socket option.  See the Unix manual for level and option.
+     |      The value argument can either be an integer or a string.
+     |  
+     |  sseettttiimmeeoouutt(...)
+     |      settimeout(timeout)
+     |      
+     |      Set a timeout on socket operations.  'timeout' can be a float,
+     |      giving in seconds, or None.  Setting a timeout of None disables
+     |      the timeout feature and is equivalent to setblocking(1).
+     |      Setting a timeout of zero is the same as setblocking(0).
+     |  
+     |  sshhuuttddoowwnn(...)
+     |      shutdown(flag)
+     |      
+     |      Shut down the reading side of the socket (flag == SHUT_RD), the writing side
+     |      of the socket (flag == SHUT_WR), or both ends (flag == SHUT_RDWR).
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors inherited from _socket.socket:
+     |  
+     |  pprroottoo
+     |      the socket protocol
+     |  
+     |  ttiimmeeoouutt
+     |      the socket timeout
+    
+    class ttiimmeeoouutt(builtins.OSError)
+     |  Method resolution order:
+     |      timeout
+     |      builtins.OSError
+     |      builtins.Exception
+     |      builtins.BaseException
+     |      builtins.object
+     |  
+     |  Data descriptors defined here:
+     |  
+     |  ____wweeaakkrreeff____
+     |      list of weak references to the object (if defined)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from builtins.OSError:
+     |  
+     |  ____iinniitt____(self, /, *args, **kwargs)
+     |      Initialize self.  See help(type(self)) for accurate signature.
+     |  
+     |  ____nneeww____(*args, **kwargs) from builtins.type
+     |      Create and return a new object.  See help(type) for accurate signature.
+     |  
+     |  ____rreedduuccee____(...)
+     |  
+     |  ____ssttrr____(self, /)
+     |      Return str(self).
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors inherited from builtins.OSError:
+     |  
+     |  cchhaarraacctteerrss__wwrriitttteenn
+     |  
+     |  eerrrrnnoo
+     |      POSIX exception code
+     |  
+     |  ffiilleennaammee
+     |      exception filename
+     |  
+     |  ffiilleennaammee22
+     |      second exception filename
+     |  
+     |  ssttrreerrrroorr
+     |      exception strerror
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from builtins.BaseException:
+     |  
+     |  ____ddeellaattttrr____(self, name, /)
+     |      Implement delattr(self, name).
+     |  
+     |  ____ggeettaattttrriibbuuttee____(self, name, /)
+     |      Return getattr(self, name).
+     |  
+     |  ____rreepprr____(self, /)
+     |      Return repr(self).
+     |  
+     |  ____sseettaattttrr____(self, name, value, /)
+     |      Implement setattr(self, name, value).
+     |  
+     |  ____sseettssttaattee____(...)
+     |  
+     |  wwiitthh__ttrraacceebbaacckk(...)
+     |      Exception.with_traceback(tb) --
+     |      set self.__traceback__ to tb and return self.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors inherited from builtins.BaseException:
+     |  
+     |  ____ccaauussee____
+     |      exception cause
+     |  
+     |  ____ccoonntteexxtt____
+     |      exception context
+     |  
+     |  ____ddiicctt____
+     |  
+     |  ____ssuupppprreessss__ccoonntteexxtt____
+     |  
+     |  ____ttrraacceebbaacckk____
+     |  
+     |  aarrggss
+
+FFUUNNCCTTIIOONNSS
+    CCMMSSGG__LLEENN(...)
+        CMSG_LEN(length) -> control message length
+        
+        Return the total length, without trailing padding, of an ancillary
+        data item with associated data of the given length.  This value can
+        often be used as the buffer size for recvmsg() to receive a single
+        item of ancillary data, but RFC 3542 requires portable applications to
+        use CMSG_SPACE() and thus include space for padding, even when the
+        item will be the last in the buffer.  Raises OverflowError if length
+        is outside the permissible range of values.
+    
+    CCMMSSGG__SSPPAACCEE(...)
+        CMSG_SPACE(length) -> buffer size
+        
+        Return the buffer size needed for recvmsg() to receive an ancillary
+        data item with associated data of the given length, along with any
+        trailing padding.  The buffer space needed to receive multiple items
+        is the sum of the CMSG_SPACE() values for their associated data
+        lengths.  Raises OverflowError if length is outside the permissible
+        range of values.
+    
+    ccrreeaattee__ccoonnnneeccttiioonn(address, timeout=<object object at 0x7f4ce9d6b0d0>, source_address=None)
+        Connect to *address* and return the socket object.
+        
+        Convenience function.  Connect to *address* (a 2-tuple ``(host,
+        port)``) and return the socket object.  Passing the optional
+        *timeout* parameter will set the timeout on the socket instance
+        before attempting to connect.  If no *timeout* is supplied, the
+        global default timeout setting returned by :func:`getdefaulttimeout`
+        is used.  If *source_address* is set it must be a tuple of (host, port)
+        for the socket to bind as a source address before making the connection.
+        An host of '' or port 0 tells the OS to use the default.
+    
+    dduupp(...)
+        dup(integer) -> integer
+        
+        Duplicate an integer socket file descriptor.  This is like os.dup(), but for
+        sockets; on some platforms os.dup() won't work for socket file descriptors.
+    
+    ggeettaaddddrriinnffoo(host, port, family=0, type=0, proto=0, flags=0)
+        Resolve host and port into list of address info entries.
+        
+        Translate the host/port argument into a sequence of 5-tuples that contain
+        all the necessary arguments for creating a socket connected to that service.
+        host is a domain name, a string representation of an IPv4/v6 address or
+        None. port is a string service name such as 'http', a numeric port number or
+        None. By passing None as the value of host and port, you can pass NULL to
+        the underlying C API.
+        
+        The family, type and proto arguments can be optionally specified in order to
+        narrow the list of addresses returned. Passing zero as a value for each of
+        these arguments selects the full range of results.
+    
+    ggeettddeeffaauullttttiimmeeoouutt(...)
+        getdefaulttimeout() -> timeout
+        
+        Returns the default timeout in seconds (float) for new socket objects.
+        A value of None indicates that new socket objects have no timeout.
+        When the socket module is first imported, the default is None.
+    
+    ggeettffqqddnn(name='')
+        Get fully qualified domain name from name.
+        
+        An empty argument is interpreted as meaning the local host.
+        
+        First the hostname returned by gethostbyaddr() is checked, then
+        possibly existing aliases. In case no FQDN is available, hostname
+        from gethostname() is returned.
+    
+    ggeetthhoossttbbyyaaddddrr(...)
+        gethostbyaddr(host) -> (name, aliaslist, addresslist)
+        
+        Return the true host name, a list of aliases, and a list of IP addresses,
+        for a host.  The host argument is a string giving a host name or IP number.
+    
+    ggeetthhoossttbbyynnaammee(...)
+        gethostbyname(host) -> address
+        
+        Return the IP address (a string of the form '255.255.255.255') for a host.
+    
+    ggeetthhoossttbbyynnaammee__eexx(...)
+        gethostbyname_ex(host) -> (name, aliaslist, addresslist)
+        
+        Return the true host name, a list of aliases, and a list of IP addresses,
+        for a host.  The host argument is a string giving a host name or IP number.
+    
+    ggeetthhoossttnnaammee(...)
+        gethostname() -> string
+        
+        Return the current host name.
+    
+    ggeettnnaammeeiinnffoo(...)
+        getnameinfo(sockaddr, flags) --> (host, port)
+        
+        Get host and port for a sockaddr.
+    
+    ggeettpprroottoobbyynnaammee(...)
+        getprotobyname(name) -> integer
+        
+        Return the protocol number for the named protocol.  (Rarely used.)
+    
+    ggeettsseerrvvbbyynnaammee(...)
+        getservbyname(servicename[, protocolname]) -> integer
+        
+        Return a port number from a service name and protocol name.
+        The optional protocol name, if given, should be 'tcp' or 'udp',
+        otherwise any protocol will match.
+    
+    ggeettsseerrvvbbyyppoorrtt(...)
+        getservbyport(port[, protocolname]) -> string
+        
+        Return the service name from a port number and protocol name.
+        The optional protocol name, if given, should be 'tcp' or 'udp',
+        otherwise any protocol will match.
+    
+    hhttoonnll(...)
+        htonl(integer) -> integer
+        
+        Convert a 32-bit integer from host to network byte order.
+    
+    hhttoonnss(...)
+        htons(integer) -> integer
+        
+        Convert a 16-bit integer from host to network byte order.
+    
+    iiff__iinnddeexxttoonnaammee(...)
+        if_indextoname(if_index)
+        
+        Returns the interface name corresponding to the interface index if_index.
+    
+    iiff__nnaammeeiinnddeexx(...)
+        if_nameindex()
+        
+        Returns a list of network interface information (index, name) tuples.
+    
+    iiff__nnaammeettooiinnddeexx(...)
+        if_nametoindex(if_name)
+        
+        Returns the interface index corresponding to the interface name if_name.
+    
+    iinneett__aattoonn(...)
+        inet_aton(string) -> bytes giving packed 32-bit IP representation
+        
+        Convert an IP address in string format (123.45.67.89) to the 32-bit packed
+        binary format used in low-level network functions.
+    
+    iinneett__nnttooaa(...)
+        inet_ntoa(packed_ip) -> ip_address_string
+        
+        Convert an IP address from 32-bit packed binary format to string format
+    
+    iinneett__nnttoopp(...)
+        inet_ntop(af, packed_ip) -> string formatted IP address
+        
+        Convert a packed IP address of the given family to string format.
+    
+    iinneett__ppttoonn(...)
+        inet_pton(af, ip) -> packed IP address string
+        
+        Convert an IP address from string format to a packed string suitable
+        for use with low-level network functions.
+    
+    nnttoohhll(...)
+        ntohl(integer) -> integer
+        
+        Convert a 32-bit integer from network to host byte order.
+    
+    nnttoohhss(...)
+        ntohs(integer) -> integer
+        
+        Convert a 16-bit integer from network to host byte order.
+    
+    sseettddeeffaauullttttiimmeeoouutt(...)
+        setdefaulttimeout(timeout)
+        
+        Set the default timeout in seconds (float) for new socket objects.
+        A value of None indicates that new socket objects have no timeout.
+        When the socket module is first imported, the default is None.
+    
+    sseetthhoossttnnaammee(...)
+        sethostname(name)
+        
+        Sets the hostname to name.
+    
+    ssoocckkeettppaaiirr(family=None, type=<SocketType.SOCK_STREAM: 1>, proto=0)
+        socketpair([family[, type[, proto]]]) -> (socket object, socket object)
+        
+        Create a pair of socket objects from the sockets returned by the platform
+        socketpair() function.
+        The arguments are the same as for socket() except the default family is
+        AF_UNIX if defined on the platform; otherwise, the default is AF_INET.
+
+DDAATTAA
+    AAFF__AAPPPPLLEETTAALLKK = <AddressFamily.AF_APPLETALK: 5>
+    AAFF__AASSHH = <AddressFamily.AF_ASH: 18>
+    AAFF__AATTMMPPVVCC = <AddressFamily.AF_ATMPVC: 8>
+    AAFF__AATTMMSSVVCC = <AddressFamily.AF_ATMSVC: 20>
+    AAFF__AAXX2255 = <AddressFamily.AF_AX25: 3>
+    AAFF__BBLLUUEETTOOOOTTHH = <AddressFamily.AF_BLUETOOTH: 31>
+    AAFF__BBRRIIDDGGEE = <AddressFamily.AF_BRIDGE: 7>
+    AAFF__CCAANN = <AddressFamily.AF_CAN: 29>
+    AAFF__DDEECCnneett = 12
+    AAFF__EECCOONNEETT = <AddressFamily.AF_ECONET: 19>
+    AAFF__IINNEETT = <AddressFamily.AF_INET: 2>
+    AAFF__IINNEETT66 = <AddressFamily.AF_INET6: 10>
+    AAFF__IIPPXX = <AddressFamily.AF_IPX: 4>
+    AAFF__IIRRDDAA = <AddressFamily.AF_IRDA: 23>
+    AAFF__KKEEYY = <AddressFamily.AF_KEY: 15>
+    AAFF__LLLLCC = <AddressFamily.AF_LLC: 26>
+    AAFF__NNEETTBBEEUUII = <AddressFamily.AF_NETBEUI: 13>
+    AAFF__NNEETTLLIINNKK = <AddressFamily.AF_NETLINK: 16>
+    AAFF__NNEETTRROOMM = <AddressFamily.AF_NETROM: 6>
+    AAFF__PPAACCKKEETT = <AddressFamily.AF_PACKET: 17>
+    AAFF__PPPPPPOOXX = <AddressFamily.AF_PPPOX: 24>
+    AAFF__RRDDSS = <AddressFamily.AF_RDS: 21>
+    AAFF__RROOSSEE = <AddressFamily.AF_ROSE: 11>
+    AAFF__RROOUUTTEE = <AddressFamily.AF_NETLINK: 16>
+    AAFF__SSEECCUURRIITTYY = <AddressFamily.AF_SECURITY: 14>
+    AAFF__SSNNAA = <AddressFamily.AF_SNA: 22>
+    AAFF__TTIIPPCC = <AddressFamily.AF_TIPC: 30>
+    AAFF__UUNNIIXX = <AddressFamily.AF_UNIX: 1>
+    AAFF__UUNNSSPPEECC = <AddressFamily.AF_UNSPEC: 0>
+    AAFF__WWAANNPPIIPPEE = <AddressFamily.AF_WANPIPE: 25>
+    AAFF__XX2255 = <AddressFamily.AF_X25: 9>
+    AAII__AADDDDRRCCOONNFFIIGG = 32
+    AAII__AALLLL = 16
+    AAII__CCAANNOONNNNAAMMEE = 2
+    AAII__NNUUMMEERRIICCHHOOSSTT = 4
+    AAII__NNUUMMEERRIICCSSEERRVV = 1024
+    AAII__PPAASSSSIIVVEE = 1
+    AAII__VV44MMAAPPPPEEDD = 8
+    BBDDAADDDDRR__AANNYY = '00:00:00:00:00:00'
+    BBDDAADDDDRR__LLOOCCAALL = '00:00:00:FF:FF:FF'
+    BBTTPPRROOTTOO__HHCCII = 1
+    BBTTPPRROOTTOO__LL22CCAAPP = 0
+    BBTTPPRROOTTOO__RRFFCCOOMMMM = 3
+    BBTTPPRROOTTOO__SSCCOO = 2
+    CCAANN__BBCCMM = 2
+    CCAANN__BBCCMM__RRXX__CCHHAANNGGEEDD = 12
+    CCAANN__BBCCMM__RRXX__DDEELLEETTEE = 6
+    CCAANN__BBCCMM__RRXX__RREEAADD = 7
+    CCAANN__BBCCMM__RRXX__SSEETTUUPP = 5
+    CCAANN__BBCCMM__RRXX__SSTTAATTUUSS = 10
+    CCAANN__BBCCMM__RRXX__TTIIMMEEOOUUTT = 11
+    CCAANN__BBCCMM__TTXX__DDEELLEETTEE = 2
+    CCAANN__BBCCMM__TTXX__EEXXPPIIRREEDD = 9
+    CCAANN__BBCCMM__TTXX__RREEAADD = 3
+    CCAANN__BBCCMM__TTXX__SSEENNDD = 4
+    CCAANN__BBCCMM__TTXX__SSEETTUUPP = 1
+    CCAANN__BBCCMM__TTXX__SSTTAATTUUSS = 8
+    CCAANN__EEFFFF__FFLLAAGG = 2147483648
+    CCAANN__EEFFFF__MMAASSKK = 536870911
+    CCAANN__EERRRR__FFLLAAGG = 536870912
+    CCAANN__EERRRR__MMAASSKK = 536870911
+    CCAANN__RRAAWW = 1
+    CCAANN__RRAAWW__EERRRR__FFIILLTTEERR = 2
+    CCAANN__RRAAWW__FFIILLTTEERR = 1
+    CCAANN__RRAAWW__LLOOOOPPBBAACCKK = 3
+    CCAANN__RRAAWW__RREECCVV__OOWWNN__MMSSGGSS = 4
+    CCAANN__RRTTRR__FFLLAAGG = 1073741824
+    CCAANN__SSFFFF__MMAASSKK = 2047
+    CCAAPPII = <capsule object "_socket.CAPI">
+    EEAAII__AADDDDRRFFAAMMIILLYY = -9
+    EEAAII__AAGGAAIINN = -3
+    EEAAII__BBAADDFFLLAAGGSS = -1
+    EEAAII__FFAAIILL = -4
+    EEAAII__FFAAMMIILLYY = -6
+    EEAAII__MMEEMMOORRYY = -10
+    EEAAII__NNOODDAATTAA = -5
+    EEAAII__NNOONNAAMMEE = -2
+    EEAAII__OOVVEERRFFLLOOWW = -12
+    EEAAII__SSEERRVVIICCEE = -8
+    EEAAII__SSOOCCKKTTYYPPEE = -7
+    EEAAII__SSYYSSTTEEMM = -11
+    HHCCII__DDAATTAA__DDIIRR = 1
+    HHCCII__FFIILLTTEERR = 2
+    HHCCII__TTIIMMEE__SSTTAAMMPP = 3
+    IINNAADDDDRR__AALLLLHHOOSSTTSS__GGRROOUUPP = 3758096385
+    IINNAADDDDRR__AANNYY = 0
+    IINNAADDDDRR__BBRROOAADDCCAASSTT = 4294967295
+    IINNAADDDDRR__LLOOOOPPBBAACCKK = 2130706433
+    IINNAADDDDRR__MMAAXX__LLOOCCAALL__GGRROOUUPP = 3758096639
+    IINNAADDDDRR__NNOONNEE = 4294967295
+    IINNAADDDDRR__UUNNSSPPEECC__GGRROOUUPP = 3758096384
+    IIPPPPOORRTT__RREESSEERRVVEEDD = 1024
+    IIPPPPOORRTT__UUSSEERRRREESSEERRVVEEDD = 5000
+    IIPPPPRROOTTOO__AAHH = 51
+    IIPPPPRROOTTOO__DDSSTTOOPPTTSS = 60
+    IIPPPPRROOTTOO__EEGGPP = 8
+    IIPPPPRROOTTOO__EESSPP = 50
+    IIPPPPRROOTTOO__FFRRAAGGMMEENNTT = 44
+    IIPPPPRROOTTOO__GGRREE = 47
+    IIPPPPRROOTTOO__HHOOPPOOPPTTSS = 0
+    IIPPPPRROOTTOO__IICCMMPP = 1
+    IIPPPPRROOTTOO__IICCMMPPVV66 = 58
+    IIPPPPRROOTTOO__IIDDPP = 22
+    IIPPPPRROOTTOO__IIGGMMPP = 2
+    IIPPPPRROOTTOO__IIPP = 0
+    IIPPPPRROOTTOO__IIPPIIPP = 4
+    IIPPPPRROOTTOO__IIPPVV66 = 41
+    IIPPPPRROOTTOO__NNOONNEE = 59
+    IIPPPPRROOTTOO__PPIIMM = 103
+    IIPPPPRROOTTOO__PPUUPP = 12
+    IIPPPPRROOTTOO__RRAAWW = 255
+    IIPPPPRROOTTOO__RROOUUTTIINNGG = 43
+    IIPPPPRROOTTOO__RRSSVVPP = 46
+    IIPPPPRROOTTOO__SSCCTTPP = 132
+    IIPPPPRROOTTOO__TTCCPP = 6
+    IIPPPPRROOTTOO__TTPP = 29
+    IIPPPPRROOTTOO__UUDDPP = 17
+    IIPPVV66__CCHHEECCKKSSUUMM = 7
+    IIPPVV66__DDSSTTOOPPTTSS = 59
+    IIPPVV66__HHOOPPLLIIMMIITT = 52
+    IIPPVV66__HHOOPPOOPPTTSS = 54
+    IIPPVV66__JJOOIINN__GGRROOUUPP = 20
+    IIPPVV66__LLEEAAVVEE__GGRROOUUPP = 21
+    IIPPVV66__MMUULLTTIICCAASSTT__HHOOPPSS = 18
+    IIPPVV66__MMUULLTTIICCAASSTT__IIFF = 17
+    IIPPVV66__MMUULLTTIICCAASSTT__LLOOOOPP = 19
+    IIPPVV66__NNEEXXTTHHOOPP = 9
+    IIPPVV66__PPKKTTIINNFFOO = 50
+    IIPPVV66__RREECCVVDDSSTTOOPPTTSS = 58
+    IIPPVV66__RREECCVVHHOOPPLLIIMMIITT = 51
+    IIPPVV66__RREECCVVHHOOPPOOPPTTSS = 53
+    IIPPVV66__RREECCVVPPKKTTIINNFFOO = 49
+    IIPPVV66__RREECCVVRRTTHHDDRR = 56
+    IIPPVV66__RREECCVVTTCCLLAASSSS = 66
+    IIPPVV66__RRTTHHDDRR = 57
+    IIPPVV66__RRTTHHDDRRDDSSTTOOPPTTSS = 55
+    IIPPVV66__RRTTHHDDRR__TTYYPPEE__00 = 0
+    IIPPVV66__TTCCLLAASSSS = 67
+    IIPPVV66__UUNNIICCAASSTT__HHOOPPSS = 16
+    IIPPVV66__VV66OONNLLYY = 26
+    IIPP__AADDDD__MMEEMMBBEERRSSHHIIPP = 35
+    IIPP__DDEEFFAAUULLTT__MMUULLTTIICCAASSTT__LLOOOOPP = 1
+    IIPP__DDEEFFAAUULLTT__MMUULLTTIICCAASSTT__TTTTLL = 1
+    IIPP__DDRROOPP__MMEEMMBBEERRSSHHIIPP = 36
+    IIPP__HHDDRRIINNCCLL = 3
+    IIPP__MMAAXX__MMEEMMBBEERRSSHHIIPPSS = 20
+    IIPP__MMUULLTTIICCAASSTT__IIFF = 32
+    IIPP__MMUULLTTIICCAASSTT__LLOOOOPP = 34
+    IIPP__MMUULLTTIICCAASSTT__TTTTLL = 33
+    IIPP__OOPPTTIIOONNSS = 4
+    IIPP__RREECCVVOOPPTTSS = 6
+    IIPP__RREECCVVRREETTOOPPTTSS = 7
+    IIPP__RREETTOOPPTTSS = 7
+    IIPP__TTOOSS = 1
+    IIPP__TTRRAANNSSPPAARREENNTT = 19
+    IIPP__TTTTLL = 2
+    MMSSGG__CCMMSSGG__CCLLOOEEXXEECC = 1073741824
+    MMSSGG__CCOONNFFIIRRMM = 2048
+    MMSSGG__CCTTRRUUNNCC = 8
+    MMSSGG__DDOONNTTRROOUUTTEE = 4
+    MMSSGG__DDOONNTTWWAAIITT = 64
+    MMSSGG__EEOORR = 128
+    MMSSGG__EERRRRQQUUEEUUEE = 8192
+    MMSSGG__FFAASSTTOOPPEENN = 536870912
+    MMSSGG__MMOORREE = 32768
+    MMSSGG__NNOOSSIIGGNNAALL = 16384
+    MMSSGG__OOOOBB = 1
+    MMSSGG__PPEEEEKK = 2
+    MMSSGG__TTRRUUNNCC = 32
+    MMSSGG__WWAAIITTAALLLL = 256
+    NNEETTLLIINNKK__DDNNRRTTMMSSGG = 14
+    NNEETTLLIINNKK__FFIIRREEWWAALLLL = 3
+    NNEETTLLIINNKK__IIPP66__FFWW = 13
+    NNEETTLLIINNKK__NNFFLLOOGG = 5
+    NNEETTLLIINNKK__RROOUUTTEE = 0
+    NNEETTLLIINNKK__UUSSEERRSSOOCCKK = 2
+    NNEETTLLIINNKK__XXFFRRMM = 6
+    NNII__DDGGRRAAMM = 16
+    NNII__MMAAXXHHOOSSTT = 1025
+    NNII__MMAAXXSSEERRVV = 32
+    NNII__NNAAMMEERREEQQDD = 8
+    NNII__NNOOFFQQDDNN = 4
+    NNII__NNUUMMEERRIICCHHOOSSTT = 1
+    NNII__NNUUMMEERRIICCSSEERRVV = 2
+    PPAACCKKEETT__BBRROOAADDCCAASSTT = 1
+    PPAACCKKEETT__FFAASSTTRROOUUTTEE = 6
+    PPAACCKKEETT__HHOOSSTT = 0
+    PPAACCKKEETT__LLOOOOPPBBAACCKK = 5
+    PPAACCKKEETT__MMUULLTTIICCAASSTT = 2
+    PPAACCKKEETT__OOTTHHEERRHHOOSSTT = 3
+    PPAACCKKEETT__OOUUTTGGOOIINNGG = 4
+    PPFF__CCAANN = 29
+    PPFF__PPAACCKKEETT = 17
+    PPFF__RRDDSS = 21
+    SSCCMM__CCRREEDDEENNTTIIAALLSS = 2
+    SSCCMM__RRIIGGHHTTSS = 1
+    SSHHUUTT__RRDD = 0
+    SSHHUUTT__RRDDWWRR = 2
+    SSHHUUTT__WWRR = 1
+    SSOOCCKK__CCLLOOEEXXEECC = <SocketType.SOCK_CLOEXEC: 524288>
+    SSOOCCKK__DDGGRRAAMM = <SocketType.SOCK_DGRAM: 2>
+    SSOOCCKK__NNOONNBBLLOOCCKK = <SocketType.SOCK_NONBLOCK: 2048>
+    SSOOCCKK__RRAAWW = <SocketType.SOCK_RAW: 3>
+    SSOOCCKK__RRDDMM = <SocketType.SOCK_RDM: 4>
+    SSOOCCKK__SSEEQQPPAACCKKEETT = <SocketType.SOCK_SEQPACKET: 5>
+    SSOOCCKK__SSTTRREEAAMM = <SocketType.SOCK_STREAM: 1>
+    SSOOLL__CCAANN__BBAASSEE = 100
+    SSOOLL__CCAANN__RRAAWW = 101
+    SSOOLL__HHCCII = 0
+    SSOOLL__IIPP = 0
+    SSOOLL__SSOOCCKKEETT = 1
+    SSOOLL__TTCCPP = 6
+    SSOOLL__TTIIPPCC = 271
+    SSOOLL__UUDDPP = 17
+    SSOOMMAAXXCCOONNNN = 128
+    SSOO__AACCCCEEPPTTCCOONNNN = 30
+    SSOO__BBIINNDDTTOODDEEVVIICCEE = 25
+    SSOO__BBRROOAADDCCAASSTT = 6
+    SSOO__DDEEBBUUGG = 1
+    SSOO__DDOONNTTRROOUUTTEE = 5
+    SSOO__EERRRROORR = 4
+    SSOO__KKEEEEPPAALLIIVVEE = 9
+    SSOO__LLIINNGGEERR = 13
+    SSOO__OOOOBBIINNLLIINNEE = 10
+    SSOO__PPAASSSSCCRREEDD = 16
+    SSOO__PPEEEERRCCRREEDD = 17
+    SSOO__PPRRIIOORRIITTYY = 12
+    SSOO__RRCCVVBBUUFF = 8
+    SSOO__RRCCVVLLOOWWAATT = 18
+    SSOO__RRCCVVTTIIMMEEOO = 20
+    SSOO__RREEUUSSEEAADDDDRR = 2
+    SSOO__RREEUUSSEEPPOORRTT = 15
+    SSOO__SSNNDDBBUUFF = 7
+    SSOO__SSNNDDLLOOWWAATT = 19
+    SSOO__SSNNDDTTIIMMEEOO = 21
+    SSOO__TTYYPPEE = 3
+    TTCCPP__CCOORRKK = 3
+    TTCCPP__DDEEFFEERR__AACCCCEEPPTT = 9
+    TTCCPP__FFAASSTTOOPPEENN = 23
+    TTCCPP__IINNFFOO = 11
+    TTCCPP__KKEEEEPPCCNNTT = 6
+    TTCCPP__KKEEEEPPIIDDLLEE = 4
+    TTCCPP__KKEEEEPPIINNTTVVLL = 5
+    TTCCPP__LLIINNGGEERR22 = 8
+    TTCCPP__MMAAXXSSEEGG = 2
+    TTCCPP__NNOODDEELLAAYY = 1
+    TTCCPP__QQUUIICCKKAACCKK = 12
+    TTCCPP__SSYYNNCCNNTT = 7
+    TTCCPP__WWIINNDDOOWW__CCLLAAMMPP = 10
+    TTIIPPCC__AADDDDRR__IIDD = 3
+    TTIIPPCC__AADDDDRR__NNAAMMEE = 2
+    TTIIPPCC__AADDDDRR__NNAAMMEESSEEQQ = 1
+    TTIIPPCC__CCFFGG__SSRRVV = 0
+    TTIIPPCC__CCLLUUSSTTEERR__SSCCOOPPEE = 2
+    TTIIPPCC__CCOONNNN__TTIIMMEEOOUUTT = 130
+    TTIIPPCC__CCRRIITTIICCAALL__IIMMPPOORRTTAANNCCEE = 3
+    TTIIPPCC__DDEESSTT__DDRROOPPPPAABBLLEE = 129
+    TTIIPPCC__HHIIGGHH__IIMMPPOORRTTAANNCCEE = 2
+    TTIIPPCC__IIMMPPOORRTTAANNCCEE = 127
+    TTIIPPCC__LLOOWW__IIMMPPOORRTTAANNCCEE = 0
+    TTIIPPCC__MMEEDDIIUUMM__IIMMPPOORRTTAANNCCEE = 1
+    TTIIPPCC__NNOODDEE__SSCCOOPPEE = 3
+    TTIIPPCC__PPUUBBLLIISSHHEEDD = 1
+    TTIIPPCC__SSRRCC__DDRROOPPPPAABBLLEE = 128
+    TTIIPPCC__SSUUBBSSCCRR__TTIIMMEEOOUUTT = 3
+    TTIIPPCC__SSUUBB__CCAANNCCEELL = 4
+    TTIIPPCC__SSUUBB__PPOORRTTSS = 1
+    TTIIPPCC__SSUUBB__SSEERRVVIICCEE = 2
+    TTIIPPCC__TTOOPP__SSRRVV = 1
+    TTIIPPCC__WWAAIITT__FFOORREEVVEERR = -1
+    TTIIPPCC__WWIITTHHDDRRAAWWNN = 2
+    TTIIPPCC__ZZOONNEE__SSCCOOPPEE = 1
+    ____aallll____ = ['getfqdn', 'create_connection', 'AF_APPLETALK', 'AF_ASH', '...
+    hhaass__iippvv66 = True
+
+FFIILLEE
+    /usr/lib/python3.4/socket.py
+

@@ -1,0 +1,28 @@
+#!/usr/bin/env python3 
+#coding=utf-8
+
+import socket,time
+
+buf=1024
+
+try:
+		Client=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+		#Client.bind(('127.0.0.1',12345))
+		Client.connect(('127.0.0.1',12345))
+except:
+		print('init Exception.')
+else:
+		print('init done..')
+
+
+try:
+		Client.send('这是客户端发送的！'.encode('utf-8'))
+		data=Client.recv(buf)
+		d='client recv :'+data.decode('utf-8')
+		print(d)
+except:
+		print('recv() send() Exception ...')
+		raise
+finally:
+		Client.close()
+
