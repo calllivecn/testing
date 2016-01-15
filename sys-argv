@@ -6,5 +6,9 @@ import sys
 
 class parse():
 
-		def __init__(self,arg,longarg=[])
+	def __init__(self,arg,longarg=[]):
+		pass
 
+
+print(sys.argv)
+print(sys.argv[1:])
