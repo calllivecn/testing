@@ -9,7 +9,7 @@ database='Dir_Tree_database.db'
 PORT=5996
 
 
-import sys,os,socket,time,sqlite3
+import sys,os,socket,time,sqlite3,struct
 
 
 def sendfile(filename,size):
