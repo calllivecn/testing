@@ -4,7 +4,8 @@
 
 import sqlite3
  
-db = r"D:\pyWork\test.db"  #pyWork目录下test.db数据库文件
+#db = r"D:\pyWork\test.db"  #pyWork目录下test.db数据库文件
+db = r"test.db"  #pyWork目录下test.db数据库文件
 drp_tb_sql = "drop table if exists staff"
 crt_tb_sql = """
 create table if not exists staff(
