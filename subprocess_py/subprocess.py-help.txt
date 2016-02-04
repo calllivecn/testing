@@ -1,0 +1,208 @@
+今天在写一个自动刷机的脚本，需要用到这个模块，就仔细看了一下。
+    本文是Python3的subprocess模块的学习笔记。
+    subprocess模块允许一个进程创建一个新的子进程，通过管道连接到子进程的stdin/stdout/stderr，获取
+子进程的返回值等操作。该模块的出现起初是为了代替下面几个老模块中的某些功能：
+    os.system
+    os.spawn*
+    subprocess对应于PEP324。
+
+* Popen
+    该模块定义的最为核心的类是Popen。
+    Popen的初始化参数包括(args, bufsize, executable, stdin, stdout, stderr, preexec_fn,
+close_fds, shell, cwd, env, universal_newlines, startupinfo, creationflags)，除了args之外，其它
+参数均有默认值(0，None，或者False)：
+    1.  args：一个字符串，或者一个序列的字符串。对于一个字符串而言，默认情况下，这就是在子进程中
+        要执行的程序，对于序列而言，第一个字符串时要执行的程序，后续的字符串是给程序的参数。
+    2.  executable=None：如果该参数被设置，它是真正要执行的程序，但是，args中的第一个字符串仍然
+        会作为argv[0]传递给程序，从而变成该程序的显示名。
+    3.  shell=False：False时，如果args只是一个字符串，则被当作要执行的程序的路径名，其中不能有命令
+        行参数；True时，如果args是一个字符串，它作为shell的命令行进行执行。注意：这个区别只限于
+        Unix系统，对于Windows系统，两者基本是相同的。
+    4.  bufsize=0：读写缓冲区大小，0表示不用buffer，1表示行buffer，负数表示采用系统默认值，其它正数
+        表示一个buffer的近似大小(字节单位)；
+    5.  stdin/stdout/stderr=None：用于建立管道连接到子进程的相应流：
+        a.  None：不做任何重定向，子进程的文件句柄继承自父进程；
+        b.  subprocess.PIPE：创建一个新的管道，连接相应的流；
+        c.  文件对象：重定向到指定的文件对象；
+        d.  另外，stderr可以被设置为subprocess.STDOUT，表示stderr流被重定向到stdout，在stdout处同时
+            被重定向。
+    6.  preexec_fn=None：如果设置(仅对Unix系统有效)，该方法会在子进程中执行指定程序之前被调用。
+    7.  close_fds=False：如果为True，除了0，1，2以外的其他文件描述符都会在子进程中被关闭(对于Unix)；
+        对于Windows，子进程不会继承任何父进程的句柄，并且，
+        子进程的stdin/stdout/stderr也不能被重定向。
+
+    Popen对象的常用方法/属性包括：
+    1.  poll()：检查子进程是否已经终止，如果是，设置并返回returncode属性；
+    2.  wait()：等待子进程终止，设置并返回returncode；注意：这个方法可能导致死锁：如果子进程对
+        stdout/stderr使用的管道产生大量输入，可能填满管道的buffer，这样，子进程就会等待其它人读取
+        这些buffer。
+    3.  communicate(input=None)：将数据发给子进程的stdin，并从子进程的stdout/stderr读取数据，直到
+        eof。等待子进程结束，返回(stdoutdata, stderrdata)，注意：读取的数据是存放在内存中的。
+        如果想用这个函数发送数据或者读取数据，创建Popen时需要制定stdin/stdout/stderr为管道。
+    4.  send_signal(signal)：向子进程发送指定的信号；
+    5.  terminate()：终止子进程，在Unix上，就是向子进程发送SIGTERM。
+    6.  kill()：杀死子进程，在Unix上，就是向子进程发送SIGKILL。
+    7.  stdin/stdout/stderr：如果相应的参数是PIPE，则这个属性引用创建的PIPE文件对象。
+    8.  pid：子进程的id；
+    9.  returncode：子进程的返回值，被poll()和wait()设置(communicate()也会设置)。如果返回值是-N，
+        表示子进程是被Unix的信号N杀死的。
+
+* 异常处理
+    在子进程中，如果在加载并执行指定的程序之前，抛出了异常，这个异常会在父进程中被重新抛出。例如，
+常见的一个异常是OSError(没有找到要执行的程序)。这种异常会多一个字段：child_traceback，该字段包含了
+从子进程观点来看的traceback信息。
+    如果Popen的参数类型不对，Popen也会抛出ValueError异常。
+
+* 工具函数
+    这个模块定义了几个工具函数，可以比较方便的完成一些简单功能。
+    1.  call(*popenargs, **kwargs)：创建新进程执行popenargs中定义的程序(及参数)，等待子进程执行
+        结束，并返回子进程的返回码。
+    2.  check_call(*popenargs, **kwargs)：与call()方法类似，但是，如果子进程的返回值不是0，它会
+        抛出CalledProcessError异常，如果是0，正常返回。
+    3.  check_output(*popenargs, **kwargs)：与call()方法类似，以byte string的方式返回子进程的输出，
+        如果子进程的返回值不是0，它抛出CalledProcessError异常，这个异常中的returncode包含返回码，
+        output属性包含已有的输出。
+    4.  getstatusoutput(cmd)/getoutput(cmd)：这两个函数仅仅在Unix下可用，它们在shell中执行指定的
+        命令cmd，前者返回(status, output)，后者返回output。其中，这里的output包括子进程的stdout和
+        stderr。
+
+
+
+
+
+
+
+
+ 二、应用实例解析
+2.1 subprocess模块的使用
+1. subprocess.call
+>>> subprocess.call(["ls", "-l"])  
+0  
+>>> subprocess.call("exit 1", shell=True)  
+1 
+
+2. 调用系统中cmd命令,显示命令执行的结果:
+x=subprocess.check_output(["echo", "Hello World!"],shell=True)  
+  
+print(x)  
+"Hello World!"  
+
+3. 在python中显示文件内容:
+y=subprocess.check_output(["type", "app2.cpp"],shell=True)  
+  
+print(y)  
+#include <iostream>     
+using namespace std;    
+...... 
+
+4. 查看ipconfig -all命令的输出,并将将输出保存到文件tmp.log中:
+handle = open(r'd:\tmp.log','wt')  
+subprocess.Popen(['ipconfig','-all'], stdout=handle) 
+
+5. 查看网络设置ipconfig -all,保存到变量中
+output = subprocess.Popen(['ipconfig','-all'], stdout=subprocess.PIPE,shell=True)  
+oc=output.communicate()             #取出output中的字符串  
+
+#communicate() returns a tuple (stdoutdata, stderrdata).  
+print(oc[0]) #打印网络信息  
+  
+Windows IP Configuration  
+  
+        Host Name . . . . .  
+
+6. 如果想频繁地和子线程通信,那么不能使用communicate();
+因为communicate通信一次之后即关闭了管道.这时可以试试下面的方法:
+p= subprocess.Popen(["wc"], stdin=subprocess.PIPE,stdout=subprocess.PIPE,shell=True)  
+p.stdin.write('your command')  
+p.stdin.flush()  
+#......do something   
+
+try:  
+    #......do something  
+    p.stdout.readline()  
+    #......do something  
+except:  
+    print('IOError')  
+
+
+#......do something more  
+
+p.stdin.write('your other command')  
+p.stdin.flush()  
+#......do something more 
+
+2.2 subprocess子进程和管道进行交互
+其实在python中，和shell脚本，其他程序交互的方式有很多，比如：
+os.system(cmd)，os.system只是执行一个shell命令，不能输入、且无返回
+os.open(cmd)，可以交互，但是是一次性的，调用都少次都会创建和销毁多少次进程，性能太差
+1. 一个简单的例子，调用ls命令，两者之间是没有交互的：
+import subprocess  
+p = subprocess.Popen('ls') 
+2. 在程序中获取输出的例子：
+import subprocess  
+p = subprocess.Popen('ls',stdout=subprocess.PIPE)  
+print p.stdout.readlines() 
+3. 有输入，有输出的例子，
+父进程发送'say hi'，子进程输出 test say hi，父进程获取输出并打印
+#test1.py  
+import sys  
+line = sys.stdin.readline()  
+print 'test',line  
+
+#run.py  
+from subprocess import *  
+p =Popen('./test1.py',stdin=PIPE,stdout=PIPE)  
+p.stdin.write('say hi/n')  
+print p.stdout.readline()  
+
+#result  
+test say hi  
+
+4. 连续输入和输出的例子
+# test.py
+import sys  
+while True:  
+        line = sys.stdin.readline()  
+        if not line:break  
+        sys.stdout.write(line)  
+        sys.stdout.flush()  
+
+# run.py
+import sys  
+from subprocess import *  
+proc = Popen('./test.py',stdin=PIPE,stdout=PIPE,shell=True)  
+for line in sys.stdin:  
+        proc.stdin.write(line)  
+        proc.stdin.flush()  
+        output = proc.stdout.readline()  
+        sys.stdout.write(output) 
+注意，run.py的flush和test.py中的flush，要记得清空缓冲区，否则程序得不到正确的输入和输出
+
+2.3 python 实时获取子进程输出
+1. 方法一
+import subprocess  
+   
+def main():  
+    process1 = subprocess.Popen("python  -u sub.py", shell=False, stdout = subprocess.PIPE, stderr=subprocess.STDOUT) 
+
+
+    #print process1.communicate()[0]  
+   
+    while True:  
+        line = process1.stdout.readline()  
+        if not line:  
+            break  
+        print line  
+       
+if __name__ == '__main__':  
+    main() 
+2. 方法二：
+import subprocess  
+import time  
+   
+p = subprocess.Popen('ping 127.0.0.1 -n 10', stdout=subprocess.PIPE)  
+while p.poll() == None:  
+    print p.stdout.readline()  
+    time.sleep(1)  
+print p.stdout.read()     
+print 'returen code:', p.returncode
