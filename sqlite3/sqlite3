@@ -13,11 +13,11 @@ try:
 	while 1:
 		try:
 			cmd=input("sqlite3>")
-		if cmd =='exit' or cmd == 'quit' or cmd == 'bye':
-			raise KeyboardInterrupt
-		fetch=cur.execute(cmd)
+			if cmd =='exit' or cmd == 'quit' or cmd == 'bye':
+				raise KeyboardInterrupt
+			fetch=cur.execute(cmd)
 		except EOFError:
-		exit(0)	
+			exit(0)	
 		except sqlite3.OperationalError as e:
 			print(e)
 			continue
