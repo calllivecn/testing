@@ -42,12 +42,12 @@ if args.recv:
 	rs.connect((dip,dport))
 
 	sip,sport=rs.getsockname()
-	print('local :',sip,sport,'remote :',dip,dport)
+	print('local :',sip,args.sport,'remote :',dip,dport)
 	
 	
 	def pack(data):
 		data_len=len(data)
-		return struct.pack('!HHHH',sport,dport,8+data_len,0)
+		return struct.pack('!HHHH',args.sport,dport,8+data_len,0)
 	
 	def udp_checksum(data):
 	

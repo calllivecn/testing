@@ -29,5 +29,6 @@ except KeyboardInterrupt:
 
 finally:
 	cur.close()
+	db.commit()
 	db.close()
 
