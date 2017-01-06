@@ -12,4 +12,4 @@ for root,dirs,files in os.walk(PATH):
 		#		root=root.lstrip(PATH)
 		#		print(root+'/'+file)
 		print(root,dirs,files)
-		input()
+		#input()
