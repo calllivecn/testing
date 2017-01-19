@@ -5,11 +5,9 @@
 import socket
 import selectors
 
-def handler(conn,select_key):
+def handler(conn):
 	message = conn.recv(1024)
 	conn.send(message)
-	#select_key
-	#conn.close()
 
 def server(host, port):
 	listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -28,11 +26,16 @@ def server(host, port):
 				new_conn, addr = conn.accept()
 				selector.register(new_conn, selectors.EVENT_READ)
 			else:
-				handler(conn,key)
-
-
+				handler(conn)
+				selector.unregister(conn)
+				#conn.shutdown(socket.SHUT_RDWR)
+				conn.close()
+	selectot.close()
 
 if __name__ == '__main__':
-	server('0.0.0.0',6789)
+	try:
+		server('0.0.0.0',6789)
+	except KeyboardInterrupt:
+		pass
 
 

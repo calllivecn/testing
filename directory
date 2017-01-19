@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 #coding=utf-8
 
-import os
+import os,sys
 
 
 
-PATH='/home/zx/shell'
+PATH=sys.argv[1]
 
 for root,dirs,files in os.walk(PATH):
-		for file in files:
-			root=root.lstrip(PATH)
-			print(root+os.path.sep+file)
+	for file in files:
+		root=root.lstrip(PATH)
+		print(root+os.path.sep+file,flush=True)
 		#print(root,dirs,files)
 		#input()
