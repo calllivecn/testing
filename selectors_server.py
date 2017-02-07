@@ -30,6 +30,7 @@ def server(host, port):
 				selector.unregister(conn)
 				#conn.shutdown(socket.SHUT_RDWR)
 				conn.close()
+
 	selectot.close()
 
 if __name__ == '__main__':
