@@ -8,6 +8,7 @@ import selectors
 def handler(conn):
 	message = conn.recv(1024)
 	conn.send(message)
+	print(message)
 
 def server(host, port):
 	listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
