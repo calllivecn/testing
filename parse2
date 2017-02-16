@@ -5,7 +5,7 @@ import argparse
 
 parse = argparse.ArgumentParser(
 description='Process some integers.',
-add_help=False) 
+add_help=True) 
 
 parse.add_argument('--int', metavar='N', type=int, nargs='+', help='an integer for the accumulator') 
 

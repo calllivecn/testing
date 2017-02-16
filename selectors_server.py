@@ -6,15 +6,15 @@ import socket
 import selectors
 
 def handler(conn):
-	message = conn.recv(1024)
+	message = conn.recv(4096)
 	conn.send(message)
-	print(message)
+	#print(message)
 
 def server(host, port):
 	listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	listener.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
 	listener.bind((host, port))
-	listener.listen(10)
+	listener.listen(128)
 
 	selector = selectors.DefaultSelector()
 	selector.register(listener, selectors.EVENT_READ)

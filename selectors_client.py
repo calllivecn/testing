@@ -15,8 +15,9 @@ def connect(host,port,content):
 		sock=socket.socket(socket.AF_INET,socket.SOCK_STREAM,0)
 		sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEPORT,True)
 		sock.connect((host,port))
-		sock.send(str(content).encode())
-		data = sock.recv(1024)
+		#sock.send(str(content).encode())
+		sock.send(bytes(2048))
+		data = sock.recv(4096)
 		#sock.shutdown(socket.SHUT_RDWR)
 		sock.close()
 		count+=1
@@ -24,7 +25,7 @@ def connect(host,port,content):
 
 def th(count):
 	for i in range(count):
-		t1=threading.Thread(target=connect,args=('127.0.0.1',6789,10000))
+		t1=threading.Thread(target=connect,args=('127.0.0.1',6789,100000))
 		t1.start()
 
 def multiprocessing(count):

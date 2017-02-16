@@ -6,13 +6,14 @@ import sqlite3,readline,sys
 
 
 db=sqlite3.connect(sys.argv[1])
-cur=db.cursor()
+#cur=db.cursor()
+cur=db
 
 
 try:
 	while 1:
 		try:
-			cmd=input("sqlite3>")
+			cmd=input("sqlite3> ")
 			if cmd =='exit' or cmd == 'quit' or cmd == 'bye':
 				raise KeyboardInterrupt
 			fetch=cur.execute(cmd)
@@ -28,7 +29,7 @@ except KeyboardInterrupt:
 	exit(0)
 
 finally:
-	cur.close()
+	#cur.close()
 	db.commit()
 	db.close()
 
