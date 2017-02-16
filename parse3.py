@@ -23,7 +23,7 @@ import argparse
 # usage - (default: generated)如果你需要修改usage的信息（usage: PROG [-h] [--foo [FOO]] bar [bar ...]），那么可以修改这个，一般不要修改。 
 # conflict_handler - 不建议使用。这个在极端情况下才会用到，主要是定义两个add_argument中添加的选项的名字发生冲突时怎么处理，默认处理是抛出异常。 
 #注释一行有##表示这几个参数比较常用 
-parser = argparse.ArgumentParser(description="This is a description of %(prog)s", epilog="This is a epilog of %(prog)s", prefix_chars="-+", fromfile_prefix_chars="@",add_help=False ,formatter_class=argparse.ArgumentDefaultsHelpFormatter) 
+parser = argparse.ArgumentParser(description="This is a description of %(prog)s", epilog="This is a epilog of %(prog)s", prefix_chars="-+", fromfile_prefix_chars="@",add_help=True,formatter_class=argparse.ArgumentDefaultsHelpFormatter) 
 # ArgumentParser.add_argument(name or flags...[, action][, nargs][, const][, default][, type][, choices][, required][, help][, metavar][, dest]) 
 # add_argument的参数是比较复杂的。。。 
 # name or flags - 指定参数的形式，想写几个写几个，不过我们一般就写两个，一个短参数，一个长参数，看下面的例子"-f", "--file" 
