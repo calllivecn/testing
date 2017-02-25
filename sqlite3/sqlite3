@@ -15,7 +15,7 @@ try:
 		try:
 			cmd=input("sqlite3> ")
 			if cmd =='exit' or cmd == 'quit' or cmd == 'bye':
-				raise KeyboardInterrupt
+				raise KeyboardInterrupt("exit")
 			fetch=cur.execute(cmd)
 		except EOFError:
 			exit(0)	
@@ -25,7 +25,8 @@ try:
 		for f in fetch.fetchall():
 			print(f)
 
-except KeyboardInterrupt:
+except KeyboardInterrupt as e:
+	print(e)
 	exit(0)
 
 finally:
