@@ -17,9 +17,9 @@ except:
 try:
 		while 1:
 				input0=input('enter: ')
-				if input0 == 'quit': break
 				data=input0.encode('utf-8')
 				udp_C.sendto(data,(serverip,6789))
+				if input0 == 'quit': break
 				data,address=udp_C.recvfrom(1024)
 				
 				data=data.decode('utf-8')

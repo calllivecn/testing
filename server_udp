@@ -5,22 +5,22 @@ import socket,time,sys
 
 buf=1024
 
-IP_address=None
+IP_address=''
 
-PORT=None
+PORT=6789
 
 try:
 		exec(open(sys.argv[0]+'.cfg').read())
-except:
-		raise
+except Exception:
 		print('读取配置文件异常')
+		raise
 
 BIND=(IP_address,PORT)
 
 try:
 		udp_S=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 		udp_S.bind(BIND)
-except:
+except Exception:
 		print('有初始化异常')
 		raise
 else:
@@ -30,10 +30,12 @@ try:
 		while 1:
 				data,address=udp_S.recvfrom(buf)
 				data='recvfrom :'+data.decode('utf-8')
-				if data == 'recvfrom :quitserver':break
+				if data == 'recvfrom :quit':
+					break
 				print(time.ctime(),'address: ',address,data)
-				sendto('OK!')
-except:
+				udp_S.sendto(b'OK!',address)
+except Exception as e:
+		print('E : ',e)
 		print('有收发异常。')
 
 finally:
