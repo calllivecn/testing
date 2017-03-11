@@ -23,7 +23,7 @@ out(multi_filename)
 
 for f in multi_filename:
 	f = f[0]
-	fetch = db.execute('select * from sha where filename="{}" and size in (select size from (select size from sha where filename="{}") group by size having count(*)>1);'.format(f,f))
+	fetch = db.execute('select * from sha where filename=? and size in (select size from (select size from sha where filename=?) group by size having count(*)>1);',(f,f))
 
 	multi_size = fetch.fetchall()
 
