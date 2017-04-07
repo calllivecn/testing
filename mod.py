@@ -19,4 +19,4 @@ def fun():
 
 
 
-__all__=['CLASS','func']
+__all__=['a_class','fun']
