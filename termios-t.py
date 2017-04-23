@@ -6,7 +6,6 @@ import sys,termios,copy
 
 
 try:
-	ch = ''
 	fd = sys.stdin.fileno()
 	#print('fd:',fd)
 	old_settings = termios.tcgetattr(fd)
@@ -16,6 +15,7 @@ try:
 	#new_settings[6][termios.VTIME] = 0
 	termios.tcsetattr(fd,termios.TCSADRAIN,new_settings)
 
+	ch = ''
 	while ch != '':
 		ch = sys.stdin.read(1)
 		sys.stdout.write(ch)
