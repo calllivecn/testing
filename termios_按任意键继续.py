@@ -3,7 +3,7 @@
 import os
 import sys
 import termios
-
+import copy
 
 def press_any_key_exit(msg):
     # 获取标准输入的描述符
@@ -13,7 +13,7 @@ def press_any_key_exit(msg):
     old_ttyinfo = termios.tcgetattr(fd)
 
     # 配置终端
-    new_ttyinfo = old_ttyinfo[:]
+    new_ttyinfo = copy.deepcopy(old_ttyinfo)
 
     # 使用非规范模式(索引3是c_lflag 也就是本地模式)
     new_ttyinfo[3] &= ~termios.ICANON
@@ -27,7 +27,7 @@ def press_any_key_exit(msg):
     # 使设置生效
     termios.tcsetattr(fd, termios.TCSANOW, new_ttyinfo)
     # 从终端读取
-    fd.read(1)
+    sys.stdin.read(1)
 
     # 还原终端设置
     termios.tcsetattr(fd, termios.TCSANOW, old_ttyinfo)
