@@ -10,7 +10,7 @@ try:
 
 		print('H: {}\tW: {}'.format(H,W))
 
-except:
+except Exception:
 		raise
 
 finally:

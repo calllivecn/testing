@@ -30,7 +30,7 @@ def th(count):
 
 def multiprocessing(count):
 	for i in range(count):
-		multiprocess = mp.Process(target=connect,args=('127.0.0.1',6789,10000))
+		multiprocess = mp.Process(target=connect,args=('127.0.0.1',6789,100000))
 		multiprocess.start()
 		#multiprocess.join()
 
