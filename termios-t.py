@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #coding=utf-8
 
-import sys,termios,copy
+import os,sys,termios,copy
 
 
 
@@ -16,10 +16,15 @@ try:
 	termios.tcsetattr(fd,termios.TCSADRAIN,new_settings)
 
 	ch = ''
-	while ch != '':
-		ch = sys.stdin.read(1)
-		sys.stdout.write(ch)
-		sys.stdout.flush()
+	ESC = ''.encode()
+	while ch != ESC:
+		#ch = sys.stdin.read(8)
+		ch = os.read(fd,8)#.decode()
+		if ch != ESC:
+			os.write(fd,ch)
+			#sys.stdout.write('[{}]'.format(ch))
+			#sys.stdout.write(ch)
+			sys.stdout.flush()
 
 except KeyboardInterrupt:
 	pass
