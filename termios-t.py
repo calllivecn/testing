@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 #coding=utf-8
 
-import sys,termios,copy
+import os,sys,termios,copy
 
 
 
 try:
-	ch = ''
 	fd = sys.stdin.fileno()
 	#print('fd:',fd)
 	old_settings = termios.tcgetattr(fd)
@@ -16,10 +15,16 @@ try:
 	#new_settings[6][termios.VTIME] = 0
 	termios.tcsetattr(fd,termios.TCSADRAIN,new_settings)
 
-	while ch != '':
-		ch = sys.stdin.read(1)
-		sys.stdout.write(ch)
-		sys.stdout.flush()
+	ch = ''
+	ESC = ''.encode()
+	while ch != ESC:
+		#ch = sys.stdin.read(8)
+		ch = os.read(fd,8)#.decode()
+		if ch != ESC:
+			os.write(fd,ch)
+			#sys.stdout.write('[{}]'.format(ch))
+			#sys.stdout.write(ch)
+			sys.stdout.flush()
 
 except KeyboardInterrupt:
 	pass

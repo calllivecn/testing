@@ -1,9 +1,11 @@
 #!/bin/sh
 
 getchar() {
-    stty cbreak -echo
+    #stty cbreak -echo
+	stty -icanon -echo
     dd if=/dev/tty bs=1 count=1 2> /dev/null
-    stty -cbreak echo
+    #stty -cbreak echo
+	stty icanon echo
 }
 
 printf "Please input your passwd: "
