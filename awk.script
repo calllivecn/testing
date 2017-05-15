@@ -1,4 +1,0 @@
-#!/usr/bin/env mawk
-
-'{print $0}'
-
