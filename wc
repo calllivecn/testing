@@ -4,18 +4,18 @@
 import sys
 
 
-file=open(sys.argv[1],'r')
+file__=open(sys.argv[1],'r')
 count=0
 char=0
 word=0
-for x in file.readlines():
+for x in file__.readlines():
 		count+=1	
-		char+=len(x)
+		char+=len(bytes(x,'utf-8'))
 		word+=len(x.split())
 				
 
-file.close()
-print(count,word,char,sep='\t')
+file__.close()
+print(count,word,char,sys.argv[1],sep='\t')
 '''
   
 import sys 
