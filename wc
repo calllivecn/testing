@@ -4,13 +4,109 @@
 import sys
 
 
-file=open(sys.argv[1],'r')
+file__=open(sys.argv[1],'r')
 count=0
 char=0
-for x in file.readlines():
+word=0
+for x in file__.readlines():
 		count+=1	
-		char+=len(x)	
+		char+=len(bytes(x,'utf-8'))
+		word+=len(x.split())
 				
 
-file.close()
-print(count,char)
+file__.close()
+print(count,word,char,sys.argv[1],sep='\t')
+'''
+  
+import sys 
+import os 
+from optparse import OptionParser 
+  
+"""定义参数"""
+parser = OptionParser() 
+parser.add_option("-l", "--line", 
+                  dest="lines", 
+                  action="store_true", 
+                  default=False, 
+                  help="only count lines") 
+parser.add_option("-w", "--word", 
+                  dest="words", 
+                  action="store_true", 
+                  default=False, 
+                  help="only count words") 
+parser.add_option("-c", "--char", 
+                  dest="chars", 
+                  action="store_true", 
+                  default=False, 
+                  help="only count chars") 
+parser.add_option("-n", "--nototal", 
+                  dest="nototal", 
+                  action="store_true", 
+                  default=False, 
+                  help="no count total") 
+options, args = parser.parse_args() 
+  
+"""根据指定不同选项显示不同的值"""
+def display(l, w, c): 
+    global total_l 
+    total_l += l 
+    global total_w 
+    total_w += w 
+    global total_c 
+    total_c += c 
+    if not (options.words or options.chars or options.lines): 
+        print(l)
+        print(w) 
+        print(c) 
+    if options.lines: 
+        print(l) 
+    if options.words: 
+        print(w) 
+    if options.chars: 
+        print(c) 
+  
+"""针对文件特殊处理，如果是1个文件以上那么需要输入一个Total总和"""
+def dir(data): 
+    if not os.path.exists(data): 
+        sys.stderr.write("%s No such file or directory\n" %data) 
+        return False
+    if os.path.isdir(data): 
+        sys.stderr.write("%s Is a directory\n" %data) 
+        return False
+    return True
+          
+def readFile(data): 
+    for f in data: 
+        b = dir(f) 
+        if b: 
+            with open(f) as files: 
+                fd = files.read() 
+                l = fd.count("\n") 
+                w = len(fd.split()) 
+                c = len(fd) 
+                display(l, w, c) 
+                print(f) 
+        else: 
+            continue
+    if (len(args) > 1) and (not options.nototal): 
+        l = total_l 
+        w = total_w 
+        c = total_c 
+        display(l, w, c) 
+        print("Total") 
+  
+total_l = 0
+total_w = 0
+total_c = 0
+  
+if len(args) == 0: 
+    data = sys.stdin.read() 
+    l = data.count("\n") 
+    w = len(data.split()) 
+    c = len(data) 
+    display(l, w, c) 
+else: 
+    data = args 
+    readFile(data)
+'''
+
