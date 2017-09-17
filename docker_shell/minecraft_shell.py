@@ -40,9 +40,7 @@ print('sub pid ',p.pid)
 def sig_handler(sig_number,SIG):
 	cmd = sub_exit_cmd + '\n'
 	p.stdin.write(cmd.encode())
-	#p.stdin.write('exit 0\n'.encode())
 	p.stdin.flush()
-	#p.wait()
 
 signal.signal(signal.SIGTERM,sig_handler)
 #signal.signal(signal.SIGINT,sig_handler)
@@ -55,7 +53,7 @@ th.start()
 print('wait sub end...')
 
 try:
-	print('子进程返回码:',p.wait())
+	print('subprocess returncode:',p.wait())
 except KeyboardInterrupt:
 	sig_handler(1,2)
 
