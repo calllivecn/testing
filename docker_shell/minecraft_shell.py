@@ -14,24 +14,9 @@ for key in ENV.keys():
 CMD='java -Xms{MEM_MIN}M -Xmx{MEM_MAX}M '\
 	'-jar {MC_SERVER}'.format(**ENV)
 
-sub_exit_cmd='stop'
+sub_exit_cmd='exit'
 
-p = Popen(CMD,stdin=PIPE,shell=True)
-
-def out():
-	while True:
-		data = p.stdout.readline()
-		print(data)
-
-
-def input_():
-	cmd = ''
-	while cmd != sub_exit_cmd:
-		cmd = input()
-		cmd2 = cmd + '\n'
-		p.stdin.write(cmd2.encode())
-		p.stdin.flush()
-
+p = Popen(CMD,stdin=PIPE,shell=True)#,universal_newlines=True)
 ppid = os.getpid()
 
 print('father pid',ppid)
@@ -44,10 +29,16 @@ def sig_handler(sig_number,SIG):
 
 signal.signal(signal.SIGTERM,sig_handler)
 
-
-
-th = Thread(target=input_,daemon=True)
-th.start()
+cmd = ''
+while cmd != sub_exit_cmd:
+	cmd = input()
+	cmd2 = cmd + '\n'
+	p.stdin.write(cmd2.encode())
+	p.stdin.flush()
+else:
+	cmd = sub_exit_cmd+'\n'
+	p.stdin.write(cmd.encode())
+	p.stdin.flush()
 
 print('wait sub end...')
 
@@ -56,5 +47,5 @@ try:
 except KeyboardInterrupt:
 	sig_handler(1,2)
 
-print('exit...')
+print('safe exit')
 

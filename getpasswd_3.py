@@ -30,6 +30,6 @@ def getpass(maskchar = "*"):
         sys.stdout.write(maskchar) 
       password += ch 
 if __name__ == "__main__": 
-  print("Enter your password:")
+  print("Enter your password:",end='')
   password = getpass("*")
   print("your password is ",password)
