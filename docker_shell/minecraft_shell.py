@@ -18,11 +18,12 @@ sub_exit_cmd='stop'
 
 p = Popen(CMD,stdin=PIPE,shell=True)
 
+'''
 def out():
 	while True:
 		data = p.stdout.readline()
 		print(data)
-
+'''
 
 def input_():
 	cmd = ''
