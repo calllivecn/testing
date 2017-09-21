@@ -23,7 +23,7 @@ print('father pid',ppid)
 print('sub pid ',p.pid)
 
 def sig_handler(sig_number,SIG):
-	cmd = sub_exit_cmd + '\n'
+	cmd = sub_exit_cmd + os.linesep
 	p.stdin.write(cmd.encode())
 	p.stdin.flush()
 
@@ -32,11 +32,11 @@ signal.signal(signal.SIGTERM,sig_handler)
 cmd = ''
 while cmd != sub_exit_cmd:
 	cmd = input()
-	cmd2 = cmd + '\n'
+	cmd2 = cmd + os.linesep
 	p.stdin.write(cmd2.encode())
 	p.stdin.flush()
 else:
-	cmd = sub_exit_cmd+'\n'
+	cmd = sub_exit_cmd + os.linesep
 	p.stdin.write(cmd.encode())
 	p.stdin.flush()
 
