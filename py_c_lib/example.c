@@ -1,8 +1,4 @@
 #include<python3.5m/Python.h>
-#include<stdio.h>
-
-
-
 
 static PyObject *py_add(PyObject *self,PyObject *args)
 {
@@ -10,7 +6,6 @@ static PyObject *py_add(PyObject *self,PyObject *args)
 	if(!PyArg_ParseTuple(args,"ii",&x,&y)) return NULL;
 	return Py_BuildValue("i",x+y);
 }
-
 
 static PyMethodDef Example[]={
 {"py_add",py_add,METH_VARARGS,"return x+y"},
