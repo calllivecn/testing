@@ -16,7 +16,8 @@ try:
 	termios.tcsetattr(fd,termios.TCSADRAIN,new_settings)
 
 	ch = ''
-	ESC = ''.encode()
+	ESC = 0x1b
+	ESC = ESC.to_bytes(1,'big')
 	while ch != ESC:
 		#ch = sys.stdin.read(8)
 		ch = os.read(fd,8)#.decode()
