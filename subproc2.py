@@ -16,6 +16,6 @@ poll = select.epoll()
 poll.register(pipe.stdout.fileno())
 epoll_list = poll.poll()
 for fd, events in epoll_list:
-	if fd == pipe.stdout.fileno() and select.EPOLLIN & events:
-		out = pipe.stdout.read()
-		print(out.decode())
+    if fd == pipe.stdout.fileno() and select.EPOLLIN & events:
+        out = pipe.stdout.read()
+        print(out.decode())

@@ -22,18 +22,18 @@ search_q = Queue()
 search_q.put(graph.get("you"))
 
 def person_is_seller(person):
-	if person == "jonny":
-		return True
-	else:
-		return False
+    if person == "jonny":
+        return True
+    else:
+        return False
 
 while not search_q.empty():
-	person = search_q.get()
-	for name in person:
-		if person_is_seller(name):
-			print('找到了:',name)
-		else:
-			search_q.put(graph.get(name))
+    person = search_q.get()
+    for name in person:
+        if person_is_seller(name):
+            print('找到了:',name)
+        else:
+            search_q.put(graph.get(name))
 
 
 

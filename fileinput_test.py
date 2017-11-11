@@ -14,14 +14,14 @@ args = parse.parse_args()
 print(args)
 
 if args.fs != '-':
-	input_source = args.fs
+    input_source = args.fs
 else:
-	input_source = '-'
+    input_source = '-'
 
 
 with ft.input(files=input_source) as f:
-	for data in f:
-		print(f.lineno(),data,end='')
+    for data in f:
+        print(f.lineno(),data,end='')
 
-		
+        
 
