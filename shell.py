@@ -13,16 +13,16 @@ sp = Popen(CMD,stdin=PIPE,shell=True)
 
 cmd=''
 while cmd != 'exit':
-	cmd = input(">>>>> ")
-	cmd2 = cmd + '\n'
-	sp.stdin.write(cmd2.encode())
-	sp.stdin.flush()
+    cmd = input(">>>>> ")
+    cmd2 = cmd + '\n'
+    sp.stdin.write(cmd2.encode())
+    sp.stdin.flush()
 else:
-	sp.stdin.write('exit\n'.encode())
-	sp.stdin.flush()
+    sp.stdin.write('exit\n'.encode())
+    sp.stdin.flush()
 
 try:
-	print('subprocess returncode :',sp.wait())
+    print('subprocess returncode :',sp.wait())
 except KeyboardInterrupt:
-	pass
+    pass
 

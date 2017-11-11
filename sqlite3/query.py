@@ -7,8 +7,8 @@ import sqlite3 as sql
 import sys
 
 def out(lists):
-	for f in lists:
-		print(f)
+    for f in lists:
+        print(f)
 
 
 db = sql.connect(sys.argv[1])
@@ -22,12 +22,12 @@ out(multi_filename)
 
 
 for f in multi_filename:
-	f = f[0]
-	fetch = db.execute('select * from sha where filename=? and size in (select size from (select size from sha where filename=?) group by size having count(*)>1);',(f,f))
+    f = f[0]
+    fetch = db.execute('select * from sha where filename=? and size in (select size from (select size from sha where filename=?) group by size having count(*)>1);',(f,f))
 
-	multi_size = fetch.fetchall()
+    multi_size = fetch.fetchall()
 
-	out(multi_size)
+    out(multi_size)
 
 db.close()
 

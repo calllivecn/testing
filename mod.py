@@ -5,17 +5,17 @@ import py
 
 
 class a_class():
-	'''this is class a test.'''
+    '''this is class a test.'''
 
 
 
 
 def fun():
-	'''asdkjfaklsdjlfasdf'''
+    '''asdkjfaklsdjlfasdf'''
 
 
 
-	print('this is function test.')
+    print('this is function test.')
 
 
 

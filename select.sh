@@ -36,7 +36,3 @@ do
 	esac
 
 done
-
-
-
-

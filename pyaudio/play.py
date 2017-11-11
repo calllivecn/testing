@@ -6,8 +6,8 @@ CHUNK = 1024
 print(sys.argv)
 
 if len(sys.argv) < 2:
-	print("Plays a wave file.\n\nUsage: %s filename.wav" % sys.argv[0])
-	exit(-1)
+    print("Plays a wave file.\n\nUsage: %s filename.wav" % sys.argv[0])
+    exit(-1)
 
 
 wf = wave.open(sys.argv[1], 'rb')
@@ -16,8 +16,8 @@ stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),channels=wf.ge
 data = wf.readframes(CHUNK)
 print(data[:16])
 while data != b'':
-	stream.write(data)
-	data = wf.readframes(CHUNK)
+    stream.write(data)
+    data = wf.readframes(CHUNK)
 
 #stream.stop_stream()
 stream.close()
