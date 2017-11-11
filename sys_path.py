@@ -7,6 +7,6 @@ import sys
 P=''
 
 for p in sys.path:
-	P += p + ' '
+    P += p + ' '
 
 print(P)
