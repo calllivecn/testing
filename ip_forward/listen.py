@@ -27,8 +27,8 @@ listen.bind((sock[0],sock[1]))
 listen.listen(128)
 
 while 1:
-	client,address = listen.accept()
-	date1 = client.recv()
+    client,address = listen.accept()
+    date1 = client.recv()
 
 
 
