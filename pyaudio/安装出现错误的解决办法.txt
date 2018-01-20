@@ -1,0 +1,13 @@
+安装出现错误的解决办法
+fatal error: 'portaudio.h' file not found
+    #include "portaudio.h"
+             ^
+    1 error generated.
+    error: command 'cc' failed with exit status 1
+但是portaudio明明已经安装成功，在/usr/local/include目录下也能找到portaudio.h文件，经过万能的百度，在https://stackoverflow.com/questions/33513522/when-installing-pyaudio-pip-cannot-find-portaudio-h-in-usr-local-include找到了解决的办法， 输入命令：
+
+sudo pip install --global-option='build_ext' --global-option='-I/usr/local/include' --global-option='-L/usr/local/lib' pyaudio
+
+原创文章，转载请注明 ：python调用pyaudio使用麦克风录制wav声音文件用于pytorch语音识别以及Mac/Ubuntu安装pyaudio教程 - pytorch中文网
+原文出处： https://ptorch.com/news/84.html
+问题交流群 ：168117787
