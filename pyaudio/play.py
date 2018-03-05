@@ -16,12 +16,12 @@ stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
                 rate=wf.getframerate(),
                 output=True)
                 #output_device_index=6)
-data = wf.readframes(CHUNK)
 #print(data[:16])
 #print(isinstance(data,bytes),'data length:',len(data))
+data = True
 while data != b'':
-    stream.write(data)
     data = wf.readframes(CHUNK)
+    stream.write(data)
 
 stream.stop_stream()
 stream.close()
