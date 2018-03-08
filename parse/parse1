@@ -18,6 +18,8 @@ parse.add_argument('-c', action='store_const',
 
                    help='Store a constant value')
 
+parse.add_argument('-v',action='count',default=0,help='verbose')
+
 arglist=parse.parse_args()
 
 print(arglist)
