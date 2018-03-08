@@ -1,8 +1,0 @@
-#!/usr/bin/python3
-#coding=utf-8
-
-while True:
-
-		s=input("my :>")
-		if s== 'exit': break
-		exec(s)

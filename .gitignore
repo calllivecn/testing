@@ -10,4 +10,4 @@ b.out
 *.key
 
 *.wav
-*pcm
+*.pcm
