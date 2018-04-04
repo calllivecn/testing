@@ -10,7 +10,7 @@ def prime(n):
     if n <= 2 :
         return True
     
-    for i in range(2,int(math.sqrt(n))):
+    for i in range(3,int(math.sqrt(n))):
         if 0 == n % i:
             return False
 
