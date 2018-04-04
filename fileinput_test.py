@@ -7,11 +7,11 @@ from argparse import ArgumentParser
 
 parse = ArgumentParser()
 
-parse.add_argument('fs',action='append',default='-',help='[files ...]')
+parse.add_argument('fs',nargs='*',default='-',help='[files ...]')
 
 args = parse.parse_args()
 
-print(args)
+#print(args)
 
 if args.fs != '-':
     input_source = args.fs
