@@ -3,14 +3,17 @@
 
 
 class Person:
-		def __init__(self,name,job=None,pay=0):
-				self.name=name
-				self.job=job
-				self.pay=pay
+    def __init__(self,name,job=None,pay=0):
+        self.name=name
+        self.job=job
+        self.pay=pay
+
+    def __str__(self):
+        return "{} {} {}".format(self.name,self.job,self.pay)
 
 if __name__ == '__main__':
 		bob=Person('Bob Smith')
 		sue=Person('Sue Jones',job='dev',pay=4500)
-		print(bob.name,bob.pay)
-		print(sue.name,sue.job,sue.pay)
+		print(bob)
+		print(sue)
 
