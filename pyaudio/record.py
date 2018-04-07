@@ -45,6 +45,7 @@ for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
     #frames += voice(data)
     frames.append(data)
 print("* done recording")
+
 stream.stop_stream()
 stream.close()
 p.terminate()
