@@ -20,7 +20,8 @@ def start():
         sock,addr = s.accept()
         print('connecting ... ',*addr)
         data = sock.recv(1024)
-        print('sock.recv(1024) -->',data.decode())
+        print('recv -->',data.decode())
+        sock.send(data)
 
 
 
