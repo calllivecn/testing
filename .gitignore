@@ -8,6 +8,8 @@ b.out
 *.pem
 *.cert
 *.key
+*.log
 
 *.wav
 *.pcm
+.idea/
