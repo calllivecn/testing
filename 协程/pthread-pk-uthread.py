@@ -51,7 +51,7 @@ pth1 = Thread(target=pth)
 
 start = time.time()
 pth1.start()
-while 1:
+while True:
     with lock:
         print('线程的Q',Q)
         #time.sleep(0.01)

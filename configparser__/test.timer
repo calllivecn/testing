@@ -1,0 +1,18 @@
+[DEFAULT]
+info=听说会过滤掉default sections
+中文key=中文value
+
+[Unit]
+info=这是Unit的info
+Description=test systemd timer
+
+[Timer]
+#OnCalendar=*-*-* *:*:1
+#OnStartupSec=1m
+OnUnitActiveSec=10s
+#RandomizedDelaySec=12h
+AccuracySec=1ms
+Persistent=true
+
+[Install]
+WantedBy=timers.target
