@@ -12,6 +12,7 @@ import paramiko
 from config import *
 
 transport = paramiko.Transport(("localhost",22))
+
 transport.connect(username=USERNAME, password=PASSWORD)
 
 sftp = paramiko.SFTPClient.from_transport(transport)
