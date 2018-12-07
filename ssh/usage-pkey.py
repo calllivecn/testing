@@ -34,3 +34,9 @@ stdin, stdout, stderr = ssh.exec_command("hostnamectl")
 
 print(stdout.read().decode())
 
+sftp = ssh.open_sftp()
+
+with sftp.open("/tmp/ssh-sftp-test","w") as f:
+    f.write("这是一个 ssh.open_sftp() sftp 测试 。")
+
+ssh.close()
