@@ -7,11 +7,11 @@ import sys
 
 
 def bit_64(number):
-    if number > sys.maxsize:
-        print("太大 请输入小于{}的数".format(sys.maxsize))
+    if number > sys.maxsize and number < 0:
+        print("太大 请输入小于{}大于0的数".format(sys.maxsize))
         return False
 
-    print("第一次的变量：",locals())
+    #print("第一次的变量：",locals())
     num = 0
     while number:
         b = (number - 1) 
