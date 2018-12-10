@@ -44,7 +44,7 @@ def speed():
             end = time.time()
             interval = end - start
             if interval >= 1:
-                print(data_sum / interval,"MB")
+                print(data_sum / interval,"MB", "interval time: ", interval, "秒")
                 data_sum = 0
                 start = time.time()
             
@@ -52,7 +52,18 @@ def speed():
         pass
 
 
+def multi_speed():
+    import multiprocessing as mp
+
+    cpus = mp.cpu_count()
+    for _ in range(cpus):
+    
+        proc = mp.Process(target=speed)
+        proc.start()
+
+
 if __name__ == "__main__":
-    main(500)
+    #main(500)
     #output_stdout()
     #speed()
+    multi_speed()
