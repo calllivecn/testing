@@ -9,6 +9,7 @@ b.out
 *.cert
 *.key
 *.log
+*.logs
 
 *.wav
 *.pcm
