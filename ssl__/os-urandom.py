@@ -1,13 +1,11 @@
 #!/usr/bin/env py3
 #coding=utf-8
-# date 2018-11-27 12:03:24
+# date 2018-12-16 21:46:48
 # author calllivecn <c-all@qq.com>
 
 import os
 import sys
 import time
-import ssl
-
 
 block=1<<20  # MB
 
@@ -18,7 +16,7 @@ def main(datasize):
 
     with open("test.dd","wb") as f:
         for i in range(datasize):
-            f.write(ssl.RAND_bytes(block))
+            f.write(os.urandom(block))
             f.flush()
             #print(i)
 
@@ -27,7 +25,7 @@ def output_stdout():
     fd = sys.stdout.fileno()
     try:
         while True:
-            os.write(fd, ssl.RAND_bytes(block))
+            os.write(fd, os.urandom(block))
     except KeyboardInterrupt:
         pass
 
@@ -37,7 +35,8 @@ def speed():
         data_sum = 0
         while True:
 
-            ssl.RAND_bytes(block)
+            #ssl.RAND_bytes(block)
+            os.urandom(block)
 
             data_sum += 1
 
