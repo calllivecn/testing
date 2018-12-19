@@ -4,15 +4,10 @@
 # author calllivecn <c-all@qq.com>
 
 
-
-
 import sys
 import math
 
 a, b, c = float(sys.argv[1]), float(sys.argv[2]), float(sys.argv[3])
-
-
-
 
 
 def area(a, b, c):
