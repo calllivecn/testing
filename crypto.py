@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 #coding=utf-8
 
+# pip install pycrypto
+
 import sys  
 from Crypto.Cipher import AES  
 from Crypto import Random
