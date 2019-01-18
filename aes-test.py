@@ -121,9 +121,9 @@ class AES256:
 
         # if fill != 0 说明这是最后一块，且有填充字节。
         if fill != 0:
-            return self.cryptor.decrypt(data)
+            return decryptor.decrypt(data)
         else:
-            data = self.cryptor.decrypt(data)
+            data = decryptor.decrypt(data)
             return data[0:-fill]
 
 
@@ -154,7 +154,7 @@ def test():
     print("这是原文:", b2a_hex(origin_data), "长度:",len(origin_data))
     crypt_data = aes.encrypt(origin_data)
     print("这是密文:", b2a_hex(crypt_data), "长度：", len(crypt_data))
-    decode_data = aes.decrypt(crypt_data)
+    decode_data = aes.decrypt(*crypt_data)
     print("这是解密后原文:", b2a_hex(decode_data), "长度：", len(decode_data))
 
 
@@ -174,12 +174,12 @@ def benchmark():
 
         encrypt = aes.encrypt(origin)
 
-        decrypt = aes.decrypt(encrypt)
+        decrypt = aes.decrypt(*encrypt)
 
         if origin != decrypt:
             print("第{}不对了。".format(count))
             print("原文：", b2a_hex(origin))
-            print("密码：", b2a_hex(encrypt))
+            print("密码：", b2a_hex(encrypt[0]))
             print("还原文：", b2a_hex(decrypt))
             exit(1)
 
