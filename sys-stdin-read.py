@@ -4,10 +4,10 @@
 # author calllivecn <c-all@qq.com>
 
 
-import sys,os
+import sys
 
-stdin =  sys.stdin.fileno()
+stdin =  sys.stdin.buffer
 data = True
 while data:
-    data = os.read(stdin,1024)
+    data = stdin.read(1024)
     print(len(data),data)
