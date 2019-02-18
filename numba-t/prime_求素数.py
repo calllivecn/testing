@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 #coding=utf-8
 
-
+import sys
 import math
 
 import numba as nb
 #from numba import vectorize,float32,float64,int8,int32,int64
 
-from libpy import runtime
+#from libpy import runtime
 
 #@nb.vectorize(['int8(int32)'])
             #int8(int64),
@@ -15,10 +15,10 @@ from libpy import runtime
             #int8(float64)])
 @nb.njit
 def prime(n):
-    if n <= 2 :
-        return True
+    if n == 1 :
+        return False
     
-    for i in range(3,int(math.sqrt(n))):
+    for i in range(2, int(math.sqrt(n)) + 1):
         if 0 == n % i:
             return False
 
@@ -28,18 +28,17 @@ def freema(n):
     return 2**2**n + 1
 
 
-@runtime
+#@runtime
 #@nb.vectorize(['void(int32)'])
 @nb.jit(nopython=True)
 def main(m):
-    for i in range(1,m+1):
-        if prime(i) :
-            pass
-            #print(i,':是一个素数')
+    for i in range(1,m + 1):
+        if prime(i):
+            print(i,':是一个素数')
 
-    print('i:',i)
 
 if __name__ == "__main__":
-    #main(1000000)
-    print(prime(freema(5)))
+    number = int(sys.argv[1])
+    main(number)
+    #print(prime(freema(5)))
 
