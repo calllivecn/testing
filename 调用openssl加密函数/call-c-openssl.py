@@ -1,4 +1,4 @@
-#!/usr/bin/env py3
+#!/usr/bin/env python3
 #coding=utf-8
 # date 2019-03-03 15:17:59
 # author calllivecn <c-all@qq.com>
@@ -14,6 +14,12 @@ import ctypes.util
 from ctypes import CDLL
 from ctypes import c_char_p, c_int, c_long, byref, create_string_buffer, c_void_p
 
+__all__ = ['ciphers']
+
+libcrypto = None
+loaded = False
+
+buf_size = 8192 # 1<<13, 8k size
 
 def find_library_nt(name):
     # modified from ctypes.util
@@ -117,16 +123,10 @@ def run_cipher(cipher, decipher):
         results.append(decipher.update(c[pos:pos + l]))
         pos += l
     end = time.time()
-    print('speed: %d bytes/s' % (BLOCK_SIZE * rounds / (end - start)))
+    print('speed: {}M/s'.format((BLOCK_SIZE * rounds / (end - start))/(1<<20)))
     assert b''.join(results) == plain
+
 ### zx  
-
-__all__ = ['ciphers']
-
-libcrypto = None
-loaded = False
-
-buf_size = 2048
 
 
 def load_openssl():
@@ -181,6 +181,7 @@ def rand_bytes(length):
     return buf.raw
 
 class OpenSSLCrypto:
+
     def __init__(self, cipher_name, key, iv, op):
         self._ctx = None
         if not loaded:
@@ -294,5 +295,5 @@ def test_rc4():
 
 
 if __name__ == '__main__':
-    test_aes_128_cfb()
+    #test_aes_128_cfb()
     test_aes_256_cfb()
