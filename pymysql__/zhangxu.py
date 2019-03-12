@@ -11,7 +11,7 @@ con = pymysql.connect(
                         host="localhost",
                         port=13306,
                         user="zhangxu",
-                        password="mysql5.7",
+                        password="mysql57",
                         db="zhangxu",
                         )
 
@@ -19,7 +19,7 @@ sql = """insert into this_my(name,id,phone) values(%s,%s,%s);"""
 
 cursor = con.cursor()
 
-fetch_sum = cursor.execute(sql,("卟上中茜",1314,"123456"))
+fetch_sum = cursor.execute(sql,("卟上中茜","1314","123456"))
 
 print(fetch_sum)
 
