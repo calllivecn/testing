@@ -18,15 +18,15 @@ import pymysql
 con = pymysql.connect(host="localhost",
                         port=13306,
                         user="root",
-                        password="mysql5.7",
-                        db="emoji",
-                        #charset="utf8mb4",
+                        password="mysql57",
+                        db="db1",
+                        charset="utf8mb4",
                         )
 
-sql = """insert into emoji(emoji) values(%s);"""
+sql = """insert into emoji(record) values(%s);"""
 
 with con.cursor() as cursor:
-    cursor.execute(sql, ("加上点文字～～～～～！😀😋"))
+    cursor.execute(sql, ("加上点文字～～～～～！"))
 
 con.commit()
 
