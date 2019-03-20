@@ -8,18 +8,18 @@ import threading as th
 C=sk.socket(sk.AF_INET,sk.SOCK_DGRAM)
 
 try:
-		while True:
-				b=input('enter : ')
-				if b=='quit':
-						break
-				print('sendto :',b)
-				b=b.encode('utf-8')
-				C.sendto(b,('0.0.0.0',6789))
-				C.settimeout(15)	
-				data,address=C.recvfrom(1024)
-				data=data.decode('utf-8')
-				print('recvfrom :',data)
-		
+	while True:
+		b=input('enter : ')
+		if b=='quit':
+			break
+		print('sendto :',b)
+		b=b.encode('utf-8')
+		C.sendto(b,('0.0.0.0',6789))
+		C.settimeout(15)	
+		data,address=C.recvfrom(1024)
+		data=data.decode('utf-8')
+		print('recvfrom :',data)
+	
 except:
 	print('有接收异常。')
 	raise
