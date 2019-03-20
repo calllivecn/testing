@@ -17,3 +17,6 @@ b.out
 */id_rsa
 */id_rsa.pub
 *.test
+*.tar
+*.xz
+*.gz
