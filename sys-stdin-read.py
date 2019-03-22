@@ -7,7 +7,11 @@
 import sys
 
 stdin =  sys.stdin.buffer
+stdout = sys.stdout.buffer
 data = True
 while data:
     data = stdin.read(1024)
-    print(len(data),data)
+    stdout.write(data)
+    print(len(data))
+
+
