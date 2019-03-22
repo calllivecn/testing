@@ -9,12 +9,16 @@ import sys
 import tarfile
 
 
+stdin = sys.stdin.buffer
+stdout = sys.stdout.buffer
 
 #fp = open("my.tar", "wb")
 
-tar = tarfile.TarFile(mode="w", fileobj=sys.stdout.buffer)
+#tar = tarfile.TarFile(mode="w", fileobj=sys.stdout.buffer)
 
-tar.add(sys.argv[1])
+tar = tarfile.TarFile(mode="r", fileobj=stdin)
+
+tar.extractall(path=stdout)
 
 tar.close()
 
