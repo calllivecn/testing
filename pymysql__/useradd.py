@@ -13,7 +13,7 @@ try:
                         port=13306,
                         #user="zhangxu",
                         user="root",
-                        password="zxmysql",
+                        password="mysql57",
                         #db="zhangxu",
                         )
 except pymysql.err.Error as e:
@@ -26,6 +26,7 @@ username = "python3"
 password = "zxpython"
 
 useradd = """create user "{}"@"{}" identified by "{}";"""
+useradd_up = """create user %s@%s identified by %s;"""
 userdel = """drop user {};"""
 showuser = """show grants for {};"""
 flush_privileges = """flush privileges;"""
@@ -36,8 +37,9 @@ cursor = con.cursor()
 
 sql = useradd.format(username, host, password)
 try:
-    result = cursor.execute(sql)
+    result = cursor.execute(useradd_up, (username, host, password))
     print(result)
+    print(cursor.fetchone())
 except pymysql.err.Error as e:
     print(e)
     print("添加用户异常")
@@ -46,6 +48,7 @@ except pymysql.err.Error as e:
 try:
     resutl = cursor.execute(showuser.format(username))
     print(result)
+    print(cursor.fetchone())
 except pymysql.err.Error as e:
     print(e)
     print("查看用户异常")
