@@ -11,6 +11,11 @@ import sys
 
 fp_rb = io.open(sys.stdin.fileno(),mode="rb")
 
+if fp_rb.isatty():
+    print("fp is tty")
+else:
+    print("fp is not tty")
+
 print("tell() --> ", fp_rb.tell())
 
 data = True
