@@ -17,7 +17,6 @@ try:
                         #db="zhangxu",
                         )
 except pymysql.err.Error as e:
-    print(e)
     print("连接异常")
     exit(1)
 
@@ -27,15 +26,15 @@ password = "zxpython"
 
 useradd = """create user "{}"@"{}" identified by "{}";"""
 useradd_up = """create user %s@%s identified by %s;"""
-userdel = """drop user {};"""
-showuser = """show grants for {};"""
+userdel_up = """drop user %s@%s;"""
+showuser_up = """show grants for %s@%s;"""
 flush_privileges = """flush privileges;"""
 
-grant = """grant {} on {}.{} to {}@{};"""
+grant_up = """grant all on {}.* to "{}"@"{}";"""
+db = "db1"
 
 cursor = con.cursor()
 
-sql = useradd.format(username, host, password)
 try:
     result = cursor.execute(useradd_up, (username, host, password))
     print(result)
@@ -46,13 +45,38 @@ except pymysql.err.Error as e:
     exit(1)
 
 try:
-    resutl = cursor.execute(showuser.format(username))
+    result = cursor.execute(grant_up.format(db, username, host))
+    print(result)
+    print(cursor.fetchone())
+except pymysql.err.Error as e:
+    print(e)
+    print("用户授权异常")
+    exit(1)
+
+
+try:
+    result = cursor.execute(showuser_up, (username, host))
     print(result)
     print(cursor.fetchone())
 except pymysql.err.Error as e:
     print(e)
     print("查看用户异常")
     exit(1)
+
+def delete():
+    try:
+        result = cursor.execute(userdel_up,(username, host))
+        print(result)
+        print(cursor.fetchone())
+    except pymysql.err.Error as e:
+        print(e)
+        print("删除用户异常")
+        exit(1)
+
+
+print("show user info")
+result = cursor.execute(flush_privileges)
+print(cursor.fetchone())
 
 con.commit()
 
