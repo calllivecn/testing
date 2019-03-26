@@ -12,7 +12,7 @@ printf "Please input your passwd: "
 
 while : ; do
     ret=`getchar`
-    if [ x$ret =  x ]; then
+    if [ x"$ret" =  x ]; then
         echo
         break
     fi
