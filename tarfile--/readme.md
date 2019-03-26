@@ -6,7 +6,7 @@
 
 - 也许gzip.compress(data)，也兼容gzip。
 
-- 也许bz2.compress(data) --> gzip
+- 也许bz2.compress(data) --> bzip2
 
 
 ### 遇到的问题
