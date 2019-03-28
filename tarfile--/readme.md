@@ -4,9 +4,9 @@
 
 - lzma.compress(data) ，的输出是兼容xz的。
 
-- 也许gzip.compress(data)，也兼容gzip。
+- gzip.compress(data)，也兼容gzip。
 
-- 也许bz2.compress(data) --> bzip2
+- bz2.compress(data) --> bzip2
 
 
 ### 遇到的问题
