@@ -1004,7 +1004,8 @@ class TarInfo(object):
 
             l = len(keyword) + len(value) + 3   # ' ' + '=' + '\n'
             n = p = 0
-            while True: n = l + len(str(p))
+            while True: 
+                n = l + len(str(p))
                 if n == p:
                     break
                 p = n
@@ -1092,7 +1093,13 @@ class TarInfo(object):
         """
         buf = tarfile.fileobj.read(BLOCKSIZE)
         obj = cls.frombuf(buf, tarfile.encoding, tarfile.errors)
-        obj.offset = tarfile.fileobj.tell() - BLOCKSIZE
+
+        # zx modify
+        if tarfile.fileobj is sys.stdin.buffer:
+            obj.offset = 0
+        else:
+            obj.offset = tarfile.fileobj.tell() - BLOCKSIZE
+
         return obj._proc_member(tarfile)
 
     #--------------------------------------------------------------------------
@@ -1123,7 +1130,12 @@ class TarInfo(object):
         """Process a builtin type or an unknown type which
            will be treated as a regular file.
         """
-        self.offset_data = tarfile.fileobj.tell()
+        # zx modiy
+        if tarfile.fileobj is sys.stdin.buffer:
+            self.offset_data = 0
+        else:
+            self.offset_data = tarfile.fileobj.tell()
+
         offset = self.offset_data
         if self.isreg() or self.type not in SUPPORTED_TYPES:
             # Skip the following data blocks.
@@ -2164,7 +2176,13 @@ class TarFile(object):
         """Make a file called targetpath.
         """
         source = self.fileobj
-        source.seek(tarinfo.offset_data)
+        
+        # zx modify
+        if source is sys.stdin.buffer:
+            pass
+        else:
+            source.seek(tarinfo.offset_data)
+
         bufsize = self.copybufsize
         with bltn_open(targetpath, "wb") as target:
             if tarinfo.sparse is not None:
@@ -2292,7 +2310,7 @@ class TarFile(object):
 
         # zx modifiy
         if self.fileobj is sys.stdin.buffer:
-            stdin = 0
+            stdin = self.pos
         else:
             stdin = self.fileobj.tell()
 
