@@ -5,9 +5,13 @@
 
 
 
-import import1
-#import1.logging.info("这里是import2.py")
-
-
+from logdir import import1
 import logging
+
+#import1.logging.info("这里是import2.py")
+logging.basicConfig(level=logging.DEBUG,
+                    format="%(asctime)s [%(pathname)s:%(lineno)d] %(message)s",
+                    datefmt="%Y-%m-%d-%H:%M:%S")
+
+
 logging.info("这里是import2.py")

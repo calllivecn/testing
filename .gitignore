@@ -21,3 +21,6 @@ b.out
 *.xz
 *.gz
 *.bz2
+
+
+pw.py
