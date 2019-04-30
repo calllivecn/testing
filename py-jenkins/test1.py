@@ -4,6 +4,7 @@
 # author calllivecn <c-all@qq.com>
 
 import json
+from pprint import pprint
 
 
 import jenkins
@@ -14,13 +15,19 @@ import pw
 
 e = etcd.Client("192.168.224.172",2379)
 
-#jks = jenkins.Jenkins('http://jks.bnq.in', username=pw.USERNAME, password=pw.PASSWORD)
+jks = jenkins.Jenkins('http://jks.bnq.in', username=pw.USERNAME, password=pw.PASSWORD)
 
-jks_name="yingxiao_test_market_admin"
+jks_name="test_jks_time"
 
-release_id = 310
+release_id = 316
 
-#jks.build_job(jks_name, {"param1": "测试测试测试～～～～"})
+jks_info = jks.get_job_info(jks_name)
+pprint(jks_info)
+
+build_id = jks_info["nextBuildNumber"]
+
+
+jks.build_job(jks_name, {"param1": "测试测试测试～～～～"})
 
 
 def write_etcd(release_id, jks_name, build_id):
@@ -31,9 +38,8 @@ def write_etcd(release_id, jks_name, build_id):
 
 
 
-#write_etcd(release_id, jks_name, 7)
-data = json.dumps({"release_id": 313, "build_id": 17})
+write_etcd(release_id, jks_name, build_id)
 
-e.write("/jenkinsjob/" + jks_name, data)
+#e.write("/jenkinsjob/" + jks_name, data)
 
 

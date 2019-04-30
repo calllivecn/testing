@@ -26,7 +26,7 @@ max(query_time) as max_time,
 min(query_time) as min_time,
 sum(query_time) as sum_time,
 count(*),sql_text,db 
-from slow_log1 
+from slow_log
 group by sql_text,db 
 order by sum_time desc 
 limit 10;
@@ -106,9 +106,9 @@ except pymysql.Error as e:
 
 
 for info in cursor.fetchall():
-    print("原信息：",info)
+    print("原信息：",info, "|{}|".format(info[5].decode("utf8")))
     for i in info:
-        print(str(i), "-- ", end="")
+        print(i, type(i), ": ", end="")
     print()
 
 #conn.commit()
