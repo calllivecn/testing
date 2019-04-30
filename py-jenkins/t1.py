@@ -16,6 +16,8 @@ user = server.get_whoami()
 
 version = server.get_version()
 
+job = server.get_job_config("test_jks_time")
+
 pprint(user)
 print()
 pprint(version)

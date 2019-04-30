@@ -6,6 +6,7 @@
 
 import jenkins
 
+import time
 from pprint import pprint
 
 import pw
@@ -19,6 +20,7 @@ server = jenkins.Jenkins('http://jks.bnq.in', username=pw.USERNAME, password=pw.
 #queue_id = server.build_job("autopilot-dev", {"branch": "dev", "release_id": 99999999999999999999})
 #print(queue_id)
 #exit(0)
+
 """
 queue_id = 7754
 build_id = 2
@@ -49,19 +51,55 @@ except KeyError as e:
     exit(2)
 """
 
+jks_name="test_jks_time"
 
-try:
-    build_info = server.get_build_info("test_jks_time", 3)
-except jenkins.JenkinsException as e:
-    print(False, e)
-    exit(3)
+build_id = server.get_job_info(jks_name)['nextBuildNumber']
 
-result = build_info.get("result")
-if result is None:
-    print("还在构建当中")
-    exit(4)
-else:
-   duration = build_info.get("duration")
+print("build id:", build_id)
 
+server.build_job(jks_name,{"release_id": 9999})
+
+#build_id = 22
+while True:
+
+    time.sleep(3)
+
+    try:
+        build_info = server.get_build_info(jks_name, build_id)
+    except jenkins.JenkinsException as e:
+        print(False, e)
+        #exit(3)
+    
+    building = build_info.get("building")
+    result = build_info.get("result")
+
+    if building == True:
+        print("还在构建当中")
+
+    else:
+        
+        if result == "FAILURE":
+            print("构建失")
+            break
+        
+        elif result == "SUCCESS":
+            duration = build_info.get("duration")
+            print("构建用时: ", duration)
+            break
+        
+        elif result == "ABORTED":
+            duration = build_info.get("duration")
+            print("取消构建，构建用时: ", duration)
+            break
+        
+        else:
+            print("未知情况")
+            break
+    
+    print(result)
+    pprint(build_info)
+
+
+
+print(result)
 pprint(build_info)
-print("构建用时: ", duration)
