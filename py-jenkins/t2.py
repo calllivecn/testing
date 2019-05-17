@@ -53,22 +53,37 @@ except KeyError as e:
 
 jks_name="test_jks_time"
 
-build_id = server.get_job_info(jks_name)['nextBuildNumber']
+#build_id = server.get_job_info(jks_name)['nextBuildNumber']
+#server.build_job(jks_name,{"release_id": 9999})
+#print("build id:", build_id)
 
-print("build id:", build_id)
-
-server.build_job(jks_name,{"release_id": 9999})
-
-#build_id = 22
+build_id = 39
 while True:
 
-    time.sleep(3)
+    queue_info = server.get_queue_info()
+    print("TYPE --> ",type(queue_info))
+    pprint(queue_info)
+    wait_queue = []
+    for info in queue_info:
+        try:
+            name = info["task"]["name"]
+            print(name)
+            wait_queue.append(name)
+        except KeyError:
+            print("Key error")
+            continue
+
+    print(wait_queue)
+    if jks_name in wait_queue:
+        print("{} 在等待队列中...".format(jks_name))
+        time.sleep(3)
+        continue
 
     try:
         build_info = server.get_build_info(jks_name, build_id)
     except jenkins.JenkinsException as e:
         print(False, e)
-        #exit(3)
+        exit(3)
     
     building = build_info.get("building")
     result = build_info.get("result")
@@ -95,6 +110,8 @@ while True:
         else:
             print("未知情况")
             break
+
+    time.sleep(3)
     
     print(result)
     pprint(build_info)
