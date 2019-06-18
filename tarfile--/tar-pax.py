@@ -253,6 +253,14 @@ class Tar:
         return cls._create_header(info, USTAR_FORMAT, "ascii", "replace") + \
                 cls._create_payload(records)
 
+    @classmethod
+    def _create_ustar_header(chksum, type_):
+        ustar = bytesarray(BLOCKSIZE)
+        ustar[100:108] = b"ustar\x0000"
+        ustar[148:156] = chksum
+        ustar[148:156] = type_
+
+
     @staticmethod
     #def _create_header(info, format, encoding, errors):
     def _create_header(info, format, encoding, errors):
