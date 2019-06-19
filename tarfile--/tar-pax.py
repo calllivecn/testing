@@ -7,12 +7,22 @@
 import io
 import os
 import sys
-from struct import pack, unpack, Struct
+import stat
+import logging
+from struct import pack, unpack, pack_into, unpack_from, Struct
 
+
+logger = logging.getLogger()
+stream = logging.StreamHandler(sys.stderr)
+fmt = logging.Formatter("%(filename)s:%(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
+stream.setFormatter(fmt)
+logger.addHandler(stream)
+
+logger.setLevel(logging.WARN)
 
 version = "test v0.1"
 
-__all__
+__all__ = ["TarPaxInfo"]
 
 NUL = b"\0"                     # the null character
 BLOCKSIZE = 512                 # length of processing blocks
@@ -24,7 +34,7 @@ LENGTH_NAME = 100               # maximum length of a filename
 LENGTH_LINK = 100               # maximum length of a linkname
 LENGTH_PREFIX = 155             # maximum length of the prefix field
 
-#REGTYPE = b"0"                  # regular file
+REGTYPE = b"0"                  # regular file
 AREGTYPE = b"\0"                # regular file
 LNKTYPE = b"1"                  # link (inside tarfile)
 SYMTYPE = b"2"                  # symbolic link
@@ -37,24 +47,27 @@ CONTTYPE = b"7"                 # contiguous file
 XHDTYPE = b"x"                  # POSIX.1-2001 extended header
 XGLTYPE = b"g"                  # POSIX.1-2001 global header
 
+USTAR_FORMAT = 0                # POSIX.1-1988 (ustar) format
+GNU_FORMAT = 1                  # GNU tar format
+PAX_FORMAT = 2                  # POSIX.1-2001 (pax) format
 
 #---------------------------------------------------------
 # Some useful functions
 #---------------------------------------------------------
 
-def stn(s, length, encoding, errors):
+def stn(s, length):
     """Convert a string to a null-terminated bytes object.
     """
-    s = s.encode(encoding, errors)
+    s = s.encode("utf-8")
     return s[:length] + (length - len(s)) * NUL
 
-def nts(s, encoding, errors):
+def nts(s):
     """Convert a null-terminated bytes object to a string.
     """
     p = s.find(b"\0")
     if p != -1:
         s = s[:p]
-    return s.decode(encoding, errors)
+    return s.decode("utf-8")
 
 def nti(s):
     """Convert a number field to a python number.
@@ -70,13 +83,14 @@ def nti(s):
             n = -(256 ** (len(s) - 1) - n)
     else:
         try:
-            s = nts(s, "ascii", "strict")
+            s = nts(s)
             n = int(s.strip() or "0", 8)
         except ValueError:
             raise InvalidHeaderError("invalid header")
     return n
 
-def itn(n, digits=8, format=DEFAULT_FORMAT):
+#def itn(n, digits=8, format=DEFAULT_FORMAT):
+def itn(n, digits=8):
     """Convert a python number to a number field.
     """
     # POSIX 1003.1-1988 requires numbers to be encoded as a string of
@@ -90,7 +104,7 @@ def itn(n, digits=8, format=DEFAULT_FORMAT):
     n = int(n)
     if 0 <= n < 8 ** (digits - 1):
         s = bytes("%0*o" % (digits - 1, n), "ascii") + NUL
-    elif format == GNU_FORMAT and -256 ** (digits - 1) <= n < 256 ** (digits - 1):
+    elif PAX_FORMAT == GNU_FORMAT and -256 ** (digits - 1) <= n < 256 ** (digits - 1):
         if n >= 0:
             s = bytearray([0o200])
         else:
@@ -114,8 +128,8 @@ def calc_chksums(buf):
        the high bit set. So we calculate two checksums, unsigned and
        signed.
     """
-    unsigned_chksum = 256 + sum(struct.unpack_from("148B8x356B", buf))
-    signed_chksum = 256 + sum(struct.unpack_from("148b8x356b", buf))
+    unsigned_chksum = 256 + sum(unpack_from("148B8x356B", buf))
+    signed_chksum = 256 + sum(unpack_from("148b8x356b", buf))
     return unsigned_chksum, signed_chksum
 
 def copyfileobj(src, dst, length=None, exception=OSError, bufsize=None):
@@ -154,56 +168,103 @@ def _safe_print(s):
 
 
 
-class Tar:
+class TarPaxInfo:
     """
     只实现了，POSIX 1003.1-2001 (pax) 格式
+    """
     
+
+    """
+    ustar 格式
+    INFO = {                                    # offset | length (unit: byte) "name":     self.name,              # 0     |100
+            "mode":     self.mode & 0o7777,     # 100   |8
+            "uid":      self.uid,               # 108   |8
+            "gid":      self.gid,               # 116   |8
+            "size":     self.size,              # 124   |12
+            "mtime":    self.mtime,             # 136   |12
+            "chksum":   self.chksum,            # 148   |8
+            "typeflag": self.typeflag,          # 156   |1
+            "linkname": self.linkname,          # 157   |100
+            "magic":    self.magix,             # 257   |6
+            "version":  self.version,           # 263   |2
+            "uname":    self.uname,             # 265   |32
+            "gname":    self.gname,             # 297   |32
+            "devmajor": self.devmajor,          # 329   |8
+            "devminor": self.devminor           # 337   |8
+            "prefix":   self.prefix,            # 345   |115
+            }
     """
 
-    INFO = {
-            "name":     self.name,
-            "mode":     self.mode & 0o7777,
-            "uid":      self.uid,
-            "gid":      self.gid,
-            "size":     self.size,
-            "mtime":    self.mtime,
-            "chksum":   self.chksum,
-            "type":     self.type,
-            "linkname": self.linkname,
-            "uname":    self.uname,
-            "gname":    self.gname,
-            "devmajor": self.devmajor,
-            "devminor": self.devminor
-            }
-
     # PAX 拓展关格式 "%d %s=%s\n" % (length, keyword, value)
-    POSIX = [
+    POSIX = (
             "path",
             "linkpath",
             #"charset",         # 就是UTF-8
             #"comment",         # 注释
-            "gid",              # 八进制字符串
+            "gid",              # 八进制字符串 <= oct(7777777)
             "uid",
             "uname",            # 所属用户名
             "gname",            # 所属用户组
             #"hdrcharset",       # 默认值UTF-8
             "atime",
             "mtime",
-            "size"
-            ]
+            "size"              # 八进制字符串 <= oct(77777777777)
+            )
 
     def __init__(self):
+
+        self.save_permission = False
+
+        self.inodes = {}
         self.pax_headers = {}
 
     @classmethod
-    def create_pax_global_header(cls, pax_headers):
-        """Return the object as a pax global header block sequence.
+    def _create_pax_ext_header(cls, type_, pax_header_len):
         """
-        return cls._create_pax_generic_header(pax_headers, "g", "utf-8")
+        实际上就是ustar模式的一个ext头
+        """
+
+        pax_ext_header = b"./PaxHeader author=ZhangXu repositories=https://github.com/calllivecn/tar.py"
+        ustar = bytearray(BLOCKSIZE)
+
+        # ustar field
+
+        # name : len(name) = 100
+        ustar[0:len(pax_ext_header)] = pax_ext_header
+
+        # mode : 0000644\0 
+        ustar[100:108] = b"0000644\x00"
+
+        # size : 这里是指拓展头的大小
+        ustar[124:136] = bytes("{:0>11o}".format(pax_header_len), "ascii") + NUL
+
+        # chksum <用space,用计算>
+        ustar[148:156] = b"        "
+
+        # typeflag
+        ustar[156:157] = type_ 
+        #ustar[156:157] = b"g" 
+        print(len(bytes(ustar)))
+
+        # magic(6) + version(2) = 8byte
+        ustar[257:265] = POSIX_MAGIC
+        print(len(bytes(ustar)))
+
+        # chksum
+        chksum = calc_chksums(ustar)[0]
+        ustar[148:156] = bytes("{:0>7o}".format(chksum), "ascii") + NUL
+
+        #print(ustar)
+        #print(ustar[148:156])
+        #exit(0)
+
+        print(len(bytes(ustar)))
+
+        print("-"* 80)
+        return bytes(ustar)
 
     @classmethod
-    def _create_pax_generic_header(cls, pax_headers, type, encoding):
-    #def _create_pax_generic_header(cls, pax_headers):
+    def _create_pax_generic_header(cls, type_, pax_headers): 
         """Return a POSIX.1-2008 extended or global header sequence
            that contains a list of keyword, value pairs. The values
            must be strings.
@@ -228,7 +289,7 @@ class Tar:
             if binary:
                 # Try to restore the original byte representation of `value'.
                 # Needless to say, that the encoding must match the string.
-                value = value.encode(encoding, "surrogateescape")
+                value = value.encode("utf-8", "surrogateescape")
             else:
                 value = value.encode("utf-8")
 
@@ -243,52 +304,132 @@ class Tar:
 
         # We use a hardcoded "././@PaxHeader" name like star does
         # instead of the one that POSIX recommends.
-        info = {}
-        info["name"] = "././@PaxHeader"
-        info["type"] = type
-        info["size"] = len(records)
-        info["magic"] = POSIX_MAGIC
 
         # Create pax header + record blocks.
-        return cls._create_header(info, USTAR_FORMAT, "ascii", "replace") + \
-                cls._create_payload(records)
+        #return cls._create_header(info, USTAR_FORMAT, "ascii", "replace") + \
+        ext_header = cls._create_pax_ext_header(XHDTYPE, len(records)) + cls._create_payload(records)
 
-    @classmethod
-    def _create_ustar_header(chksum, type_):
-        ustar = bytesarray(BLOCKSIZE)
-        ustar[100:108] = b"ustar\x0000"
-        ustar[148:156] = chksum
-        ustar[148:156] = type_
-
+        return ext_header + cls._create_pax_ext_header(type_, 0)
 
     @staticmethod
-    #def _create_header(info, format, encoding, errors):
-    def _create_header(info, format, encoding, errors):
+    def _create_payload(payload):
+        """Return the string payload filled with zero bytes
+           up to the next 512 byte border.
         """
-        这里只用来创建空的ustar header.
-        Return a header block. info is a dictionary with file
-        information, format must be one of the *_FORMAT constants.
-        """
-        parts = [
-            stn(info.get("name", ""), 100, encoding, errors),
-            itn(info.get("mode", 0) & 0o7777, 8, format),
-            itn(info.get("uid", 0), 8, format),
-            itn(info.get("gid", 0), 8, format),
-            itn(info.get("size", 0), 12, format),
-            itn(info.get("mtime", 0), 12, format),
-            b"        ", # checksum field
-            info.get("type", REGTYPE),
-            stn(info.get("linkname", ""), 100, encoding, errors),
-            info.get("magic", POSIX_MAGIC),
-            stn(info.get("uname", ""), 32, encoding, errors),
-            stn(info.get("gname", ""), 32, encoding, errors),
-            itn(info.get("devmajor", 0), 8, format),
-            itn(info.get("devminor", 0), 8, format),
-            stn(info.get("prefix", ""), 155, encoding, errors)
-        ]
+        blocks, remainder = divmod(len(payload), BLOCKSIZE)
+        if remainder > 0:
+            payload += (BLOCKSIZE - remainder) * NUL
+        return payload
 
-        buf = struct.pack("%ds" % BLOCKSIZE, b"".join(parts))
-        chksum = calc_chksums(buf[-BLOCKSIZE:])[0]
-        buf = buf[:-364] + bytes("%06o\0" % chksum, "ascii") + buf[-357:]
-        return buf
 
+    def filemetadata(self, filename):
+
+        fullname = filename.replace(os.sep, "/")
+        fullname = fullname.lstrip("/")
+
+        pax = self.pax_headers.copy()
+
+        pax["path"] = fullname
+
+        if hasattr(os, "lstat"):
+            fstat = os.lstat(filename)
+        else:
+            fstat = os.stat(filename)
+
+        linkname = ""
+        
+        st_mode = fstat.st_mode
+        if stat.S_ISREG(st_mode):
+            inode = (fstat.st_ino, fstat.st_dev)
+
+            if fstat.st_nlink > 1 and inode in self.inodes and fullname != self.inodes[inode]:
+                type_ = LNKTYPE
+                linkname = self.indes[inode]
+            else:
+                type_ = REGTYPE
+                if inode[0]:
+                    self.inodes[inode] = fullname
+
+        elif stat.S_ISDIR(st_mode):
+             type_ = DIRTYPE
+
+        elif stat.S_ISFIFO(st_mode):
+             type_ = FIFOTYPE
+
+        elif stat.S_ISLNK(st_mode):
+             type_ = SYMTYPE
+             linkname = os.readlink(fullname)
+
+        elif stat.S_ISCHR(st_mode):
+             type_ = CHRTYPE
+
+        elif stat.S_ISBLK(st_mode):
+             type_ = BLKTYPE
+
+        else:
+            logger.warn("不支持的文件类型：{}".format(filename))
+        
+        if linkname:
+            pax["linkpath"] = linkname
+
+        s, c = divmod(fstat.st_size, BLOCKSIZE)
+        if c > 0:
+            s += 1
+
+        pax["size"] = "{:o}".format(fstat.st_size)
+
+        if self.save_permission:
+            pax["uid"] = str(fstat.st_uid)
+            pax["gid"] = str(fstat.st_gid)
+
+            try:
+                import pwd
+                pax["uname"] = pwd.getpwuid(fstat.st_uid).pw_name
+            except ModuleNotFoundError:
+                pass
+
+        
+            try:
+                import grp
+                pax["gname"] = pwd.getpwuid(fstat.st_gid).gr_name
+            except ModuleNotFoundError:
+                pass
+
+        pax["atime"] = str(fstat.st_atime)
+        pax["mtime"] = str(fstat.st_mtime)
+
+        # return pax_header data
+        return self._create_pax_generic_header(type_, pax)
+
+
+if __name__ == "__main__":
+    tarpaxinfo = TarPaxInfo()
+    
+    out_tarname = sys.argv[1]
+
+    tar_fp = open(out_tarname, "wb")
+
+    for file_dir in sys.argv[2:]:
+
+        filesize = os.path.getsize(file_dir)
+
+
+        tarfiledata = tarpaxinfo.filemetadata(file_dir)
+        
+        with open(file_dir, "rb") as fp:
+
+            tar_fp.write(tarfiledata)
+
+            tar_fp.write(fp.read())
+
+
+        s, c = divmod(filesize, BLOCKSIZE)
+        if c > 0:
+            fill_data = (BLOCKSIZE - c) * NUL
+            tar_fp.write(fill_data)
+            tar_fp.write(bytes(2*BLOCKSIZE)) 
+
+    tar_fp.close()
+
+        
+    
