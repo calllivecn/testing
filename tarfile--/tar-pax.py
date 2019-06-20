@@ -51,6 +51,68 @@ USTAR_FORMAT = 0                # POSIX.1-1988 (ustar) format
 GNU_FORMAT = 1                  # GNU tar format
 PAX_FORMAT = 2                  # POSIX.1-2001 (pax) format
 
+
+#---------------------------------------------------------
+# tarfile constants
+#---------------------------------------------------------
+# File types that tarfile supports:
+SUPPORTED_TYPES = (REGTYPE, AREGTYPE, LNKTYPE,
+                   SYMTYPE, DIRTYPE, FIFOTYPE,
+                   CONTTYPE, CHRTYPE, BLKTYPE)
+
+# File types that will be treated as a regular file.
+REGULAR_TYPES = (REGTYPE, AREGTYPE,
+                 CONTTYPE)
+
+
+# Fields from a pax header that override a TarInfo attribute.
+PAX_FIELDS = ("path", "linkpath", "size", "mtime", "atime",
+              "uid", "gid", "uname", "gname")
+
+# Fields from a pax header that are affected by hdrcharset.
+PAX_NAME_FIELDS = {"path", "linkpath", "uname", "gname"}
+
+# Fields in a pax header that are numbers, all other fields
+# are treated as strings.
+PAX_NUMBER_FIELDS = {
+    "atime": float,
+    "ctime": float,
+    "mtime": float,
+    "uid": int,
+    "gid": int,
+    "size": int
+}
+
+#--------------------------------------------------------
+# Exception 
+#--------------------------------------------------------
+class TarError(Exception):
+    """Base exception"""
+    pass
+
+class ExtractError(TarError):
+    """General exception for extract errors."""
+    pass
+
+class ReadError(TarError):
+    """Exception for unreadable tar archives."""
+    pass
+
+class CompressionError(TarError):
+    """Exception for unavailable compression methods."""
+    pass
+
+class HeaderError(TarError):
+    """Base exception for header errors."""
+    pass
+
+class EmptyHeaderError(HeaderError):
+    """Exception for empty headers."""
+    pass
+
+class InvalidHeaderError(HeaderError):
+    """Exception for invalid headers."""
+    pass
 #---------------------------------------------------------
 # Some useful functions
 #---------------------------------------------------------
@@ -103,17 +165,8 @@ def itn(n, digits=8):
     # number.
     n = int(n)
     if 0 <= n < 8 ** (digits - 1):
-        s = bytes("%0*o" % (digits - 1, n), "ascii") + NUL
-    elif PAX_FORMAT == GNU_FORMAT and -256 ** (digits - 1) <= n < 256 ** (digits - 1):
-        if n >= 0:
-            s = bytearray([0o200])
-        else:
-            s = bytearray([0o377])
-            n = 256 ** digits + n
-
-        for i in range(digits - 1):
-            s.insert(1, n & 0o377)
-            n >>= 8
+        #s = bytes("%0*o" % (digits - 1, n), "ascii") + NUL
+        s = bytes("{:0>{}o}".format(n, digits - 1), "ascii")  + NUL
     else:
         raise ValueError("overflow in number field")
 
@@ -158,13 +211,51 @@ def copyfileobj(src, dst, length=None, exception=OSError, bufsize=None):
     return
 
 
+class tarinfo:
+    """
+    tar file detail info
+    """
 
-def _safe_print(s):
-    encoding = getattr(sys.stdout, 'encoding', None)
-    if encoding is not None:
-        s = s.encode(encoding, 'backslashreplace').decode(encoding)
-    print(s, end=' ')
+    __slots__ = ("path", "linkpath", "mode", "uid", "gid", "size", "mtime",
+                 "type_", "uname", "gname",
+                 "devmajor", "devminor")
+    #__all__ = []
 
+    def __init__(self, filename = ""):
+        self._path = filename
+        self._linkpath = ""
+        self._name = filename
+        self._mode = 0o644
+        self._uid = 0
+        self._gid = 0
+        self._size = 0 
+        self._atime = 0.0
+        self._mtime = 0.0
+        self._type = "x"
+        self._uname = None
+        self._gname = None
+        self._devmajor = bytes(8)
+        self._devminor = bytes(8)
+
+        self.ustar_header_block = bytearray(BLOCKSIZE)
+
+        self._pax_headers = {}
+
+
+    def __get_ustar_header(self, fp):
+
+        buf = fp.read(BLOCKSIZE)
+        
+    def __set_uster_header(self):
+        pass
+
+    def __get_ext_ustar_header(self):
+        ext_name_header = b"./PaxHeader author=ZhangXu repositories=https://github.com/calllivecn/tar.py"
+        self.__set_uster_header(self)
+
+
+    def __get_pax_header(self):
+        pass
 
 
 
@@ -175,8 +266,9 @@ class TarPaxInfo:
     
 
     """
-    ustar 格式
-    INFO = {                                    # offset | length (unit: byte) "name":     self.name,              # 0     |100
+    ustar 格式 一个512 块，不足，后面填充 NUL。
+    INFO = {                                    # offset | length (unit: byte)
+            "name":     self.name,              # 0     |100
             "mode":     self.mode & 0o7777,     # 100   |8
             "uid":      self.uid,               # 108   |8
             "gid":      self.gid,               # 116   |8
@@ -191,7 +283,7 @@ class TarPaxInfo:
             "gname":    self.gname,             # 297   |32
             "devmajor": self.devmajor,          # 329   |8
             "devminor": self.devminor           # 337   |8
-            "prefix":   self.prefix,            # 345   |115
+            "prefix":   self.prefix,            # 345   |115 GNU tar 没有用这个字段。
             }
     """
 
@@ -244,23 +336,14 @@ class TarPaxInfo:
         # typeflag
         ustar[156:157] = type_ 
         #ustar[156:157] = b"g" 
-        print(len(bytes(ustar)))
 
         # magic(6) + version(2) = 8byte
         ustar[257:265] = POSIX_MAGIC
-        print(len(bytes(ustar)))
 
         # chksum
         chksum = calc_chksums(ustar)[0]
         ustar[148:156] = bytes("{:0>7o}".format(chksum), "ascii") + NUL
 
-        #print(ustar)
-        #print(ustar[148:156])
-        #exit(0)
-
-        print(len(bytes(ustar)))
-
-        print("-"* 80)
         return bytes(ustar)
 
     @classmethod
