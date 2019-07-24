@@ -474,7 +474,7 @@ class TarPaxInfo:
         
             try:
                 import grp
-                pax["gname"] = pwd.getpwuid(fstat.st_gid).gr_name
+                pax["gname"] = grp.getgrgid(fstat.st_gid).gr_name
             except ModuleNotFoundError:
                 pass
 
