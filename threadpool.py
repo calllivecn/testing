@@ -7,10 +7,68 @@
 from concurrent import futures
 from urllib import request
 
-URLS = ['https://www.baidu.com/',
+URLS = [
+        'https://www.baidu.com/',
+        'https://www.aliyun.com/',
+        'https://www.baidu.com/',
+        'https://www.baidu.com/',
         'https://www.aliyun.com/',
         'https://www.taobao.com/',
-        'https://www.google.com/']
+        'https://www.google.com/'
+        'https://www.baidu.com/',
+        'https://www.aliyun.com/',
+        'https://www.taobao.com/',
+        'https://www.google.com/'
+        'https://www.baidu.com/',
+        'https://www.aliyun.com/',
+        'https://www.taobao.com/',
+        'https://www.google.com/'
+        'https://www.baidu.com/',
+        'https://www.aliyun.com/',
+        'https://www.taobao.com/',
+        'https://www.google.com/'
+        'https://www.aliyun.com/',
+        'https://www.taobao.com/',
+        'https://www.google.com/'
+        'https://www.taobao.com/',
+        'https://www.baidu.com/',
+        'https://www.aliyun.com/',
+        'https://www.taobao.com/',
+        'https://www.google.com/'
+        'https://www.google.com/'
+        'https://www.baidu.com/',
+        'https://www.aliyun.com/',
+        'https://www.taobao.com/',
+        'https://www.google.com/'
+        'https://www.baidu.com/',
+        'https://www.aliyun.com/',
+        'https://www.taobao.com/',
+        'https://www.google.com/'
+        'https://www.baidu.com/',
+        'https://www.aliyun.com/',
+        'https://www.taobao.com/',
+        'https://www.google.com/'
+        'https://www.baidu.com/',
+        'https://www.aliyun.com/',
+        'https://www.taobao.com/',
+        'https://www.google.com/'
+        'https://www.baidu.com/',
+        'https://www.aliyun.com/',
+        'https://www.taobao.com/',
+        'https://www.google.com/'
+        'https://www.baidu.com/',
+        'https://www.aliyun.com/',
+        'https://www.taobao.com/',
+        'https://www.google.com/'
+        'https://www.baidu.com/',
+        'https://www.aliyun.com/',
+        'https://www.taobao.com/',
+        'https://www.google.com/'
+        'https://www.baidu.com/',
+        'https://www.aliyun.com/',
+        'https://www.taobao.com/',
+        'https://www.google.com/'
+        ]
 
 # Retrieve a single page and report the URL and contents
 def load_url(url, timeout):
@@ -35,3 +93,4 @@ with futures.ThreadPoolExecutor(max_workers=5) as executor:
             print('{} generated an exception: {}'.format(url, exc))
         else:
             print('{} page is {} bytes'.format(url, len(data)))
+
