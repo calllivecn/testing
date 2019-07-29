@@ -7,15 +7,15 @@ import selectors
 
 
 
-def echo_handler(conn, event, sel):
-    message = conn.recv(4096)
-    conn.send(message)
-    sel.unregister(conn)
-    conn.close()
+def recv_handler(conn, data):
+    data = conn.recv(4096)
 
-def handler_accept(conn, event, sel):
+def send_handler(conn, data):
+    conn.send(data)
+
+def handler_accept(conn, selector):
     sock , addr = conn.accept()
-    sel.register(sock, selectors.EVENT_READ, echo_handler)
+    selector.register(sock, selectors.EVENT_READ | selectors.EVENT_WRITE, {"data": None})
 
 def server(host, port):
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -28,7 +28,7 @@ def server(host, port):
     selector.register(listener, selectors.EVENT_READ, handler_accept)
 
     task_count = 0
-    start = 0
+    start = time.time()
     while True:
         for key, event in selector.select():
             conn = key.fileobj
