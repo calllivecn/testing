@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 #coding=utf-8
 
-
+import time
 import socket
 import selectors
 
-def handler(conn,event,sel):
+
+
+def echo_handler(conn,event,sel):
     message = conn.recv(4096)
     conn.send(message)
     sel.unregister(conn)
     conn.close()
-    #print(message)
 
-def handler_accept(conn,event,sel):
+def handler_accept(conn, event, sel):
     sock , addr = conn.accept()
-    sel.register(sock,selectors.EVENT_READ,handler)
+    sel.register(sock, selectors.EVENT_READ, echo_handler)
 
 def server(host, port):
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -24,25 +25,23 @@ def server(host, port):
     listener.listen(128)
 
     selector = selectors.DefaultSelector()
-    selector.register(listener, selectors.EVENT_READ,handler_accept)
-    fdmap={}
+    selector.register(listener, selectors.EVENT_READ, handler_accept)
+
+    task_count = 0
+    start = 0
     while True:
-        event_list = selector.select()
-        for key, event in event_list:
+        for key, event in selector.select():
             conn = key.fileobj
             func = key.data
-            func(conn,event,selector)
+            func(conn, event, selector)
 
-            '''
-            if conn == listener:
-                new_conn, addr = conn.accept()
-                selector.register(new_conn, selectors.EVENT_READ)
-            else:
-                handler(conn)
-                selector.unregister(conn)
-                #conn.shutdown(socket.SHUT_RDWR)
-                conn.close()
-            '''
+        task_count += 1
+        end = time.time()
+        if (end - start) >= 1:
+            task = task_count
+            task_count = 0
+            print("当前处理连接数：{}/s".format(task))
+            start, end = end, time.time()
 
     selectot.close()
 
