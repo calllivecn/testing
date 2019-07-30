@@ -22,7 +22,7 @@ async def main():
     server = socket.socket()
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-    server.bind(("127.0.0.1", 6789))
+    server.bind(("0.0.0.0", 6789))
     server.listen(128)
 
     start = time.time()
@@ -31,10 +31,13 @@ async def main():
         client, addr = server.accept()
 
         #print("client:", addr)
-        count += 1
         e = asyncio.create_task(echo(client))
         await e
+
+        #echo(client)
+
         end = time.time()
+        count += 1
         if (end - start) >= 1:
             print("count: {}/s".format(count))
             start, end = end, time.time()
@@ -42,5 +45,6 @@ async def main():
 
 try:
     asyncio.run(main())
+    #main()
 except KeyboardInterrupt:
     pass
