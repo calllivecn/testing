@@ -15,8 +15,8 @@ def connect(host,port,content):
         sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEPORT,True)
         sock.connect((host,port))
         #sock.send(str(content).encode())
-        sock.send(bytes(2048))
-        data = sock.recv(4096)
+        sock.send(bytes(128))
+        data = sock.recv(128)
         #sock.shutdown(socket.SHUT_RDWR)
         sock.close()
         count+=1

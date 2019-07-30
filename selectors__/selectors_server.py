@@ -9,18 +9,21 @@ import selectors
 
 def echo_handler(conn, event, sel):
     message = conn.recv(4096)
-    conn.send(message)
-    sel.unregister(conn)
-    conn.close()
+    if mesage:
+        conn.send(message)
+    else:
+        sel.unregister(conn)
+        conn.close()
 
 def handler_accept(conn, event, sel):
     sock , addr = conn.accept()
+    sock.setblocking(False)
     sel.register(sock, selectors.EVENT_READ, echo_handler)
 
 def server(host, port):
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    listener.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-    #listener.setblocking(False)
+    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR,1)
+    listener.setblocking(False)
     listener.bind((host, port))
     listener.listen(128)
 

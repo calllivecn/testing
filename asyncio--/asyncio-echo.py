@@ -7,44 +7,51 @@ import time
 import socket
 import asyncio
 
+BLOCK = 1<<14 # 16k
 
 async def echo(sock):
-    #sock.setblocking(False)
-    data = sock.recv(4096)
-    sock.send(data)
-    sock.close()
-    #print("client close()")
+    while True:
+        data = await loop.sock_recv(sock, BLOCK)
+        if not data:
+            break
 
-async def handler():
-    pass
+        await loop.sock_sendall(sock, b"Got: " + data)
+
+    sock.close()
+    print("client close()")
+
 
 async def main():
     server = socket.socket()
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
     server.bind(("0.0.0.0", 6789))
     server.listen(128)
+
+    server.setblocking(False)
 
     start = time.time()
     count = 0
     while True:
-        client, addr = server.accept()
+        #client, addr = server.accept()
+        client, addr = await loop.sock_accept(server)
 
-        #print("client:", addr)
-        e = asyncio.create_task(echo(client))
-        await e
+        print("client:", addr)
+        loop.create_task(echo(client))
 
-        #echo(client)
+        #end = time.time()
+        #count += 1
+        #if (end - start) >= 1:
+        #    print("count: {}/s".format(count))
+        #    start, end = end, time.time()
+        #    count = 0
 
-        end = time.time()
-        count += 1
-        if (end - start) >= 1:
-            print("count: {}/s".format(count))
-            start, end = end, time.time()
-            count = 0
+
+loop = asyncio.get_event_loop()
+
 
 try:
-    asyncio.run(main())
-    #main()
+    loop.create_task(main())
+    loop.run_forever()
+    #asyncio.run(main())
 except KeyboardInterrupt:
     pass
