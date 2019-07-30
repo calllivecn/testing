@@ -11,7 +11,7 @@ def accept(sock, mask):
     sel.register(conn, selectors.EVENT_READ, read)
 
 def read(conn, mask):
-    data = conn.recv(4096)  # Should be ready
+    data = conn.recv(128)  # Should be ready
     if data:
         #print('echoing', repr(data), 'to', conn)
         conn.send(data)  # Hope it won't block
@@ -21,8 +21,8 @@ def read(conn, mask):
         conn.close()
 
 sock = socket.socket()
-sock.bind(('localhost', 6789))
-sock.listen(100)
+sock.bind(('0.0.0.0', 6789))
+sock.listen(128)
 sock.setblocking(False)
 sel.register(sock, selectors.EVENT_READ, accept)
 
