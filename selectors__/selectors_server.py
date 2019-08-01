@@ -9,7 +9,7 @@ import selectors
 
 def echo_handler(conn, event, sel):
     message = conn.recv(4096)
-    if mesage:
+    if message:
         conn.send(message)
     else:
         sel.unregister(conn)
