@@ -5,18 +5,15 @@ import time
 sel = selectors.DefaultSelector()
 
 def accept(sock, mask):
-    conn, addr = sock.accept()  # Should be ready
-    #print('accepted', conn, 'from', addr)
+    conn, addr = sock.accept()
     conn.setblocking(False)
     sel.register(conn, selectors.EVENT_READ, read)
 
 def read(conn, mask):
     data = conn.recv(128)  # Should be ready
     if data:
-        #print('echoing', repr(data), 'to', conn)
-        conn.send(data)  # Hope it won't block
+        conn.send(data)
     else:
-        #print('closing', conn)
         sel.unregister(conn)
         conn.close()
 
@@ -41,3 +38,6 @@ while True:
             print("count: {}/s".format(count))
             start, end = end, time.time()
             count = 0
+
+
+sel.close()

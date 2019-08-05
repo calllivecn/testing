@@ -12,7 +12,7 @@ async def process_input(fp):
     print(">>> ",end="")
     text = fp.readline()
     text.strip()
-    print("your input: {}".format(text))
+    print("\nyour input: {}".format(text))
 
 async def timer(end):
     if end >= 3:
