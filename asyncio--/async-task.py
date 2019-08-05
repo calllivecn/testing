@@ -6,25 +6,22 @@
 import asyncio
 import time
 
-async def say_after(delay, what):
+async def say_after(delay):
+    print(delay, "start")
     await asyncio.sleep(delay)
-    print(what)
+    print(delay, "end")
 
 async def main():
 
-
-    print(f"started at {time.strftime('%X')}")
     start = time.time()
-    await asyncio.create_task(say_after(1, 'hello'))
-    await asyncio.create_task(say_after(2, 'world'))
+    #await asyncio.create_task(say_after(1))
+    #await asyncio.create_task(say_after(2))
 
-    #task1 = asyncio.create_task(say_after(1, 'hello'))
-    #task2 = asyncio.create_task(say_after(2, 'world'))
+    task1 = asyncio.create_task(say_after(1))
+    task2 = asyncio.create_task(say_after(2))
 
-    #await task1
-    #await task2
-    print(f"finished at {time.strftime('%X')}")
-
-    print("耗时：{}s".format(time.time() - start))
+    await task1
+    await task2
+    print("耗时：{}s".format(round(time.time() - start)))
 
 asyncio.run(main())

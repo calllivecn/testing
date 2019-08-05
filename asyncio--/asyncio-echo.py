@@ -36,14 +36,8 @@ async def main():
         client, addr = await loop.sock_accept(server)
 
         print("client:", addr)
+        client.setblocking(False)
         loop.create_task(echo(client))
-
-        #end = time.time()
-        #count += 1
-        #if (end - start) >= 1:
-        #    print("count: {}/s".format(count))
-        #    start, end = end, time.time()
-        #    count = 0
 
 
 loop = asyncio.get_event_loop()
@@ -52,6 +46,8 @@ loop = asyncio.get_event_loop()
 try:
     loop.create_task(main())
     loop.run_forever()
-    #asyncio.run(main())
 except KeyboardInterrupt:
     pass
+
+finally:
+    loop.close()

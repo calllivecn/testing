@@ -32,21 +32,23 @@ def server(host, port):
 
     task_count = 0
     start = 0
-    while True:
-        for key, event in selector.select():
-            conn = key.fileobj
-            func = key.data
-            func(conn, event, selector)
+    try:
+        while True:
+            for key, event in selector.select():
+                conn = key.fileobj
+                func = key.data
+                func(conn, event, selector)
 
-            task_count += 1
-            end = time.time()
-            if (end - start) >= 1:
-                task = task_count
-                task_count = 0
-                print("当前处理连接数：{}/s".format(task))
-                start, end = end, time.time()
+                task_count += 1
+                end = time.time()
+                if (end - start) >= 1:
+                    task = task_count
+                    task_count = 0
+                    print("当前处理连接数：{}/s".format(task))
+                    start, end = end, time.time()
+    finally:
 
-    selectot.close()
+        selectot.close()
 
 if __name__ == '__main__':
     try:
