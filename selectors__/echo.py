@@ -12,12 +12,13 @@ def accept(sock, mask):
 def read(conn, mask):
     data = conn.recv(128)  # Should be ready
     if data:
-        conn.send(data)
+        conn.send(b"Got: " + data)
     else:
         sel.unregister(conn)
         conn.close()
 
 sock = socket.socket()
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 sock.bind(('0.0.0.0', 6789))
 sock.listen(128)
 sock.setblocking(False)
@@ -31,13 +32,13 @@ while True:
         callback = key.data
         callback(key.fileobj, mask)
 
-        count += 1
-        end = time.time()
+        #count += 1
+        #end = time.time()
 
-        if end - start >= 1:
-            print("count: {}/s".format(count))
-            start, end = end, time.time()
-            count = 0
+        #if end - start >= 1:
+        #    print("count: {}/s".format(count))
+        #    start, end = end, time.time()
+        #    count = 0
 
 
 sel.close()
