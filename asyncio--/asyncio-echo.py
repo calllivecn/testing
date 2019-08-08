@@ -16,6 +16,7 @@ async def echo(sock):
             break
 
         await loop.sock_sendall(sock, b"Got: " + data)
+        print("data:", data)
 
     sock.close()
     print("client close()")
