@@ -10,8 +10,9 @@ readline.parse_and_bind('tab: complete')
 readline.parse_and_bind('set editing-mode vi')
 
 while True:
-	line = input('prompt ("stop" to quit): ')
-	if line == 'stop':
-		break
-	else:
-		print('entered:',line)
+    line = input('prompt ("stop" to quit): ')
+
+    if line == 'stop':
+        break
+    else:
+        print('entered:', line)
