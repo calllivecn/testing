@@ -10,12 +10,15 @@ server = Server("ldap://192.168.0.30:389", get_info=ALL)
 
 #con = Connection(server);print(con.bind());exit(0)
 
-con = Connection(server, auto_bind=True, user="b-and-qchina.com\\admin", password="1234qwer", authentication=NTLM)
+con = Connection(server, user="cn=xu.zhang, dc=b-and-qchain, dc=com", password="zx4@1597530.x") #, authentication=NTLM)
 
 #print("con.start_tls() -->", con.start_tls()) 
-#print(con.bind())
+con.open()
+print(con.bind())
+
+print(con.result)
 
 print(server.info)
 
-print(con.extend.standard.who_am_i())
+#print(con.extend.standard.who_am_i())
 
