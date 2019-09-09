@@ -12,8 +12,8 @@ import os
 from os import path
 from time import sleep
 
+
 import libevdev as ev
-from libevdev import (Device, evbit,)
 
 
 from logs import logger
@@ -104,6 +104,26 @@ class VirtualKeyboardMouse:
 
         #led = [ evbit(17, 0), evbit(17, 1), evbit(17, 2) ]
 
+    def __mousebtn2seq(self, btn, downup=1)
+        """
+        鼠标移动，和点击。
+        
+        param: btn: LEFT, RIGHT, MIDDLE
+        param: downup: 1 or 0
+        """
+
+    def __moseclick2seq(self, rel_x, rel_y):
+        """
+        param: move: (rel_x, rel_y) or (None, None)
+        """
+        pass
+
+    def __mosewheel2seq(self, updown=1):
+        """
+        EV_REL.REL_0B value 与鼠标滚轮方向对应为 -120 or 120
+        param: updown: 鼠标滚轮方向，value=1:向上，value=-1 向下
+        """
+        pass
 
     def __key2seq(self, key, downup=1):
         """
@@ -155,5 +175,3 @@ class VirtualKeyboardMouse:
         sleep(self._sleep)
         self.keyup(key)
 
-    def close(self):
-        pass
