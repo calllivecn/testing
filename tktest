@@ -3,7 +3,6 @@
 
 from tkinter import * 
 
- 
 
 root = Tk() 
 
@@ -13,7 +12,6 @@ def callback():
 
     print("called the callback!")
 
- 
 
 # create a toolbar 
 
@@ -23,16 +21,11 @@ b = Button(toolbar, text="new", width=6, command=callback)
 
 b.pack(side=RIGHT, padx=0, pady=0) 
 
- 
-
 b = Button(toolbar, text="open", width=6, command=callback) 
 
 b.pack(side=LEFT, padx=2, pady=2) 
 
- 
-
 toolbar.pack(side=TOP, fill=X) 
 
- 
 
 mainloop()
