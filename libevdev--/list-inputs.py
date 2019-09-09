@@ -36,8 +36,8 @@ for dev in inputs:
     elif all(map(device.has, KEYBOARD)):
         print("应该是键盘了: ", device.name, "路径：", device.fd)
 
-    #else:
-        #print("其他输入设备：", device.name, "路径：",device.fd)
+    else:
+        print("其他输入设备：", device.name, "路径：",device.fd)
 
     dev.close()
 
