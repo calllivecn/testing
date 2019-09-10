@@ -89,7 +89,7 @@ class HotKey:
         hotkeys: ["alt", "f"]
         callback: function()
         """
-        if 
+        pass
 
 
 
