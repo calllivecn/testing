@@ -14,7 +14,9 @@ from time import sleep
 
 
 import libevdev as ev
-from libevdev import (Device, InputEvent, evbit)
+from libevdev import (Device, InputEvent, evbit,
+                        EV_REL,EV_KEY
+                        )
 
 
 from logs import logger
@@ -28,10 +30,12 @@ def getkbm(baseinput="/dev/input"):
         devpath = path.join(baseinput, dev)
         if not path.isdir(devpath):
             devfd = open(devpath, 'rb')
+        else:
+            continue
 
         try:
-            device = libevdev.Device(devfd)
-        except OSError as e :
+            device = Device(devfd)
+        except (OSError, Exception) as e :
             logger.error("打开 {} 异常：{}".format(dev, e))
             continue
     
@@ -41,21 +45,52 @@ def getkbm(baseinput="/dev/input"):
         KEYBOARD = [EV_KEY.KEY_ESC, EV_KEY.KEY_SPACE, EV_KEY.KEY_BACKSPACE, EV_KEY.KEY_0, EV_KEY.KEY_A, EV_KEY.KEY_Z, EV_KEY.KEY_9, EV_KEY.KEY_F2]
     
         if all(map(device.has, MOUSE)):
-            print("应该是鼠标了: ", device.name, "路径：", device.fd)
-            kbm.append(dev)
+            logger.info("应该是鼠标了: ", device.name, "路径：", device.fd)
+            kbms.append(devpath)
     
         elif all(map(device.has, KEYBOARD)):
-            print("应该是键盘了: ", device.name, "路径：", device.fd)
-            kbm.append(dev)
+            logger.info("应该是键盘了: ", device.name, "路径：", device.fd)
+            kbms.append(devpath)
     
         #else:
             #print("其他输入设备：", device.name, "路径：",device.fd)
     
-        dev.close()
+        devfd.close()
+
+    return kbms
     
     #with open(path.join(baseinput, "event0"), "rb") as fd:
     #    device = libevdev.Device(fd)
     #    print(device.name)
+
+
+class HotKey:
+    """
+    监听键盘、鼠标事件，触发动作。
+    """
+
+    def __init__(self, device=None):
+        """
+        device: /dev/input/eventX, default: all keyboard and mouse.
+        """
+
+        kbms = getkbm() 
+
+        if device is None:
+            self.kbms = kbms
+        else:
+            if device not in kbms:
+                raise ValueError("{} 不是鼠标或键盘设备。".format(device))
+            else:
+                self.kbms = device
+    
+    def addhotkey(self, hotkeys=[], callback=print):
+        """
+        hotkeys: ["alt", "f"]
+        callback: function()
+        """
+        if
+
 
 
 class VirtualKeyboardMouse:
@@ -80,7 +115,7 @@ class VirtualKeyboardMouse:
         if isinstance(t, float) or isinstance(t, int):
             self._sleep = t
         else:
-            raise ValueError("t require is int or float.")
+            raise ValueError("require is int or float.")
 
 
     def __add_mouse_keyboard_events(self):
@@ -94,16 +129,28 @@ class VirtualKeyboardMouse:
         mouse0 = [ evbit(0, i) for i in range(15) ]
         mouse1 = [ evbit(1, i) for i in range(272, 276+1) ]
         mouse2 = [ evbit(2, 0), evbit(2, 1), evbit(2, 8), evbit(2, 11) ]
-        for e in mouse0 + mouse1 + mouse2:
-            self.device.enable(e)
-
+        mouse = mouse0 + mouse1 + mouse2
 
         # 键盘事件类型
-        keyboard0 = [ evbit(1, i) for i in range(1, 128+1) ]
-        for e in keyboard0:
+        keyboard = [ evbit(1, i) for i in range(1, 128+1) ]
+
+        self.events = mouse + keyboard
+
+        # LEDs
+        #led = [ evbit(17, 0), evbit(17, 1), evbit(17, 2) ]
+
+        for e in self.events:
             self.device.enable(e)
 
-        #led = [ evbit(17, 0), evbit(17, 1), evbit(17, 2) ]
+    def listkey(self):
+        """
+        list all support key.
+        """
+        for e in self.events:
+            if e.name.startswith("KEY_"):
+                print(e.name.lstrip("KEY_"))
+            elif e.name.startswith("BTN_"):
+                print(e.name.lstrip("BTN_"))
 
     def __mousebtn2seq(self, btn, downup=1):
         """
@@ -154,12 +201,14 @@ class VirtualKeyboardMouse:
             event_seq = [ InputEvent(ev.EV_REL.REL_WHEEL, value=1),
                             InputEvent(ev.EV_REL.REL_0B, value=120),
                             InputEvent(ev.EV_SYN.SYN_REPORT, value=0) ]
-        elif updown == 0:
+        elif updown == -1:
             event_seq = [ InputEvent(ev.EV_REL.REL_WHEEL, value=-1),
                             InputEvent(ev.EV_REL.REL_0B, value=-120),
                             InputEvent(ev.EV_SYN.SYN_REPORT, value=0) ]
         else:
-            raise ValueError("updown chioce: 1 or 0.")
+            raise ValueError("updown chioce: 1 or -1.")
+
+        return event_seq
 
 
     def __key2seq(self, key, downup=1):
@@ -249,7 +298,15 @@ class VirtualKeyboardMouse:
         self.uinput.send_events(e)
 
     def mousewheel(self, updown):
-        pass
+        """
+        updown: "UP" or "DOWN"
+        """
+        if updown == "UP":
+            self.uinput.send_events(self.__mousewheel2seq(1))
+        elif updown == "DOWN":
+            self.uinput.send_events(self.__mousewheel2seq(-1))
+        else:
+            raise ValueError("updown: choice UP or DOWN")
 
     def mousemove_relative(self, x, y):
         self.uinput.send_events(self.__mousemove2seq(x, y))
@@ -259,4 +316,4 @@ class VirtualKeyboardMouse:
         还未实现
         """
         #self.uinput.send_events(self.__mousemove2seq(x, y))
-        logger.warn("还未实现")
+        logger.warn("还未实现: mousemove(x, y)")
