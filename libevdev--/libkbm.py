@@ -14,7 +14,8 @@ from time import sleep
 
 
 import libevdev as ev
-from libevdev import (Device, InputEvent, evbit,
+from libevdev import (
+                        Device, InputEvent, evbit,
                         EV_REL,EV_KEY
                         )
 
@@ -62,62 +63,6 @@ def getkbm(baseinput="/dev/input"):
     #with open(path.join(baseinput, "event0"), "rb") as fd:
     #    device = libevdev.Device(fd)
     #    print(device.name)
-
-
-class HotKey:
-    """
-    监听键盘、鼠标事件，触发动作。
-    """
-
-    def __init__(self, device=None):
-        """
-        device: /dev/input/eventX, default: all keyboard and mouse.
-        """
-
-        self.devices = []
-
-        kbms = getkbm() 
-
-        if len(kbms) <= 0:
-            raise Exception("没有发现至少一个键盘或鼠标。")
-
-        if device is None:
-            self.kbms = kbms
-        else:
-            if device not in kbms:
-                raise ValueError("{} 不是鼠标或键盘设备。".format(device))
-            else:
-                self.kbms = device
-        
-        self.LISTEN = 1
-        self.REPLACE = 2
-        self._mode = self.LISTEN
-
-    @property
-    def mode(self)
-        return self._mode
-
-    @property.setter
-    def mode(self, m):
-        """
-        m: replace mode, listen mode, default: listen
-        """
-        if m == self.REPLACE or m == self.LISTEN:
-            self._mode = m
-        else:
-            raise ValueError("mode is choice: self.REPLACE or self.LISTEN")
-        
-    
-    def addhotkey(self, hotkeys=[], callback=print):
-        """
-        hotkeys: ["alt", "f"]
-        callback: function()
-        """
-
-
-    def monitor(self)
-        pass
-
 
 
 class VirtualKeyboardMouse:
