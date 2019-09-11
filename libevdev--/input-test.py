@@ -9,6 +9,7 @@ import sys
 import selectors
 #import fcntl
 
+import libevdev as ev
 from libevdev import Device, InputEvent
 
 import libkbm
@@ -31,12 +32,21 @@ def registers(kbms):
 s = registers(libkbm.getkbm())
 
 while True:
-    print("while 里面")
+    #print("while 里面")
     for fd, event in s.select():
-        print("for select() 里面")
-        for e in fd.data.events():
-            print("for events() 里面")
-            print(e)
+        #print("for select() 里面")
+        try:
+            for e in fd.data.events():
+                #print("for events() 里面")
+                if e.matches(ev.EV_KEY):
+                    print(e)
+                else:
+                    print("======= 不是key事件：=======", e)
+        except ev.EventsDroppedException:
+            print("eventsDroppedException:")
+            for err in ev.sync():
+                print("except:", err)
+
 
 """
 成功了～～～

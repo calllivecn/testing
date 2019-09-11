@@ -74,7 +74,12 @@ class HotKey:
         device: /dev/input/eventX, default: all keyboard and mouse.
         """
 
+        self.devices = []
+
         kbms = getkbm() 
+
+        if len(kbms) <= 0:
+            raise Exception("没有发现至少一个键盘或鼠标。")
 
         if device is None:
             self.kbms = kbms
@@ -83,12 +88,34 @@ class HotKey:
                 raise ValueError("{} 不是鼠标或键盘设备。".format(device))
             else:
                 self.kbms = device
+        
+        self.LISTEN = 1
+        self.REPLACE = 2
+        self._mode = self.LISTEN
+
+    @property
+    def mode(self)
+        return self._mode
+
+    @property.setter
+    def mode(self, m):
+        """
+        m: replace mode, listen mode, default: listen
+        """
+        if m == self.REPLACE or m == self.LISTEN:
+            self._mode = m
+        else:
+            raise ValueError("mode is choice: self.REPLACE or self.LISTEN")
+        
     
     def addhotkey(self, hotkeys=[], callback=print):
         """
         hotkeys: ["alt", "f"]
         callback: function()
         """
+
+
+    def monitor(self)
         pass
 
 
@@ -103,19 +130,19 @@ class VirtualKeyboardMouse:
         self.__add_mouse_keyboard_events()
         self.uinput = self.device.create_uinput_device()
 
-        self._sleep = 0.01
+        self._delay = 0.01
 
 
     @property
-    def sleep(self):
-        return self._sleep
+    def delay(self):
+        return self._delay
 
-    @sleep.setter
-    def sleep(self, t):
+    @delay.setter
+    def delay(self, t):
         if isinstance(t, float) or isinstance(t, int):
-            self._sleep = t
+            self._delay = t
         else:
-            raise ValueError("require is int or float.")
+            raise ValueError("require is int or float unit seconds.")
 
 
     def __add_mouse_keyboard_events(self):
@@ -249,16 +276,17 @@ class VirtualKeyboardMouse:
         """
 
         self.uinput.send_events(self.__key2seq(key, 1))
+        sleep(self._delay)
 
     def keyup(self, key):
         """
         松开 key.
         """
         self.uinput.send_events(self.__key2seq(key, 0))
+        sleep(self.delay)
 
     def key(self, key):
         self.keydown(key)
-        #sleep(self._sleep)
         self.keyup(key)
 
     def ctrlkey(self, key):
@@ -287,15 +315,21 @@ class VirtualKeyboardMouse:
 
     def mousebtndown(self, btn):
         self.uinput.send_events(self.__mousebtn2seq(btn, downup=1))
+        sleep(self._delay)
 
     def mousebtnup(self, btn):
         self.uinput.send_events(self.__mousebtn2seq(btn, downup=0))
+        sleep(self._delay)
 
     def mouseclick(self, btn):
         
         # mouse click event list
-        e = self.__mousebtn2seq(btn,downup=1) + self.__mousebtn2seq(btn, downup=0)
-        self.uinput.send_events(e)
+        e = self.__mousebtn2seq(btn,downup=1)
+        self.uinput.send_events(e) 
+        sleep(self._sleep)
+        e = self.__mousebtn2seq(btn, downup=0)
+        self.uinput.send_events(e) 
+        sleep(self._sleep)
 
     def mousewheel(self, updown):
         """
@@ -307,9 +341,11 @@ class VirtualKeyboardMouse:
             self.uinput.send_events(self.__mousewheel2seq(-1))
         else:
             raise ValueError("updown: choice UP or DOWN")
+        sleep(self._delay)
 
     def mousemove_relative(self, x, y):
         self.uinput.send_events(self.__mousemove2seq(x, y))
+        sleep(self._delay)
 
     def mousemove(self, x, y):
         """
