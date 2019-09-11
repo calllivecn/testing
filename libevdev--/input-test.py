@@ -7,15 +7,11 @@
 import os
 import sys
 import selectors
-import fcntl
+#import fcntl
 
 from libevdev import Device, InputEvent
 
 import libkbm
-
-
-#dev_input_event = sys.argv[1]
-#dev_input_event2 = sys.argv[2]
 
 
 def registers(kbms):
@@ -23,15 +19,14 @@ def registers(kbms):
 
     for kbm in kbms:
         print("加入：", kbm)
-        fd = open(kbm, "rb")
-        fcntl.fcntl(fd, fcntl.F_SETFL, os.O_NONBLOCK)
-        device = Device(fd)
+        fd = os.open(kbm, os.O_NONBLOCK | os.O_RDONLY)
+        fdobj = open(fd, "rb")
+        #fcntl.fcntl(fd, fcntl.F_SETFL, os.O_NONBLOCK)
+        device = Device(fdobj)
 
         selector.register(device.fd, selectors.EVENT_READ, data=device)
 
     return selector
-
-
 
 s = registers(libkbm.getkbm())
 
