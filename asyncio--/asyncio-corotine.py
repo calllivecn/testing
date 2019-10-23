@@ -6,7 +6,6 @@
 
 import asyncio
 
-
 async def nested():
     return 42
 
