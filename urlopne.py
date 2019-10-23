@@ -14,11 +14,11 @@ block = 1<<14 # 16k
 response = urlopen(sys.argv[1], timeout=3)
 
 c = 1 
+
 for data in iter(partial(response.read, block), b""):
     print(c , "kB", len(data))
     c+=1
 
-
-
+response.close()
 
 
