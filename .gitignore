@@ -11,6 +11,8 @@ b.out
 *.log
 *.logs
 
+*.txt
+
 *.wav
 *.pcm
 .idea/
