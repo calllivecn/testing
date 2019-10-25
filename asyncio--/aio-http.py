@@ -18,9 +18,15 @@ async def request():
     result = await get(url)
     print('Get response from ', url, 'Result len():', len(result))
 
-tasks = [asyncio.ensure_future(request()) for _ in range(5)]
-loop = asyncio.get_event_loop()
-loop.run_until_complete(asyncio.wait(tasks))
+#tasks = [asyncio.ensure_future(request()) for _ in range(5)]
+#loop = asyncio.get_event_loop()
+#loop.run_until_complete(asyncio.wait(tasks))
+
+async def main():
+    tasks = [asyncio.create_task(request()) for _ in range(5)]
+    return await asyncio.gather(*tasks)
+
+asyncio.run(main())
 
 end = time.time()
 print('Cost time:', end - start)

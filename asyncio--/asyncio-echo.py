@@ -12,13 +12,14 @@ BLOCK = 1<<14 # 16k
 async def echo(sock):
     while True:
         data = await loop.sock_recv(sock, BLOCK)
+
         if not data:
             break
 
         await loop.sock_sendall(sock, b"Got: " + data)
         print("data:", data)
 
-    sock.close()
+    await sock.close()
     print("client close()")
 
 
@@ -42,7 +43,7 @@ async def main():
 
 
 loop = asyncio.get_event_loop()
-loop.create_task(main())
+task = loop.create_task(main())
 
 try:
     loop.run_forever()
@@ -50,4 +51,5 @@ except KeyboardInterrupt:
     pass
 
 finally:
+    task.cancel()
     loop.close()
