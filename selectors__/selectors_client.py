@@ -2,6 +2,7 @@
 #coding=utf-8
 
 
+import os
 import sys
 import time
 import socket
@@ -12,19 +13,18 @@ count=int(sys.argv[1])
 
 
 def connect(host,port,content):
-    count=0
+    count = 0
     sums = 0
     start = time.time()
     for i in range(content):
-
 
         sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM,0)
         sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEPORT,True)
         sock.connect((host,port))
         #sock.send(str(content).encode())
-        sock.send(bytes(128))
+        sock.send(os.urandom(128))
         data = sock.recv(128)
-        #sock.shutdown(socket.SHUT_RDWR)
+        #sock.shutdown(socket.SHUT_RD)
         sock.close()
 
         interval = time.time() - start
@@ -56,7 +56,6 @@ try:
 except KeyboardInterrupt:
     print("ctrl+C exit...")
 
-from socket import socket,AF_INET,SOCK_STREAM,SO_REUSEPORT,SOL_SOCKET
 
 def speed():
     size=4096
