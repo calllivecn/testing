@@ -6,12 +6,16 @@
 
 import sys
 
-from urllib.request import urlopen
+from urllib.request import urlopen, Request
 from functools import partial
 
 block = 1<<14 # 16k
 
-response = urlopen(sys.argv[1], timeout=3)
+headers = {"User-Agent": "author: calllivecn, url: https://github.com/calllivecn/"}
+
+req = Request(sys.argv[1], headers=headers)
+
+response = urlopen(req, timeout=3)
 
 c = 1 
 
