@@ -5,13 +5,19 @@
 
 import sys
 
-a, b = 0, 1
 
 try:
     n = int(sys.argv[1]) + 1
 except (IndexError, ValueError):
     n = 50 + 1
 
-for i in range(1, n):
-    print("{} : {}".format(i,b))
-    a,b = b,a+b
+def fib(n):
+    a, b = 0, 1
+    for i in range(n):
+        print("{} : {}".format(i,b))
+        a,b = b,a+b
+
+    return a
+
+
+print("N:", fib(5))
