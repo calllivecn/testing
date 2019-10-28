@@ -7,7 +7,6 @@ from subprocess import Popen,PIPE
 CMD='ping -c 5 -W1 www.baidu.com'
 CMD='./sub.sh'
 CMD='bash'
-CMD='./sub.py'
 
 sp = Popen(CMD,stdin=PIPE,shell=True)
 
