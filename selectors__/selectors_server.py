@@ -39,16 +39,16 @@ def server(host, port):
                 func = key.data
                 func(conn, event, selector)
 
-                task_count += 1
-                end = time.time()
-                if (end - start) >= 1:
-                    task = task_count
-                    task_count = 0
-                    print("当前处理连接数：{}/s".format(task))
-                    start, end = end, time.time()
+                if conn is not listener:
+                    task_count += 1
+                    end = time.time()
+                    if (end - start) >= 1:
+                        print("当前处理连接数：{}/s".format(task_count))
+                        task_count = 0
+                        start = time.time()
     finally:
 
-        selectot.close()
+        selector.close()
 
 if __name__ == '__main__':
     try:
