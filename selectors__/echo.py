@@ -2,14 +2,13 @@ import selectors
 import socket
 import time
 
-sel = selectors.DefaultSelector()
 
-def accept(sock, mask):
+def accept(sock, mask, sel):
     conn, addr = sock.accept()
-    conn.setblocking(False)
+    #conn.setblocking(False)
     sel.register(conn, selectors.EVENT_READ, read)
 
-def read(conn, mask):
+def read(conn, mask, sel):
     data = conn.recv(128)  # Should be ready
     if data:
         conn.send(b"Got: " + data)
@@ -21,7 +20,9 @@ sock = socket.socket()
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 sock.bind(('0.0.0.0', 6789))
 sock.listen(128)
-sock.setblocking(False)
+#sock.setblocking(False)
+
+sel = selectors.DefaultSelector()
 sel.register(sock, selectors.EVENT_READ, accept)
 
 start = time.time()
@@ -30,7 +31,7 @@ while True:
     
     for key, mask in sel.select():
         callback = key.data
-        callback(key.fileobj, mask)
+        callback(key.fileobj, mask, sel)
 
         #count += 1
         #end = time.time()
