@@ -7,6 +7,9 @@ b.out
 *.so
 *.pem
 *.cert
+*.crt
+*.csr
+*.crl
 *.key
 *.log
 *.logs

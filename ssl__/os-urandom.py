@@ -1,4 +1,4 @@
-#!/usr/bin/env py3
+#!/usr/bin/env python3
 #coding=utf-8
 # date 2018-12-16 21:46:48
 # author calllivecn <c-all@qq.com>
