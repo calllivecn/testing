@@ -6,20 +6,18 @@ import ssl
 
 s = socket.socket()
 
-
-
-
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
 
-s.bind(("localhost",6789))
+#s.bind(("localhost",6789))
+s.bind(("",6789))
 
 s.listen(128)
 
 
 #sslcontext = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
 sslcontext = ssl.SSLContext(ssl.PROTOCOL_TLS)
-sslcontext.options |= (ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_2)
-sslcontext.load_cert_chain(keyfile="server_key.pem", certfile="server_cert.pem")
+sslcontext.options |= (ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1)
+sslcontext.load_cert_chain(keyfile="server.key", certfile="server.crt")
 
 def start():
 
