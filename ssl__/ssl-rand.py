@@ -44,7 +44,7 @@ def speed():
             end = time.time()
             interval = end - start
             if interval >= 1:
-                print(data_sum / interval,"MB", "interval time: ", interval, "秒")
+                print(round(data_sum / interval, 2),"MB", "interval time: ", round(interval, 3), "秒")
                 data_sum = 0
                 start = time.time()
             
