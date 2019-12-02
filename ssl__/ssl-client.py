@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 #coding=utf-8
 
-import socket
+import sys
 import ssl
+import socket
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -25,7 +26,7 @@ if verify:
     sslcontext.check_hostname = True
 
     # 加载指定证书
-    sslcontext.load_verify_locations("ca.crt")
+    sslcontext.load_verify_locations(sys.argv[1])
 
 
 site="localhost"
