@@ -48,6 +48,6 @@ if __name__ == "__main__":
     print("物理宽：{}mm 高：{}mm".format(rw, rh))
 
     ppi = get_ppi(w, h, rw, rh)
-    print("PPI(每英寸像素)：", round(ppi))
+    print("PPI(每英寸像素)：", round(ppi, 3))
 
 
