@@ -17,11 +17,12 @@ req = Request(sys.argv[1], headers=headers)
 
 response = urlopen(req, timeout=3)
 
-c = 1 
+c = 0 
 
 for data in iter(partial(response.read, block), b""):
-    print(c , "kB", len(data))
+    l = len(data)
     c+=1
+    print(c , "kB", l, "b")
 
 response.close()
 
