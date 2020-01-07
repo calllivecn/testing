@@ -14,14 +14,14 @@ def print_time( threadName, delay):
 
 for v in range(2):
 # 创建两个线程
-		try:
-				t = threading.Thread(target=print_time,args=('thread-{} : '.format(v),5))
-		except:
-				print ("Error: unable to start thread")
+    try:
+        t = threading.Thread(target=print_time,args=('thread-{} : '.format(v),5))
+    except:
+        print ("Error: unable to start thread")
 
 
 
-	#	t.setDaemon(True)
-		t.start()
+    #t.setDaemon(True)
+    t.start()
 
 print('Mian exited')
