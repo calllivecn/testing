@@ -73,7 +73,7 @@ func Client(conn net.Conn) {
 
         fmt.Println("recv data:", string(recv_buf))
 
-        n, err = conn.Write(recv_buf[:n])
+        n, err = conn.Write(append([]byte("Got: "), recv_buf[:n]))
         if err != nil {
             fmt.Println("write error:", err)
             return
