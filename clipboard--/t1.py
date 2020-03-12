@@ -4,10 +4,11 @@
 # author calllivecn <c-all@qq.com>
 
 import sys
-
-from tkinter import Tk 
-tk = Tk()
 import time 
+from tkinter import Tk 
+
+tk = Tk()
+
 x = None
 while True:
     t = tk.selection_get(selection="CLIPBOARD")
