@@ -4,8 +4,9 @@
 # author calllivecn <c-all@qq.com>
 
 #import ssl
+import time
 from urllib import parse
-#from socketserver import ThreadingMixIn
+from socketserver import ThreadingMixIn
 from http.server import (
                         HTTPServer,
                         # ThreadingHTTPServer, 3.7 版本新功能。
@@ -14,8 +15,8 @@ from http.server import (
                         )
 
 # 手动添加 threading 版本
-#class ThreadHTTPServer(ThreadingMixIn, HTTPServer):
-    #daemon_threads = True
+class ThreadHTTPServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
 
 class Handler(BaseHTTPRequestHandler):
 
@@ -40,6 +41,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", content_length)
         self.end_headers()
 
+        time.sleep(1)
+
         self.wfile.write(content)
 
 
@@ -48,6 +51,10 @@ class Handler(BaseHTTPRequestHandler):
 
 
 
-httpd = HTTPServer(("127.0.0.1", 6789), Handler)
-#httpd = ThreadHTTPServer(("127.0.0.1", 6789), Handler)
-httpd.serve_forever()
+#httpd = HTTPServer(("127.0.0.1", 6789), Handler)
+httpd = ThreadHTTPServer(("127.0.0.1", 6789), Handler)
+try:
+    httpd.serve_forever()
+finally:
+    httpd.server_close()
+    print("Close server")
