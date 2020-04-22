@@ -8,6 +8,8 @@
 
 1. 只需要发送广播的设置sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 2. client 和 server  都bind（）一下地址。方便防火墙设置通过。
+3. client 和 server 端，一定要用不同的BIND（）端口。
+    不然client会接收到自己发送的广播包。。。。
 """
 
 
@@ -16,13 +18,14 @@ import socket
 import readline
 
 
-BIND_ADDR = ("", 6789)
+BIND_ADDR_CLIENT = ("", 6788)
+BIND_ADDR_SERVER = ("", 6789)
 BROADCAST_ADDR = ("<broadcast>", 6789)
 
 def client():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    sock.bind(BIND_ADDR)
+    sock.bind(BIND_ADDR_CLIENT)
     sock.settimeout(3)
 
     while True:
@@ -46,7 +49,7 @@ def server():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     #sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
-    sock.bind(BIND_ADDR)
+    sock.bind(BIND_ADDR_SERVER)
 
     while True:
         data, addr = sock.recvfrom(256)
