@@ -15,7 +15,6 @@ try:
     exec(open(sys.argv[0]+'.cfg').read())
 except Exception:
     print('读取配置文件异常')
-    raise
 
 BIND = (IP_address, PORT)
 
