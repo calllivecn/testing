@@ -4,7 +4,10 @@
 # author calllivecn <c-all@qq.com>
 
 """
-1. 一些坑
+记录一些坑：
+
+1. 只需要发送广播的设置sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+2. client 和 server  都bind（）一下地址。方便防火墙设置通过。
 """
 
 
