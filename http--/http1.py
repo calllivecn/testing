@@ -5,6 +5,7 @@
 
 #import ssl
 import time
+import json
 from urllib import parse
 from socketserver import ThreadingMixIn
 from http.server import (
@@ -20,7 +21,8 @@ class ThreadHTTPServer(ThreadingMixIn, HTTPServer):
 
 class Handler(BaseHTTPRequestHandler):
 
-    def do_GET(self):
+    #def do_GET(self):
+    def do_POST(self):
         print("HTTP version:", self.request_version)
         print("client IP:", self.client_address)
 
@@ -29,6 +31,14 @@ class Handler(BaseHTTPRequestHandler):
 
         # 返回http协议版本
         self.protocol_version = "HTTP/1.1"
+
+        # parse 参数
+        pr = parse.urlparse(self.path)
+        print(pr)
+
+        # read() body
+        body = self.rfile.read(int(self.headers["Content-Length"]))
+        print(f"read json data: {json.loads(body)}")
 
         # process content
         content = "hello, world!".encode()
@@ -44,11 +54,6 @@ class Handler(BaseHTTPRequestHandler):
         time.sleep(1)
 
         self.wfile.write(content)
-
-
-    def do_POST(self):
-        pass
-
 
 
 #httpd = HTTPServer(("127.0.0.1", 6789), Handler)
