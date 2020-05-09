@@ -21,8 +21,7 @@ class ThreadHTTPServer(ThreadingMixIn, HTTPServer):
 
 class Handler(BaseHTTPRequestHandler):
 
-    #def do_GET(self):
-    def do_POST(self):
+    def do_GET(self):
         print("HTTP version:", self.request_version)
         print("client IP:", self.client_address)
 
@@ -54,6 +53,9 @@ class Handler(BaseHTTPRequestHandler):
         time.sleep(1)
 
         self.wfile.write(content)
+
+    def do_POST(self):
+        self.do_GET()
 
 
 #httpd = HTTPServer(("127.0.0.1", 6789), Handler)
