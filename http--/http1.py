@@ -22,6 +22,9 @@ class ThreadHTTPServer(ThreadingMixIn, HTTPServer):
 class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
+        self.do_POST()
+
+    def do_POST(self):
         print("HTTP version:", self.request_version)
         print("client IP:", self.client_address)
 
@@ -35,9 +38,18 @@ class Handler(BaseHTTPRequestHandler):
         pr = parse.urlparse(self.path)
         print(pr)
 
-        # read() body
-        body = self.rfile.read(int(self.headers["Content-Length"]))
-        print(f"read json data: {json.loads(body)}")
+        # headers
+        print(f"headers: {self.headers}")
+
+        # read() body 没有Content-Length 头，就是没有body
+        length = self.headers.get("Content-Length")
+        if length is None:
+            # length = 0, not body
+            body = b""
+        else:
+            body = self.rfile.read(int(length))
+            print(f"read json data: {json.loads(body)}")
+
 
         # process content
         content = "hello, world!".encode()
