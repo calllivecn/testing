@@ -11,16 +11,19 @@ BLOCK = 1<<14 # 16k
 
 async def echo(sock):
     while True:
-        data = await loop.sock_recv(sock, BLOCK)
+        try:
+            data = await loop.sock_recv(sock, BLOCK)
+        except ConnectionResetError:
+            break
 
         if not data:
             break
 
         await loop.sock_sendall(sock, b"Got: " + data)
-        print("data:", data)
+        #print("data:", data)
 
-    await sock.close()
-    print("client close()")
+    sock.close()
+    #print("client close()")
 
 
 async def main():
@@ -37,13 +40,21 @@ async def main():
         #client, addr = server.accept()
         client, addr = await loop.sock_accept(server)
 
-        print("client:", addr)
+        #print("client:", addr)
         client.setblocking(False)
         loop.create_task(echo(client))
 
+        interval = time.time() - start
+        if interval >= 1:
+            start = time.time()
+            print("并发速度：", count, "/s")
+            count = 0
+        else:
+            count += 1
+
 
 loop = asyncio.get_event_loop()
-task = loop.create_task(main())
+loop.create_task(main())
 
 try:
     loop.run_forever()
@@ -51,5 +62,4 @@ except KeyboardInterrupt:
     pass
 
 finally:
-    task.cancel()
     loop.close()
