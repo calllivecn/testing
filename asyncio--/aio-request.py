@@ -13,8 +13,7 @@ from typing import IO
 import urllib.error
 import urllib.parse
 
-#import aiofiles
-import aiofile
+import aiofiles
 import aiohttp
 from aiohttp import ClientSession
 
@@ -79,8 +78,7 @@ async def write_one(file: IO, url: str, **kwargs) -> None:
     res = await parse(url=url, **kwargs)
     if not res:
        return None
-    #async with aiofiles.open(file, "a") as f:
-    async with aiofile.AIOFile(file, "a") as f:
+    async with aiofiles.open(file, "a") as f:
         for p in res:
             await f.write(f"{url}\t{p}\n")
         logger.info("Wrote results for source URL: %s", url)
