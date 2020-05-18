@@ -16,6 +16,7 @@ do
     
     if [ $count -eq 3 ];then
         date +%s
+		count=0
     fi
     count=$[count+1]
     echo "$line"
