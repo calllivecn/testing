@@ -3,6 +3,9 @@
 # date 2018-12-13 17:40:49
 # author calllivecn <c-all@qq.com>
 
+# 这种方式，没有在磁盘上预申请出指定大小。
+# fallocate 命令，或者 #include <fctl.h> int fallocate() 函数。
+
 import io
 import os
 import ssl
@@ -15,18 +18,17 @@ f = open("5M.logs","wb")
 
 fd = f.fileno()
 
-os.lseek(fd, count * MB, io.SEEK_CUR)
-
-print(f.tell())
-f.seek(-2, io.SEEK_CUR)
-os.write(fd,b'zx')
+f.write(b'zx')
 f.flush()
 
-f.seek(0, io.SEEK_SET)
-for _ in range(count):
-    f.write(ssl.RAND_bytes(MB))
-    f.flush()
+os.lseek(fd, count * MB, io.SEEK_CUR)
+print(f.tell())
 
-os.close(fd)
+f.write(b"end")
+f.flush()
 
-#f.close()
+#for _ in range(count):
+#    f.write(ssl.RAND_bytes(MB))
+#    f.flush()
+
+f.close()
