@@ -31,3 +31,5 @@ b.out
 pw.py
 hdfs--/input/
 *.pyz
+
+*.pid
