@@ -19,14 +19,17 @@ from http.server import (
 class ThreadHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
 
+    def log_message(self, *args):
+        pass
+
 class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         self.do_POST()
 
     def do_POST(self):
-        print("HTTP version:", self.request_version)
-        print("client IP:", self.client_address)
+        #print("HTTP version:", self.request_version)
+        #print("client IP:", self.client_address)
 
         self.server_version = "server/0.2 zx/1.0"
         self.sys_version = ""
@@ -36,10 +39,10 @@ class Handler(BaseHTTPRequestHandler):
 
         # parse 参数
         pr = parse.urlparse(self.path)
-        print(pr)
+        #print(pr)
 
         # headers
-        print(f"headers: {self.headers}")
+        #print(f"headers: {self.headers}")
 
         # read() body 没有Content-Length 头，就是没有body
         length = self.headers.get("Content-Length")
@@ -48,7 +51,7 @@ class Handler(BaseHTTPRequestHandler):
             body = b""
         else:
             body = self.rfile.read(int(length))
-            print(f"read json data: {json.loads(body)}")
+            #print(f"read json data: {json.loads(body)}")
 
 
         # process content
@@ -68,10 +71,16 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         self.do_GET()
+    
+
+    def log_message(self, *args):
+        pass
 
 
 #httpd = HTTPServer(("127.0.0.1", 6789), Handler)
 httpd = ThreadHTTPServer(("127.0.0.1", 6789), Handler)
+httpd.allow_reuse_address = 1
+httpd.request_queue_size = 1024
 try:
     httpd.serve_forever()
 finally:
