@@ -78,6 +78,11 @@ print(f"listening: {addr}")
 #httpd = HTTPServer(addr, Handler)
 httpd = ThreadHTTPServer(addr, Handler)
 httpd.socket.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
+
+httpd.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL, 5) # 75 -> 5
+httpd.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, 20) # 7200 -> 200
+httpd.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT, 3) # 9 -> 3
+
 httpd.allow_reuse_address = 1
 httpd.request_queue_size = 1024
 try:
