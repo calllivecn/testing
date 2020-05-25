@@ -30,7 +30,7 @@ func ReadStdin() {
 
         n, err := os.Stdin.Read(buf)
         if err != nil {
-            fmt.Println("read in stdin error.  exit.")
+            fmt.Println("read in stdin error OR EOF.  exit.")
             os.Exit(1)
         }else{
             fmt.Print("input bytes: ", n, "    ")
