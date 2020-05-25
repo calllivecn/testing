@@ -1,7 +1,8 @@
-# python 常见web服务器性能对比 (都是使用一进程 单核 进行测试) 之后还添加上 nginx，go
+# python 常见web服务器性能对比 (都是使用一进程 单核 进行测试) 之后还会添上 nginx，go
 
 - CPU：     Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz
 - MEM:      8G
+- kernel:	5.4.0-31-generic
 
 ## python 自带 HTTP 服务器， 不行，处理量一大，系统端口消耗完，会直接卡死。(太多closed、timewait)
 
