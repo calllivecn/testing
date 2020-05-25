@@ -7,6 +7,7 @@
 import time
 import json
 from urllib import parse
+import socket
 from socketserver import ThreadingMixIn
 from http.server import (
                         HTTPServer,
@@ -65,20 +66,18 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", content_length)
         self.end_headers()
 
-        time.sleep(1)
+        #time.sleep(1)
 
         self.wfile.write(content)
-
-    def do_POST(self):
-        self.do_GET()
-    
 
     def log_message(self, *args):
         pass
 
-
-#httpd = HTTPServer(("127.0.0.1", 6789), Handler)
-httpd = ThreadHTTPServer(("127.0.0.1", 6789), Handler)
+addr = ("0.0.0.0", 6789)
+print(f"listening: {addr}")
+#httpd = HTTPServer(addr, Handler)
+httpd = ThreadHTTPServer(addr, Handler)
+httpd.socket.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
 httpd.allow_reuse_address = 1
 httpd.request_queue_size = 1024
 try:
