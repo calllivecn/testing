@@ -1,8 +1,10 @@
-# python 常见web服务器性能对比 (都是使用一进程 单核 进行测试) 之后还会添上 nginx，go
+# python 常见web服务器性能对比 (都是使用一个进程 单核 进行测试) 之后还会添上 nginx，go
 
+- 都是使用的 http echo 服务器做的测试
 - CPU：     Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz
 - MEM:      8G
-- kernel:	5.4.0-31-generic
+- kernel:   5.4.0-31-generic
+- python:   3.8
 
 ## python 自带 HTTP 服务器， 不行，处理量一大，系统端口消耗完，会直接卡死。(太多closed、timewait)
 
@@ -16,8 +18,20 @@
 
 - 并发处理结果，差距很大。在ab -c 2000 -n 10000 时： 1.8k 2.2k 3.4k 都有。
 
+- 这。。。添加上这3个优化后, 并发稳定在了 3.2k： (这么快的原因好像是：net.ipv4.tcp_syncookies = 0, 把内核的防流水攻击关了。)
+
+  httpd.socket.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
+  这样可以关闭：TCP 的40ms 延迟？？？好像是，但我还不能确定。
+
+  httpd.allow_reuse_address = 1
+
+  httpd.request_queue_size = 1024
+
+
+### 一次测试结果:
+
 ```shell
-root@ba0c52284ffa:/# ab -c 2000 -n 10000 "http://192.168.0.3:6789/info"
+root@ba0c52284ffa:/# ab -c 2000 -n 10000 http://192.168.0.3:6789/callivecn
 This is ApacheBench, Version 2.3 <$Revision: 1807734 $>
 Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
 Licensed to The Apache Software Foundation, http://www.apache.org/
@@ -40,43 +54,43 @@ Server Software:        server/0.2
 Server Hostname:        192.168.0.3
 Server Port:            6789
 
-Document Path:          /info
+Document Path:          /callivecn
 Document Length:        13 bytes
 
 Concurrency Level:      2000
-Time taken for tests:   5.346 seconds
+Time taken for tests:   3.040 seconds
 Complete requests:      10000
 Failed requests:        0
 Total transferred:      1430000 bytes
 HTML transferred:       130000 bytes
-Requests per second:    1870.46 [#/sec] (mean)
-Time per request:       1069.254 [ms] (mean)
-Time per request:       0.535 [ms] (mean, across all concurrent requests)
-Transfer rate:          261.21 [Kbytes/sec] received
+Requests per second:    3289.32 [#/sec] (mean)
+Time per request:       608.028 [ms] (mean)
+Time per request:       0.304 [ms] (mean, across all concurrent requests)
+Transfer rate:          459.35 [Kbytes/sec] received
 
 Connection Times (ms)
               min  mean[+/-sd] median   max
-Connect:        0   10 138.2      0    3053
-Processing:     1    4  11.4      3     412
-Waiting:        0    3  10.6      2     412
-Total:          1   14 143.8      3    3270
+Connect:        0    3  47.7      0    1035
+Processing:     1    2   6.8      2     414
+Waiting:        1    2   6.6      2     414
+Total:          1    5  51.3      2    1437
 
 Percentage of the requests served within a certain time (ms)
-  50%      3
-  66%      3
-  75%      3
-  80%      3
-  90%      4
-  95%      9
-  98%     62
-  99%     71
- 100%   3270 (longest request)
+  50%      2
+  66%      2
+  75%      2
+  80%      2
+  90%      2
+  95%      2
+  98%      3
+  99%     53
+ 100%   1437 (longest request)
 
 ```
 
 ## aiohttp server，但注意设置高点的 ulimit -n 1048576 这防止 "OSError: [Errno 24] Too many open files"
 
-- 结果稳定，在: ab -c 2000 -n 10000 时 3.4k
+- 没加优化之前, 结果稳定，在: ab -c 2000 -n 10000 时 3.4k
 
 ```shell
 root@ba0c52284ffa:/# ab -c 2000 -n 10000 "http://192.168.0.3:8080/calllivecn"
@@ -136,25 +150,10 @@ Percentage of the requests served within a certain time (ms)
 
 ```
 
-## uwsgi server, 
+## uwsgi server(1c 20t) 这是 net.ipv4.tcp_syncookies = 0 关闭之后的测试: 居然有14.4k 的并发量
 
 ```shell
-下次在测试
-```
-
-
-## nginx 
-
-- 结果很稳定 在 ab -c 2000 -n 10000 时 9.2k
-
-- 配置：
-
-    location /info {
-            return 200 "test 成功";
-        }
-
-```shell
-root@ba0c52284ffa:/# ab -c 2000 -n 10000 "http://192.168.0.3:8888/info"
+root@ba0c52284ffa:/# ab -c 2000 -n 10000 http://192.168.0.3:9999/callivecn
 This is ApacheBench, Version 2.3 <$Revision: 1807734 $>
 Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
 Licensed to The Apache Software Foundation, http://www.apache.org/
@@ -173,45 +172,123 @@ Completed 10000 requests
 Finished 10000 requests
 
 
-Server Software:        nginx/1.16.0
+Server Software:        
 Server Hostname:        192.168.0.3
-Server Port:            8888
+Server Port:            9999
 
-Document Path:          /info
-Document Length:        11 bytes
+Document Path:          /callivecn
+Document Length:        21 bytes
 
 Concurrency Level:      2000
-Time taken for tests:   1.085 seconds
+Time taken for tests:   0.690 seconds
 Complete requests:      10000
 Failed requests:        0
-Total transferred:      1680000 bytes
-HTML transferred:       110000 bytes
-Requests per second:    9216.22 [#/sec] (mean)
-Time per request:       217.009 [ms] (mean)
-Time per request:       0.109 [ms] (mean, across all concurrent requests)
-Transfer rate:          1512.04 [Kbytes/sec] received
+Non-2xx responses:      10000
+Total transferred:      1040000 bytes
+HTML transferred:       210000 bytes
+Requests per second:    14484.78 [#/sec] (mean)
+Time per request:       138.076 [ms] (mean)
+Time per request:       0.069 [ms] (mean, across all concurrent requests)
+Transfer rate:          1471.11 [Kbytes/sec] received
 
 Connection Times (ms)
               min  mean[+/-sd] median   max
-Connect:        0   18  12.6     14      65
-Processing:     7   43 101.0     18     490
-Waiting:        6   38 101.7     14     486
-Total:         10   61 105.9     32     520
+Connect:        2    4   5.4      3      61
+Processing:     1    3   0.5      3       5
+Waiting:        0    2   0.7      2       5
+Total:          4    7   5.4      6      64
 
 Percentage of the requests served within a certain time (ms)
-  50%     32
-  66%     33
-  75%     34
-  80%     35
-  90%     85
-  95%    503
-  98%    513
-  99%    517
- 100%    520 (longest request)
+  50%      6
+  66%      6
+  75%      6
+  80%      6
+  90%      7
+  95%      7
+  98%      7
+  99%     57
+ 100%     64 (longest request)
+```
+
+
+## nginx, ab 是性能瓶颈
+
+- 结果很稳定 在 ab -c 2000 -n 10000 时 9.2k ()
+
+- net.ipv4.tcp_syncookies = 0 关闭之后： 14.4k
+
+- net.ipv4.tcp_syncookies = 0 关闭之后： 14.4k ab -c 4000 -n 20000 18.9K
+
+- 配置：
+
+    location /calllivecn {
+            return 200 "test 成功, calllivecn";
+        }
+
+```shell
+root@ba0c52284ffa:/# ab -c 2000 -n 10000 http://192.168.0.3:8888/callivecn
+This is ApacheBench, Version 2.3 <$Revision: 1807734 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
+
+Benchmarking 192.168.0.3 (be patient)
+Completed 1000 requests
+Completed 2000 requests
+Completed 3000 requests
+Completed 4000 requests
+Completed 5000 requests
+Completed 6000 requests
+Completed 7000 requests
+Completed 8000 requests
+Completed 9000 requests
+Completed 10000 requests
+Finished 10000 requests
+
+
+Server Software:        
+Server Hostname:        192.168.0.3
+Server Port:            8888
+
+Document Path:          /callivecn
+Document Length:        0 bytes
+
+Concurrency Level:      2000
+Time taken for tests:   0.674 seconds
+Complete requests:      10000
+Failed requests:        10000
+   (Connect: 0, Receive: 0, Length: 9008, Exceptions: 992)
+Non-2xx responses:      9008
+Total transferred:      2729424 bytes
+HTML transferred:       1378224 bytes
+Requests per second:    14828.57 [#/sec] (mean)
+Time per request:       134.875 [ms] (mean)
+Time per request:       0.067 [ms] (mean, across all concurrent requests)
+Transfer rate:          3952.49 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:       26   40   8.5     38      74
+Processing:    14   52  12.8     52      90
+Waiting:        0   37  15.8     43      61
+Total:         49   92  11.9     93     119
+
+Percentage of the requests served within a certain time (ms)
+  50%     93
+  66%     96
+  75%     98
+  80%     99
+  90%    107
+  95%    115
+  98%    117
+  99%    118
+ 100%    119 (longest request)
+
 ```
 
 
 # 大量 closed 和 timewait 状态连接的处理，（系统处理方式，这种方式感觉不是太好）
+
+## 这后发现在，可以设置socket选项加速。
 
 ```shell
 #表示开启重用。允许将TIME_WAIT sockets重新用于新的TCP连接，默认为0，表示关闭
