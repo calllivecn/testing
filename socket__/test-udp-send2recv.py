@@ -21,7 +21,10 @@ import socket
 import random
 
 MIN_BLOCK = 1024
-BLOCK = 48 * (1<<10) # 48K
+recv_buf = 48 * (1<<10)
+BLOCK = recv_buf - 32 - 20 
+# 48K, 32byte 是校验头， 20byte UDP头???
+# 尝试解决 OSError: [WinError 10040]
 
 def sha256(msg):
     sha = hashlib.sha256(msg)
@@ -30,6 +33,7 @@ def sha256(msg):
 
 def rand_data():
     length = random.randint(MIN_BLOCK, BLOCK)
+    #length = 1024
     data = os.urandom(length)
     sha = sha256(data)
 
@@ -41,7 +45,13 @@ def server(port=8777):
     sock.bind(("0.0.0.0", port))
 
     while True:
-        data, addr = sock.recvfrom(BLOCK)
+        try:
+            data, addr = sock.recvfrom(recv_buf)
+        except OSError:
+            print('''OSError: [WinError 10040] 一个在数据报套接字上发送的消息大于内部消息缓冲区或其他 一些网络限制，或该用户用于接收数据报的缓冲区比数据报小''')
+            print(f"data length: {len(data)}")
+            sys.exit(2)
+
         before_sha = data[:32]
         #print(f"sha256 length: {len(before_sha)}")
         after_sha = sha256(data[32:])
@@ -70,7 +80,7 @@ def client(addr, port=8777):
         # 改为 快速发送测试 
         data = rand_data()
         # 慢一点点
-        time.sleep(0.01)
+        #time.sleep(0.01)
 
         sha = sha256(data)
 
@@ -84,6 +94,15 @@ def client(addr, port=8777):
 
 
 if __name__ == "__main__":
+
+    try:
+        a = sys.argv[1]
+    except Exception:
+        print(f"用法： {sys.argv[0]} <--server> [port  = 8777]")
+        print(f"用法： {sys.argv[0]} <--client> <address> [port = 8777]")
+        sys.exit(1)
+
+
     if sys.argv[1] == "--server":
         try:
             port = int(sys.argv[2])
