@@ -3,6 +3,8 @@
 # date 2020-05-26 23:33:12
 # author calllivecn <c-all@qq.com>
 
+import os
+
 import errno
 import ctypes
 
@@ -49,7 +51,8 @@ f_10G = 1*(1<<30)
 print("fallocate 一个10G的文件")
 
 with open("fallocate.1G", "wb") as f:
-    fallocate(f.fileno(), f_10G)
+    #fallocate(f.fileno(), f_10G)
+    os.posix_fallocate(f.fileno(), 0, f_10G)
 
 
 
