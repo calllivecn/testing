@@ -28,15 +28,17 @@ def server(procname):
 
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 
+    sock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
+
     sock.bind(ADDR)
 
-    sock.listen(5)
+    sock.listen(128)
 
     while True:
 
         client, addr = sock.accept()
 
-        print(f"我是进程： {procname} 接收到： {client} 的连接")
+        print(f"我是进程： {procname} 接收到： {addr} 的连接")
 
         client.close()
 
