@@ -6,6 +6,8 @@
 
 if [ -n "$1" ];then
 	tr -dc 'a-zA-Z0-9' < /dev/urandom |head -c "$1"
+	echo
 else
 	tr -dc 'a-zA-Z0-9' < /dev/urandom |head -c 8
+	echo
 fi
