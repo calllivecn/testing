@@ -5,6 +5,9 @@
 import sys
 
 class zx:
+    def __init__(self):
+        print("__init__()")
+
     def __enter__(self):
         print("with 打开")
         return 4
