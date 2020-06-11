@@ -49,6 +49,7 @@ def add_forwarding(ifname, network):
     except ValueError:
         raise NftableError(f"网络地址不正确：{network}")
 
+    # 可以不用分ip ip6、 nat 是可以用于inet
     for ip46 in ("ip", "ip6"):
     
         output = nft(f"add table {ip46} easywg")
