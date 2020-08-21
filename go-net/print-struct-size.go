@@ -22,5 +22,5 @@ type cmd struct{
 func main(){
     cmd := cmd{}
     fmt.Println("binary.Size() 计算结构体大小: ", binary.Size(cmd))
-    fmt.Println("unsafe.Sizeof()计算结构体大小: ", unsafe.Sizeof(cmd))
+    fmt.Println("unsafe.Sizeof() 计算结构体大小: ", unsafe.Sizeof(cmd))
 }
