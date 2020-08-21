@@ -39,7 +39,7 @@ func accept(){
         fmt.Println("listen error:", err)
         os.Exit(1)
     }
-    fmt.Println("listen Start...:")
+    fmt.Println("listen Start:")
 
     for {
         sock, err := server.Accept()
@@ -63,7 +63,7 @@ func Client(conn net.Conn) {
     //buf_w := bufio.NewWriter(conn)
 
     for {
-        recv_buf := make([]byte, 16)
+        recv_buf := make([]byte, 128)
         n, err := conn.Read(recv_buf)
         if err != nil || n == 0 {
             fmt.Println("disconnect ...")
@@ -73,7 +73,7 @@ func Client(conn net.Conn) {
 
         fmt.Println("recv data:", string(recv_buf))
 
-        n, err = conn.Write(append([]byte("Got: "), recv_buf[:n]))
+        n, err = conn.Write(append([]byte("Got: "), recv_buf[:n]...))
         if err != nil {
             fmt.Println("write error:", err)
             return
