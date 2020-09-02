@@ -1,4 +1,4 @@
-# python 常见web服务器性能对比 (都是使用一个进程 单核 进行测试) 之后还会添上 nginx，go
+# python 常见web服务器性能对比 (都是使用一个进程 单核 进行测试) 还有 nginx， 之后还会添上 golang
 
 - 都是使用的 http echo 服务器做的测试
 - CPU：     Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz
@@ -6,7 +6,8 @@
 - kernel:   5.4.0-31-generic
 - python:   3.8
 
-## python 自带 HTTP 服务器， 不行，处理量一大，系统端口消耗完，会直接卡死。(太多closed、timewait)
+## ~~python 自带 HTTP 服务器， 不行，处理量一大，系统端口消耗完，会直接卡死。(太多closed、timewait)~~
+## 这个其实是client发出请求时，就会消耗掉port的。跟server没关系，跟语言更没关系。😅
 
 - 为 HTTPServer 添加了多线程处理的（HTTPServer 默认的一次只能处理一个请求。）
 
@@ -211,7 +212,7 @@ Percentage of the requests served within a certain time (ms)
 ```
 
 
-## nginx, ab 是性能瓶颈
+## nginx 下 ab 是性能瓶颈 哈哈哈哈
 
 - 结果很稳定 在 ab -c 2000 -n 10000 时 9.2k ()
 
@@ -221,9 +222,11 @@ Percentage of the requests served within a certain time (ms)
 
 - 配置：
 
+```nginx
     location /calllivecn {
             return 200 "test 成功, calllivecn";
         }
+```
 
 ```shell
 root@ba0c52284ffa:/# ab -c 2000 -n 10000 http://192.168.0.3:8888/callivecn
@@ -287,6 +290,14 @@ Percentage of the requests served within a certain time (ms)
 
 
 # 大量 closed 和 timewait 状态连接的处理，（系统处理方式，这种方式感觉不是太好）
+
+## 这之后添加测试golang标准库。
+
+- golang net/http
+
+```golane
+
+```
 
 ## 这后发现在，可以设置socket选项加速。
 
