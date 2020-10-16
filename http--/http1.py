@@ -20,10 +20,32 @@ from http.server import (
 class ThreadHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
 
+    allow_reuse_address = True
+
+    request_queue_size = 512
+
     def log_message(self, *args):
         pass
 
 class Handler(BaseHTTPRequestHandler):
+
+    def send_error(self, code, message=None, explain=None):
+        msg = f"{code} {message}"
+        self.wfile.write(msg.encode("utf-8"))
+
+    def setup(self):
+        super().setup()
+
+        #self.error_message_format=""
+
+        self.server_version = "nginx"
+        self.sys_version = ""
+
+        # 返回http协议版本
+        self.protocol_version = "HTTP/1.1"
+
+        self.default_request_version = "HTTP/1.1"
+
 
     def do_GET(self):
         self.do_POST()
@@ -31,12 +53,6 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         #print("HTTP version:", self.request_version)
         #print("client IP:", self.client_address)
-
-        self.server_version = "server/0.2 zx/1.0"
-        self.sys_version = ""
-
-        # 返回http协议版本
-        self.protocol_version = "HTTP/1.1"
 
         # parse 参数
         pr = parse.urlparse(self.path)
@@ -56,7 +72,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
         # process content
-        content = "hello, world!".encode()
+        content = "hello, world!\n".encode("utf-8")
         content_length = len(content)
 
 
