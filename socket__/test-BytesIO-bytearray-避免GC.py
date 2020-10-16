@@ -8,6 +8,7 @@ import io
 import socket
 
 # 可以避免GC~!~!
+# 可以效率没有提升呀。。。。
 
 #BUFVIEW = io.BytesIO(bytes(4096)).getbuffer()
 BUFVIEW = bytearray(4096)
