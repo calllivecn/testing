@@ -45,6 +45,18 @@ class Handler(BaseHTTPRequestHandler):
         self.protocol_version = "HTTP/1.1"
 
         self.default_request_version = "HTTP/1.1"
+    
+    def finish(self):
+        if not self.wfile.closed:
+            try:
+                self.wfile.flush()
+            except socket.error:
+                # A final socket error may have occurred here, such as
+                # the local error ECONNABORTED.
+                pass
+
+        self.wfile.close()
+        self.rfile.close()
 
 
     def do_GET(self):
@@ -99,8 +111,6 @@ httpd.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL, 5) # 75 -> 5
 httpd.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, 20) # 7200 -> 200
 httpd.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT, 3) # 9 -> 3
 
-httpd.allow_reuse_address = 1
-httpd.request_queue_size = 1024
 try:
     httpd.serve_forever()
 finally:
