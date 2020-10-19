@@ -104,7 +104,8 @@ def run_multiproces(name):
 
 
 proc = []
-for i in range(os.cpu_count()):
+#for i in range(os.cpu_count()):
+for i in range(2):
     mp = multiprocessing.Process(target=run_multiproces, args=(i,), daemon=True)
     mp.start()
     proc.append(mp)
