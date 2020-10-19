@@ -20,12 +20,9 @@ from http.server import (
 class ThreadHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
 
-    allow_reuse_address = True
-
-    request_queue_size = 512
-
     def log_message(self, *args):
         pass
+
 
 class Handler(BaseHTTPRequestHandler):
 
@@ -46,18 +43,6 @@ class Handler(BaseHTTPRequestHandler):
 
         self.default_request_version = "HTTP/1.1"
     
-    def finish(self):
-        if not self.wfile.closed:
-            try:
-                self.wfile.flush()
-            except socket.error:
-                # A final socket error may have occurred here, such as
-                # the local error ECONNABORTED.
-                pass
-
-        self.wfile.close()
-        self.rfile.close()
-
 
     def do_GET(self):
         self.do_POST()
@@ -104,12 +89,18 @@ class Handler(BaseHTTPRequestHandler):
 addr = ("0.0.0.0", 6789)
 print(f"listening: {addr}")
 #httpd = HTTPServer(addr, Handler)
-httpd = ThreadHTTPServer(addr, Handler)
+httpd = ThreadHTTPServer(addr, Handler, bind_and_activate=False)
+httpd.allow_reuse_address = True
+httpd.request_queue_size = 1024
+
 httpd.socket.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
 
 httpd.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL, 5) # 75 -> 5
 httpd.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, 20) # 7200 -> 200
 httpd.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT, 3) # 9 -> 3
+
+httpd.server_bind()
+httpd.server_activate()
 
 try:
     httpd.serve_forever()

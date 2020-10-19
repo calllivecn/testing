@@ -27,9 +27,13 @@ b.out
 *.gz
 *.bz2
 
-
 pw.py
 hdfs--/input/
 *.pyz
 
 *.pid
+
+*.zip
+
+*.class
+*.jar

@@ -6,8 +6,8 @@
 - kernel:   5.4.0-31-generic
 - python:   3.8
 
-## ~~python 自带 HTTP 服务器， 不行，处理量一大，系统端口消耗完，会直接卡死。(太多closed、timewait)~~
-## 这个其实是client发出请求时，就会消耗掉port的。跟server没关系，跟语言更没关系。😅
+## python 自带 HTTP 服务器， 不行，处理量一大，系统端口消耗完，会直接卡死。(太多closed、timewait)
+## ~~这个其实是client发出请求时，就会消耗掉port的。跟server没关系，跟语言更没关系。😅~~
 
 - 为 HTTPServer 添加了多线程处理的（HTTPServer 默认的一次只能处理一个请求。）
 
@@ -296,6 +296,33 @@ Percentage of the requests served within a certain time (ms)
 - golang net/http
 
 ```golane
+package main
+
+
+import (
+    "net/http"
+    "fmt"
+    "runtime"
+)
+
+func init(){
+    runtime.GOMAXPROCS(1)
+}
+
+func echo(w http.ResponseWriter, r *http.Request) {
+    r.ParseForm()
+    fmt.Fprintf(w, "%s\n", r.URL.Path)
+}
+
+func main() {
+
+    http.HandleFunc("/", echo)
+    fmt.Println(http.ListenAndServe("0.0.0.0:8080", nil))
+
+}
+```
+
+```shell
 
 ```
 
