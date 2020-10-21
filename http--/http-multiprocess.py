@@ -74,7 +74,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def run_multiproces(name):
-    addr = ("0.0.0.0", 6789)
+    addr = ("0.0.0.0", 6782)
     print(f"process: {name} listening: {addr}")
 
     #httpd = HTTPServer(addr, Handler)

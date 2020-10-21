@@ -19,17 +19,32 @@ class Request:
         暂定，在这里处理请求头。
         """
         self.client = sock
+
+        self.headers = {}
     
     def parse_cmd_line(self):
-        words = self.fd.readline(65535)
+        words = self._readline()
         if len(words) > 65535:
-            self.http_error(HTTPStatus.REQUEST_URI_TOO_LONG, "bad request")
+            self._request_error(HTTPStatus.REQUEST_URI_TOO_LONG, "bad request")
+            return
 
         if len(words) != 3:
-            self.http_error(HTTPStatus.BAD_REQUEST, "bad request")
+            self._request_error(HTTPStatus.BAD_REQUEST, "bad request")
+            return
+        
+        cmd, path, protocol = words.decode("utf8").split(" ")
 
+        version_number = protocol.split("/")
+        if version_number != (1, 1):
+            self._request_error(HTTPStatus.BAD_REQUEST, "Unsupported version")
+            return
 
-    def send_http_error(self, recode, msg):
+    def parse_headers(self):
+        for header in iter(partial(self._readline), ""):
+            head, value = header.split(":")
+            self.headers[head.split()] = value.split()
+
+    def _request_error(self, recode, msg):
         b = " ".join([str(recode), msg]).encode("utf8")
         self.client.send(b)
         self.client.shutdown(socket.SHUT_RDWR)
@@ -48,10 +63,12 @@ class Request:
             if not d:
                 break
 
-            if d == b"\n" or d == "\r":
+            if d == LF:
+               head += LF 
+            else:
+                head += d
                 
-        return
-
+        return head.rstrip(b"\r\n")
 
 
 class HTTPServer:
@@ -59,25 +76,27 @@ class HTTPServer:
 
     """
 
-    def __init__(self, bind_addr, reuseaddr=True):
-        self.server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+    def __init__(self, bind_addr):
+        self.server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        if reuseaddr:
-            self.server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, reuseaddr)
-            self.server_sock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, True)
+        self.server_sock.setblocking(False)
+
+        self.server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
+        self.server_sock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, True)
         
         self._selector = selectors.DefaultSelector()
-        self._selector.register(self.server_sock, selectors.EVENT_READ, self.get_request)
+        self._selector.register(self.server_sock, selectors.EVENT_READ)
+
 
     def handle():
         pass
 
-
     def run(self):
         for event, key in self._selector.select():
+            key.fileobj.accept()
 
     def get_request(self):
-        client = self.server_sock.accpet()
+        client = self.server_sock.accept()
         return Request(client)
         
     
