@@ -86,7 +86,7 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass
 
-addr = ("0.0.0.0", 6789)
+addr = ("0.0.0.0", 6783)
 print(f"listening: {addr}")
 #httpd = HTTPServer(addr, Handler)
 httpd = ThreadHTTPServer(addr, Handler, bind_and_activate=False)

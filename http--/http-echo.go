@@ -23,9 +23,10 @@ func echo(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-
+    addr := "0.0.0.0:6788"
+    fmt.Println("listen: ", addr)
     http.HandleFunc("/", echo)
-    fmt.Println(http.ListenAndServe("0.0.0.0:8080", nil))
+    fmt.Println(http.ListenAndServe(addr, nil))
 
 }
 
