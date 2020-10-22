@@ -30,7 +30,7 @@ def main():
     print("simple https server, address:{}:{}, document root:{}".format(ip, port, script_home))  
 
     httpd = HTTPServer(('127.0.0.1', port), SimpleHTTPRequestHandler)  
-    httpd.socket = ssl.wrap_socket(httpd.socket, certfile="server.crt", keyfile="server.key", ca_certs="root-ca.crt", server_side=True)  
+    httpd.socket = ssl.wrap_socket(httpd.socket, certfile="server.crt", keyfile="server.key", ca_certs="root-ca.crt", server_side=True)
     httpd.serve_forever()
 
 if __name__ == '__main__':  
