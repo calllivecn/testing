@@ -18,6 +18,7 @@ def httpResponse(msg):
             ]
     return "\r\n".join(response).encode("utf8") + msg
 
+
 def accept(sock, mask, sel):
     conn, addr = sock.accept()
     conn.setblocking(False)

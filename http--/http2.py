@@ -6,7 +6,6 @@
 
 import os
 import socket
-import selectors
 import threading
 from http import HTTPStatus
 from functools import partial
@@ -14,13 +13,16 @@ from functools import partial
 
 class Request:
 
-    def __init__(self, sock):
+    def __init__(self, sock, client_addr):
         """
         暂定，在这里处理请求头。
         """
         self.client = sock
+        self.client_addr = client_addr
 
         self.headers = {}
+
+        
     
     def parse_cmd_line(self):
         words = self._readline()
@@ -76,27 +78,27 @@ class HTTPServer:
 
     """
 
-    def __init__(self, bind_addr):
+    def __init__(self, server_addr, bind_addr=True):
         self.server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        self.server_sock.setblocking(False)
+        #self.server_sock.setblocking(False)
 
         self.server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
         self.server_sock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, True)
         
-        self._selector = selectors.DefaultSelector()
-        self._selector.register(self.server_sock, selectors.EVENT_READ)
+        if bind_addr:
+            self.serve_bind_accept(server_addr)
 
+    def handle(self, client_sock, addr):
+        req = Request(client_sock) 
+        req.
 
-    def handle():
-        pass
+    def serve_bind_accept(self, address=("", 8080), listen=128):
+        self.server_sock.bind(address)
+        self.server_sock.listen(listen)
 
     def run(self):
-        for event, key in self._selector.select():
-            key.fileobj.accept()
-
-    def get_request(self):
-        client = self.server_sock.accept()
-        return Request(client)
-        
-    
+        while True:
+            addr, client = self.server_sock.accept()
+            th = threading.Thread(target=self.handle, args=(client, addr))
+            th.start()
