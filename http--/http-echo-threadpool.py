@@ -18,13 +18,17 @@ def httpResponse(msg):
 
 
 def echo(conn):
-    data = conn.recv(1024)
-    if not data:
+    try:
+        data = conn.recv(1024)
+        if not data:
+            return
+        # send http response
+        conn.send(httpResponse(b"hello world!\n"))
+    except Exception as e:
+        print("异常：", e)
+    finally:
+        conn.shutdown(socket.SHUT_RDWR)
         conn.close()
-        return
-    # send http response
-    conn.send(httpResponse(b"hello world!\n"))
-    conn.close()
 
 
 
