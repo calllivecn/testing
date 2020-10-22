@@ -3,8 +3,6 @@
 # date 2019-07-29 16:57:55
 # author calllivecn <c-all@qq.com>
 
-import time
-import socket
 import asyncio
 
 BLOCK = 1<<14 # 16k
@@ -31,8 +29,8 @@ async def echo(reader, writer):
 async def main():
     server = await asyncio.start_server(echo, "0.0.0.0", 6789, reuse_address=None, reuse_port=None)
 
-    addr = server.sockets[0].getsockname()
-    print("listen:", addr)
+    addr, port = server.sockets[0].getsockname()
+    print("listen:", addr, "port:", port)
 
     async with server:
         await server.serve_forever()
