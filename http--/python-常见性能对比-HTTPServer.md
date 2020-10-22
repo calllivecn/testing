@@ -425,6 +425,70 @@ Percentage of the requests served within a certain time (ms)
  100%     77 (longest request)
 ```
 
+## 这里使用极简的 http-echo-threadpool.py。
+
+- 使用线程池 (thread 10个)
+
+- 这个也可以达到， 12k 
+
+```shell
+root@hthl:/# ab -c 1000 -n 20000 http://localhost:6786/calllivecn
+This is ApacheBench, Version 2.3 <$Revision: 1843412 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
+
+Benchmarking localhost (be patient)
+Completed 2000 requests
+Completed 4000 requests
+Completed 6000 requests
+Completed 8000 requests
+Completed 10000 requests
+Completed 12000 requests
+Completed 14000 requests
+Completed 16000 requests
+Completed 18000 requests
+Completed 20000 requests
+Finished 20000 requests
+
+
+Server Software:        py
+Server Hostname:        localhost
+Server Port:            6786
+
+Document Path:          /calllivecn
+Document Length:        13 bytes
+
+Concurrency Level:      1000
+Time taken for tests:   1.657 seconds
+Complete requests:      20000
+Failed requests:        0
+Total transferred:      1800000 bytes
+HTML transferred:       260000 bytes
+Requests per second:    12067.42 [#/sec] (mean)
+Time per request:       82.868 [ms] (mean)
+Time per request:       0.083 [ms] (mean, across all concurrent requests)
+Transfer rate:          1060.61 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    4   6.8      0      33
+Processing:    18   76  11.6     80      90
+Waiting:        1   75  13.6     80      90
+Total:         34   80   5.5     81      91
+
+Percentage of the requests served within a certain time (ms)
+  50%     81
+  66%     82
+  75%     83
+  80%     83
+  90%     85
+  95%     86
+  98%     87
+  99%     88
+ 100%     91 (longest request)
+
+```
+
 ## linux 优化选项 (在新内核里，好多选项都没有了，还有选项发生了变化)
 
 ```shell
