@@ -4,9 +4,9 @@
 
 import selectors
 import socket
-import time
+import sys
 
-import multiprocessing as mproc
+#import multiprocessing as mproc
 
 def httpResponse(msg):
     response = [
@@ -55,7 +55,10 @@ def process():
 
 
 print("listen: ", ADDR)
+# 使用单进程 好用 cProfile 分析性能
+process()
 
+"""
 process_list = []
 for _ in range(2):
     p = mproc.Process(target=process, daemon=True)
@@ -69,3 +72,4 @@ try:
 
 except KeyboardInterrupt:
     print("exit")
+"""
