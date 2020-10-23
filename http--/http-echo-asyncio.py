@@ -28,7 +28,7 @@ async def echo(reader, writer):
     if not data:
         return
 
-    writer.write(httpResponse(data))
+    writer.write(httpResponse(b"hello world!\n"))
     #await writer.drain()
     writer.close()
     #await writer.wait_closed()
