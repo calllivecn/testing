@@ -1,10 +1,6 @@
-#!/bin/bash
-# date 2020-11-30 17:16:44
-# author calllivecn <c-all@qq.com>
-
-# 自动配置 MySQL GTID 主从
 
 newpw=
+genpw=
 slave_user=
 slave_passwd=
 
@@ -40,7 +36,7 @@ echo "server-id=10" >> /etc/my.cnf
 echo "log-bin=mysql-bin" >> "$mycnf"
 echo "gtid-mode=on" >> "$mycnf"
 echo "enforce-gtid-consistency=on" >> "$mycnf"
-echo "log-slave-updates=on" >> "$mycnf"
+
 
 systemctl start mysqld.service
 sleep 5
@@ -48,10 +44,12 @@ sleep 5
 
 
 # 拿到初始化的 root 密码
-genpw=$(grep -oE "password is generated for root@localhost: (.*)" /var/log/mysqld.log | awk -F': ' '{print $2}')
+get_init_pw(){
+	genpw=$(grep -oE "password is generated for root@localhost: (.*)" /var/log/mysqld.log | awk -F': ' '{print $2}')
+}
 
 changerootpw(){
-    mysql -uroot -p${genpw} --connect-expired-password -e "alter user user() identified by \"${newpw}\"";
+    mysql --user=root --password="${genpw}" --connect-expired-password -e "alter user user() identified by \"${newpw}\"";
 }
 
 master_config(){
@@ -60,7 +58,7 @@ master_mycnf
 
 echo '授权'
 
-mysql  -uroot -p${newpwd} <<EOF
+mysql  --user=root --password="${newpw}" <<EOF
 create user '${slave_user}' identified by '${slave_passwd}';
 GRANT REPLICATION SLAVE ON *.* to '${slave_user}'@'%';
 use mysql;
@@ -78,7 +76,7 @@ slave_mycnf
 
 echo '授权'
 
-mysql  -uroot -p${newpwd}  <<EOF
+mysql  --user=root --password="${newpw}"  <<EOF
 change master to master_host='${master_ip}',master_port=3306,master_user='${slave_user}',master_password='${slave_passwd}', master_auto_postition=1;
 start slave;
 use mysql;
@@ -90,7 +88,7 @@ EOF
 
 check_ok(){
 #检查主从复制是否搭建成功
-running_num=$(mysql -uroot -p${newpwd} -e "show slave status\G" 2>/dev/null |grep "Running:"|wc -l)
+running_num=$(mysql --user=root --password="${newpw}" -e "show slave status\G" 2>/dev/null |grep "Running:"|wc -l)
 
 if [ $running_num -eq 2 ];then
     echo "mysql主从复制搭建成功"
