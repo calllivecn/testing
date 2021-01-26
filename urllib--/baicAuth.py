@@ -20,7 +20,7 @@ passwd_mgr = request.HTTPPasswordMgrWithDefaultRealm()
 top_level_url = sys.argv[1]
 
 #passwd_mgr.add_password(None, top_level_url, username, password)
-passwd_mgr.add_password(None, top_level_uel, sys.argv[2], sys.arv[3])
+passwd_mgr.add_password(None, top_level_url, sys.argv[2], sys.argv[3])
 
 handler = request.HTTPBasicAuthHandler(passwd_mgr)
 
