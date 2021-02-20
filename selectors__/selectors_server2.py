@@ -36,6 +36,7 @@ def recv_handler(conn, selector):
 
 def handler_accept(conn, selector):
     sock , addr = conn.accept()
+    sock.setblocking(False)
     selector.register(sock, selectors.EVENT_READ, recv_handler)
 
 def server(host, port):
