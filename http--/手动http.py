@@ -71,6 +71,12 @@ def httpmcsleep():
     sock4 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock6 = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
 
+    sock4.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
+    sock6.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
+
+    sock4.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, True)
+    sock6.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, True)
+
     sock4.bind(("0.0.0.0", PORT))
     sock6.bind(("::", PORT))
     
@@ -104,3 +110,4 @@ if __name__ == "__main__":
         httpmcsleep()
     except KeyboardInterrupt:
         print("exit")
+
