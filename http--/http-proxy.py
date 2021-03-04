@@ -1,8 +1,12 @@
+#!/usr/bin/env python3
+# coding=utf-8
+# date 2021-03-04 23:26:24
+# author calllivecn <c-all@qq.com>
+
 
 
 import sys
 import socket
-#import _thread
 import threading
 
 
@@ -113,8 +117,10 @@ def communicate(sock1, sock2):
             sock2.sendall(data)
     except socket.timeout:
         pass
+    except ConnectionResetError as e:
+        print("ConnectionResetError: ", e)
     except Exception as e:
-        print("socket之间交换数据有异常:", e)
+        print("socket之间交换数据有异常:", e, "--> e:", e.with_traceback)
 
 
 def handle(client):
