@@ -1,6 +1,5 @@
 
 
-
 import sys
 import socket
 #import _thread
@@ -18,13 +17,15 @@ class Header:
         try:
             while True:
                 data = conn.recv(4096)
+                print("=========================")
+                print("client proxy connect data:", data.decode())
                 header = b"%s%s" % (header, data)
                 if header.endswith(b'\r\n\r\n') or (not data):
                     break
 
         except Exception as e:
             print("读取和解析头信息 异常： ", e, file=sys.stderr)
-
+        
         self._header = header
         self.header_list = header.split(b'\r\n')
         self._host = None
@@ -67,6 +68,7 @@ class Header:
                     host, port = host.split(':')
                 else:
                     port = 80
+
             self._host = host
             self._port = int(port)
         return self._host, self._port
@@ -109,6 +111,8 @@ def communicate(sock1, sock2):
             if not data:
                 return
             sock2.sendall(data)
+    except socket.timeout:
+        pass
     except Exception as e:
         print("socket之间交换数据有异常:", e)
 
@@ -127,9 +131,12 @@ def handle(client):
         client.close()
         return
 
+    print("header: =================\n", header)
+    print("===================")
     print(*header.get_host_info(), header.get_method())
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.settimeout(timeout)
     try:
         server.connect(header.get_host_info())
         server.settimeout(timeout)
@@ -141,7 +148,8 @@ def handle(client):
             server.sendall(header.data)
 
         communicate(server, client)
-    except:
+    except Exception as e:
+        print("server connect Exception:", e)
         server.close()
         client.close()
 
@@ -159,7 +167,7 @@ def serve(ip, port):
     s.bind((ip, port))
     s.listen(10)
 
-    print('proxy start...')
+    print('proxy start... ', (ip, port))
     while True:
         conn, addr = s.accept()
         start_new_thread(handle, (conn,))
