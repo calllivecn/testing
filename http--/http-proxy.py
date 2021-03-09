@@ -19,7 +19,7 @@ class Header:
                 data = conn.recv(4096)
                 print("=========================")
                 print("client proxy connect data:", data.decode())
-                header = b"%s%s" % (header, data)
+                header += data
                 if header.endswith(b'\r\n\r\n') or (not data):
                     break
 
