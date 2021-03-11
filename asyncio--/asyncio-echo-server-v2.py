@@ -3,21 +3,23 @@
 # date 2019-07-29 16:57:55
 # author calllivecn <c-all@qq.com>
 
+import sys
 import asyncio
 
 BLOCK = 1<<14 # 16k
 
 async def echo(reader, writer):
     while True:
-        try:
-            data = await reader.read(BLOCK)
-        except ConnectionResetError:
-            break
-
+        data = await reader.read(BLOCK)
         if not data:
             break
 
-        writer.write(b"Got: " + data)
+        try:
+            writer.write(b"Got: " + data)
+        except ConnectionResetError:
+            print("peer reset connection", file=sys.stderr)
+            break
+
         #print("data:", data)
         await writer.drain()
 
