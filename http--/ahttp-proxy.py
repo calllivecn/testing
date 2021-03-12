@@ -6,6 +6,7 @@
 import sys
 import asyncio
 import logging
+import socket
 from functools import partial
 from http import HTTPStatus
 from argparse import ArgumentParser
@@ -142,7 +143,11 @@ class Header:
 async def swap(r1, w2):
     logger.debug(f"id: {id(r1)}")
     while True:
-        data = await r1.read(4096)
+        try:
+            data = await r1.read(4096)
+        except socket.timeout:
+            logger.debug(f"timeout close()")
+            break
 
         if not data:
             break
@@ -152,23 +157,38 @@ async def swap(r1, w2):
             await w2.drain()
         except ConnectionResetError:
             w2.close()
+            await w2.wait_closed()
             break
     
     if not w2.is_closing():
         w2.close()
+        await w2.wait_closed()
+
 
 async def handle(reader, writer):
+
+
+    addr = writer.get_extra_info("peername")
+    #sock = writer.get_extra_info("socket")
+    #sock.settimeout(60)
 
     try:
         head = Header(reader, writer)
         await head.getRequest()
         await head.get_Host_Port()
+    except socket.timeout:
+        logger.debug(f"{addr} timeout close")
+        return 
+
     except Exception as e:
         logger.warning(f"异常： {e}")
         writer.close()
+        await writer.wait_closed()
         return
 
     r2, w2 = await asyncio.open_connection(head.host, head.port, limit=4096)
+    #sock = w2.get_extra_info("socket")
+    #sock.settimeout(60)
 
     if head.isHttps():
         writer.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
