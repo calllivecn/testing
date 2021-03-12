@@ -186,7 +186,14 @@ async def handle(reader, writer):
         await writer.wait_closed()
         return
 
-    r2, w2 = await asyncio.open_connection(head.host, head.port, limit=4096)
+    try:
+        r2, w2 = await asyncio.open_connection(head.host, head.port, limit=4096)
+    except OSError as e:
+        logger.warning(e)
+        writer.close()
+        await writer.wait_closed()
+        return 
+
     #sock = w2.get_extra_info("socket")
     #sock.settimeout(60)
 
