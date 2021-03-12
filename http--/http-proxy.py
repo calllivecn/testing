@@ -137,7 +137,6 @@ def handle(client):
         client.close()
         return
 
-    print("header: =================\n", header)
     print("===================")
     print(*header.get_host_info(), header.get_method())
 
