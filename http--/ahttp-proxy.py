@@ -214,11 +214,11 @@ async def handle(reader, writer):
 async def proxy():
     parse = ArgumentParser(
         description="一个用asyncio实现的http https代理服务器。",
-        usage="[ --addr <0.0.0.0>|<::> <*>] [--port <8080>]",
+        usage="%(prog)s [ --addr <0.0.0.0>|<::> <*>] [--port <8080>]",
         epilog="callivecn 编写"
     )
 
-    parse.add_argument("--addr", default="*", help="指定监听地址，同时监听ipv4 ipv6")
+    parse.add_argument("--addr", default="*", help="指定监听地址，默认同时监听ipv4 ipv6")
     parse.add_argument("--port", type=int, default=8080, help="指定监听端口default: 8080")
     parse.add_argument("--debug", action="store_true", help="--debug")
 
