@@ -74,7 +74,7 @@ class Header:
 
             if len(self.buffer) >= 8192:
 
-                self.writer.write(b"HTTP/1.1 200 REQUEST TOO LONG")
+                self.writer.write(b"HTTP/1.1 400 REQUEST TOO LONG")
                 await self.writer.drain()
                 self.writer.close()
 
@@ -143,11 +143,8 @@ class Header:
 async def swap(r1, w2):
     logger.debug(f"id: {id(r1)}")
     while True:
-        try:
-            data = await r1.read(4096)
-        except socket.timeout:
-            logger.debug(f"timeout close()")
-            break
+        data = await r1.read(4096)
+        # logger.debug(f"timeout close()")
 
         if not data:
             break
@@ -166,7 +163,6 @@ async def swap(r1, w2):
 
 
 async def handle(reader, writer):
-
 
     addr = writer.get_extra_info("peername")
     #sock = writer.get_extra_info("socket")
