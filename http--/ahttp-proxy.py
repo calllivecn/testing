@@ -99,7 +99,7 @@ class Header:
         else:
             return self.buffer
     
-    async def get_Host_Port(self):
+    def get_Host_Port(self):
 
         # 如果是https 否则是 http
         if self.isHttps():
@@ -142,70 +142,75 @@ class Header:
 
 async def swap(r1, w2):
     logger.debug(f"id: {id(r1)}")
-    while True:
-        data = await r1.read(4096)
-        # logger.debug(f"timeout close()")
 
-        if not data:
-            break
+    try:
+        while True:
+            data = await asyncio.wait_for(r1.read(4096), timeout=TIMEOUT)
 
-        try:
+            if not data:
+                break
+
             i = w2.write(data)
-            await w2.drain()
-        except ConnectionResetError:
-            w2.close()
-            await w2.wait_closed()
-            break
+            await asyncio.wait_for(w2.drain(), timeout=TIMEOUT)
+
+    except ConnectionResetError as e:
+        logger.debug(f"{e}")
     
-    if not w2.is_closing():
+    except asyncio.TimeoutError:
+        logger.warning(f"data swap Timeout close()")
+
+    finally:
         w2.close()
         await w2.wait_closed()
 
+    # if not w2.is_closing():
+    #    w2.close()
+    #    await w2.wait_closed()
 
-async def handle(reader, writer):
 
+async def handle_add_timeout(reader, writer):
     addr = writer.get_extra_info("peername")
-    #sock = writer.get_extra_info("socket")
-    #sock.settimeout(60)
 
-    try:
-        head = Header(reader, writer)
-        await head.getRequest()
-        await head.get_Host_Port()
-    except socket.timeout:
-        logger.debug(f"{addr} timeout close")
-        return 
+    head = Header(reader, writer)
+    await asyncio.wait_for(head.getRequest(), timeout=TIMEOUT)
+    head.get_Host_Port()
 
-    except Exception as e:
-        logger.warning(f"异常： {e}")
-        writer.close()
-        await writer.wait_closed()
-        return
-
-    try:
-        r2, w2 = await asyncio.open_connection(head.host, head.port, limit=4096)
-    except OSError as e:
-        logger.warning(e)
-        writer.close()
-        await writer.wait_closed()
-        return 
-
-    #sock = w2.get_extra_info("socket")
-    #sock.settimeout(60)
+    r2, w2 = await asyncio.wait_for(asyncio.open_connection(head.host, head.port, limit=4096), timeout=TIMEOUT)
 
     if head.isHttps():
         writer.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
-        await writer.drain()
+        # await writer.drain()
+        await asyncio.wait_for(w2.drain(), timeout=TIMEOUT)
     else:
         logger.debug(f"head.data ==> {head.data()}")
         w2.write(head.data())
-        await w2.drain()
+        # await writer.drain()
+        await asyncio.wait_for(w2.drain(), timeout=TIMEOUT)
 
     # 我去， 这里必需是分开的 task 不然不是并发的....
     task1 = asyncio.create_task(swap(reader, w2))
     task2 = asyncio.create_task(swap(r2, writer))
     await task1 
     await task2 
+
+
+async def handle(reader, writer):
+    addr = writer.get_extra_info("peername")
+
+    try:
+        await handle_add_timeout(reader, writer)
+    except asyncio.TimeoutError:
+        logger.warning(f"{addr} Timeout close()")
+
+    except OSError as e:
+        logger.warning(e)
+
+    except Exception as e:
+        logger.warning(f"异常：{e}")
+    
+    finally:
+        writer.close()
+        await writer.wait_closed()
 
 async def proxy():
     parse = ArgumentParser(
@@ -222,7 +227,7 @@ async def proxy():
 
     if args.debug:
         print(args)
-        sys.exit(0)
+        # sys.exit(0)
     else:
         logger.setLevel(logging.INFO)
 
@@ -234,6 +239,8 @@ async def proxy():
     async with sock_server:
         await sock_server.serve_forever()
 
+
+TIMEOUT=600
 
 try:
     asyncio.run(proxy())
