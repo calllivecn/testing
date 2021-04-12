@@ -29,9 +29,9 @@ async def echo(reader, writer):
         return
 
     writer.write(httpResponse(b"hello world!\n"))
-    #await writer.drain()
+    await writer.drain()
     writer.close()
-    #await writer.wait_closed()
+    await writer.wait_closed()
 
 
 addr = "0.0.0.0"
