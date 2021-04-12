@@ -19,8 +19,6 @@ for v in range(2):
     except:
         print ("Error: unable to start thread")
 
-
-
     #t.setDaemon(True)
     t.start()
 

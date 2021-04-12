@@ -20,4 +20,4 @@ def fib(n):
     return a
 
 
-print("N:", fib(5))
+print("N:", fib(n))
