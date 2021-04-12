@@ -488,6 +488,125 @@ Percentage of the requests served within a certain time (ms)
  100%     91 (longest request)
 
 ```
+## 这里使用 http-echo-asyncio.py。
+
+- 这个，8.6k 
+
+```shell
+# 第一次
+root@xiaomi:/# ab -c 2000 -n 10000 http://127.0.0.1:6785/calllivecn
+This is ApacheBench, Version 2.3 <$Revision: 1843412 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
+
+Benchmarking 127.0.0.1 (be patient)
+Completed 1000 requests
+Completed 2000 requests
+Completed 3000 requests
+Completed 4000 requests
+Completed 5000 requests
+Completed 6000 requests
+Completed 7000 requests
+Completed 8000 requests
+Completed 9000 requests
+Completed 10000 requests
+Finished 10000 requests
+
+
+Server Software:        py
+Server Hostname:        127.0.0.1
+Server Port:            6785
+
+Document Path:          /calllivecn
+Document Length:        13 bytes
+
+Concurrency Level:      2000
+Time taken for tests:   2.791 seconds
+Complete requests:      10000
+Failed requests:        0
+Total transferred:      900000 bytes
+HTML transferred:       130000 bytes
+Requests per second:    3582.64 [#/sec] (mean)
+Time per request:       558.248 [ms] (mean)
+Time per request:       0.279 [ms] (mean, across all concurrent requests)
+Transfer rate:          314.88 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0  121 325.9      2    1036
+Processing:    13   67 205.5     16    1733
+Waiting:        1   63 205.6     14    1729
+Total:         15  188 486.4     17    2765
+
+Percentage of the requests served within a certain time (ms)
+  50%     17
+  66%     18
+  75%     22
+  80%     38
+  90%   1063
+  95%   1492
+  98%   1878
+  99%   1909
+ 100%   2765 (longest request)
+
+
+# 第二次
+root@xiaomi:/# ab -c 200 -n 10000 http://127.0.0.1:6785/calllivecn
+This is ApacheBench, Version 2.3 <$Revision: 1843412 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
+
+Benchmarking 127.0.0.1 (be patient)
+Completed 1000 requests
+Completed 2000 requests
+Completed 3000 requests
+Completed 4000 requests
+Completed 5000 requests
+Completed 6000 requests
+Completed 7000 requests
+Completed 8000 requests
+Completed 9000 requests
+Completed 10000 requests
+Finished 10000 requests
+
+
+Server Software:        py
+Server Hostname:        127.0.0.1
+Server Port:            6785
+
+Document Path:          /calllivecn
+Document Length:        13 bytes
+
+Concurrency Level:      200
+Time taken for tests:   1.176 seconds
+Complete requests:      10000
+Failed requests:        0
+Total transferred:      900000 bytes
+HTML transferred:       130000 bytes
+Requests per second:    8503.67 [#/sec] (mean)
+Time per request:       23.519 [ms] (mean)
+Time per request:       0.118 [ms] (mean, across all concurrent requests)
+Transfer rate:          747.39 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    6  64.8      2    1026
+Processing:    11   17   2.7     16      32
+Waiting:        1   14   3.0     13      29
+Total:         11   23  65.1     18    1042
+
+Percentage of the requests served within a certain time (ms)
+  50%     18
+  66%     18
+  75%     18
+  80%     19
+  90%     19
+  95%     24
+  98%     32
+  99%     33
+ 100%   1042 (longest request)
+```
+
 
 ## linux 优化选项 (在新内核里，好多选项都没有了，还有选项发生了变化)
 
