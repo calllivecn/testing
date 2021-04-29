@@ -216,7 +216,7 @@ async def proxy():
     parse = ArgumentParser(
         description="一个用asyncio实现的http https代理服务器。",
         usage="%(prog)s [ --addr <0.0.0.0>|<::> <*>] [--port <8080>]",
-        epilog="callivecn 编写"
+        epilog="calllivecn 编写"
     )
 
     parse.add_argument("--addr", default="*", help="指定监听地址，默认同时监听ipv4 ipv6")
