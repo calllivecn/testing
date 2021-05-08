@@ -26,7 +26,7 @@ def add():
     while True:
         c += 1
 
-        if c >= 100000000:
+        if c >= 1000000:
             print("我还在:", threading.current_thread())
             c = 0
 
