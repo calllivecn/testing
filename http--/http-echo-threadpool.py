@@ -28,7 +28,7 @@ def echo(conn):
     except Exception as e:
         print("异常：", e)
     finally:
-        conn.shutdown(socket.SHUT_RDWR)
+        #conn.shutdown(socket.SHUT_RDWR)
         conn.close()
 
 

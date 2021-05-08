@@ -7,7 +7,7 @@
 # taken from https://gist.github.com/dergachev/7028596  
 #   
 # generate server.xml with the following command:  
-#   openssl req -new -x509 -keyout https_svr_key.pem -out https_svr_key.pem -days 3650 -nodes  
+#   openssl req -new -x509 -keyout server.key -out server.crt -days 3650 -nodes  
 # 
 
 
