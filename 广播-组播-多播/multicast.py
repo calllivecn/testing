@@ -6,7 +6,7 @@ import time
 import socket
 import struct
 
-#多播IP地址就是D类IP地址 224.0.0.0至239.255.255.255
+#多播IP地址就是D类IP地址 24.0.0.0至239.255.255.255
 
 # 组播组IP和端口 
 mcast_group_ip = '234.2.2.2'
