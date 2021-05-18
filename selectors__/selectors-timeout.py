@@ -50,6 +50,134 @@ PORT = 6789
 RECV_TIMEOUT = 19
 
 
+# 超时机制
+class SockMon:
+    """
+    sock(一个socket)，和 time.montonic组成的数据结构
+    """
+    __slots__ = ("sock", "monotonic", "pre", "pnext")
+
+    def __init__(self, sock, monotonic):
+        self.sock = sock
+        self.monotonic = monotonic
+        self.pre = None
+        self.pnext = None
+    
+    def __str__(self):
+        return f"{str(self.sock)}:{self.monotonic} --> "
+
+
+class SelectorTimeout:
+    """
+    双向链表
+    """
+
+    __slots__ = (
+                "sockmon",
+                "head",
+                "tail",
+                "length",
+                "selector",
+                "map",
+                )
+
+    def __init__(self):
+        self.head = None
+        self.tail = self.head
+
+        self.length = 0
+
+        self.selector = DefaultSelector()
+        self.map = {}
+
+    def insert(self, sock):
+        sockmon = SockMon(sock, time.monotonic())
+        # 这里只需要从头插数据
+        if self.head is None:
+            self.head = sockmon
+            self.tail = sockmon
+
+        else:
+            sockmon.pnext = self.head
+            self.head = sockmon
+        
+        self.map[sock] = sockmon
+
+        self.length += 1
+
+        # self.selector.register()
+
+    def head_delete(self):
+        now = time.monotoinc()
+        pre_now = now - 45
+
+        # 超时了的socket
+        socks = []
+
+        if self.head == None:
+            return socks
+        
+        while self.head != None:
+
+            if self.head.monotonic > pre_now:
+                socks.append(self.head)
+
+            self.head = self.head.pnext
+        
+        self.length -= 1
+
+        return socks
+    
+    def append(self, sockmon):
+        if self.tail is None:
+            self.head = sockmon
+            self.tail = sockmon
+        else:
+            self.tail.pnext = sockmon
+            sockmon.pre = self.tail
+            self.tail = sockmon
+            self.tail.pnext = None
+        
+        self.length += 1
+
+    def update(self, sockmon):
+        """
+        这是的 update (当前是测试); 把一个节点移到链尾。
+        """
+
+        # 如果这是第一个node。
+        if sockmon == self.head:
+            self.head = sockmon.pnext
+            self.tail.pnext = sockmon
+            sockmon.pre = self.tail
+            sockmon.pnext = None
+        
+        # 如果这是最后一个，怎么都不做; 否则 移动它
+        elif sockmon !=  self.tail:
+            sockmon.pre.pnext = sockmon.pnext
+            sockmon.pnext.pre = sockmon.pre
+            sockmon.pre = self.tail
+            self.tail.pnext = sockmon
+            self.tail = sockmon
+            self.tail.pnext = None
+
+
+    def print(self):
+        cur = self.head
+        while cur != None:
+            print(cur, end="")
+            cur = cur.pnext
+        print()
+                
+    def pre_print(self):
+        tail = self.tail
+        while tail != None:
+            print(tail, end="")
+            tail = tail.pre
+        print()
+
+
+
 def httpResponse(msg):
     msg = "<h1>" + msg + "</h1>\n"
     msg = msg.encode("utf8")
@@ -76,13 +204,13 @@ def return_ip(conn):
     return httpResponse(str(ip))
 
 
-def send_handler(conn, msg, selector):
+def send_handler(conn, msg, s):
     conn.send(msg)
     conn.close()
-    selector.unregister(conn)
+    s.selector.unregister(conn)
 
 
-def recv_handler(conn, selector):
+def recv_handler(conn, s):
 
     data = conn.recv(1024)
 
@@ -108,15 +236,15 @@ def recv_handler(conn, selector):
         else:
             msg = return_ip(conn)
 
-        selector.modify(conn, EVENT_WRITE, lambda conn, selector: send_handler(conn, msg, selector))
+        s.selector.modify(conn, EVENT_WRITE, lambda conn, selector: send_handler(conn, msg, selector))
 
     else:
         # peer 没有发送数据就close
         conn.close()
-        selector.unregister(conn)
+        s.selector.unregister(conn)
 
 
-def handler_accept(conn, selector):
+def handler_accept(conn, s):
 
     sock, addr = conn.accept()
     # sock.settimeout(3) 这种在非阻塞IO下无效
@@ -125,7 +253,7 @@ def handler_accept(conn, selector):
     addr = sock.getpeername()
     print("client:", addr, file=sys.stderr)
 
-    selector.register(sock, EVENT_READ, recv_handler)
+    s.selector.register(sock, EVENT_READ, recv_handler)
 
 
 def httpmcsleep():
@@ -142,18 +270,21 @@ def httpmcsleep():
 
     sock6.setblocking(False)
 
-    selector = DefaultSelector()
-    selector.register(sock6, EVENT_READ, handler_accept)
+    # selector = DefaultSelector()
+    s = SelectorTimeout()
+    s.selector.register(sock6, EVENT_READ, handler_accept)
+
+    
 
     try:
         while True:
-            event_list = selector.select(1)
+            event_list = s.selector.select(1)
 
             for key, event in event_list:
                 print(f"selector.select() --> {event}")
                 conn = key.fileobj
                 func = key.data
-                func(conn, selector)
+                func(conn, s)
             
             # selector.select(1) 超时处理。
 
@@ -163,8 +294,8 @@ def httpmcsleep():
 
     finally:
         sock6.close()
-        selector.unregister(sock6)
-        selector.close()
+        s.selector.unregister(sock6)
+        s.selector.close()
 
 
 if __name__ == "__main__":
