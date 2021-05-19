@@ -23,7 +23,7 @@
 #
 # 3. 维护一个 双向链表，添加data:(sock, 更新时间戳); 可以用 sock map 快速找到 SockMon()节点在链表中的位置。
 #    selector.select(1) 后，check 时间戳是否超时，如果超时，sock.close(), selector.unregister(sock)。
-#    1) SockMon(sock: socket, monotoinc: time.monotoinc())
+#    1) SockMon(sock: socket, monotonic: time.monotonic())
 #    2) 双向链表
 #    3) 一个 key 为 sock.fd; 值为 SockMon() 节点的 map
 #    这样形成一个能从前端删除;后端追加;并可将一个指定节点移动到未尾,并更新时间戳的数据结构。 
@@ -64,7 +64,7 @@ class SockMon:
         self.pnext = None
     
     def __str__(self):
-        return f"{str(self.sock)}:{self.monotonic} --> "
+        return f"{self.sock.getpeername()} -- {self.monotonic}"
 
 
 class SelectorTimeout:
@@ -89,46 +89,57 @@ class SelectorTimeout:
 
         self.selector = DefaultSelector()
         self.map = {}
+    
+    def delete(self, sockmon):
+        if sockmon == self.head:
+            if self.head.pnext != None:
+                self.head = self.head.pnext
+                self.head.pre = None
+            else:
+                self.head = None
+                self.tail = None
 
-    def insert(self, sock):
-        sockmon = SockMon(sock, time.monotonic())
-        # 这里只需要从头插数据
-        if self.head is None:
-            self.head = sockmon
-            self.tail = sockmon
-
+        elif sockmon == self.tail:
+            if self.tail.pre != None:
+                self.tail = sockmon.pre
+                self.tail.pnext = None
+            else:
+                self.head = None
+                self.tail = None
         else:
-            sockmon.pnext = self.head
-            self.head = sockmon
-        
-        self.map[sock] = sockmon
+            # 把它前一个的 pnext 指向它的下一个
+            sockmon.pre.pnext = sockmon.pnext
+            # 把它下一个的 pre 指向它的前一个
+            sockmon.pnext.pre = sockmon.pre
 
-        self.length += 1
-
-        # self.selector.register()
-
-    def head_delete(self):
-        now = time.monotoinc()
-        pre_now = now - 45
-
-        # 超时了的socket
-        socks = []
-
+    def clear_timeout(self, timeout=45):
+        """
+        超时 socket 清理
+        """
         if self.head == None:
-            return socks
+            return
         
-        while self.head != None:
+        now = time.monotonic()
+        pre_now = now - timeout
+        head = self.head
+        while head != None:
 
-            if self.head.monotonic > pre_now:
-                socks.append(self.head)
+            # 已超时
+            if head.monotonic <= pre_now:
+                # print(f"sock: {head.sock.getpeername()} 超时清除")
+                self.unregister(head.sock)
+                self.length -= 1
+            else:
+                break
 
-            self.head = self.head.pnext
+            head = head.pnext
         
-        self.length -= 1
+        if head != None:
+            head.pre = None
 
-        return socks
     
     def append(self, sockmon):
+
         if self.tail is None:
             self.head = sockmon
             self.tail = sockmon
@@ -136,24 +147,31 @@ class SelectorTimeout:
             self.tail.pnext = sockmon
             sockmon.pre = self.tail
             self.tail = sockmon
-            self.tail.pnext = None
         
         self.length += 1
 
-    def update(self, sockmon):
-        """
-        这是的 update (当前是测试); 把一个节点移到链尾。
-        """
+    def update(self, sock):
+        sockmon = self.map[sock]
+        sockmon.monotonic = time.monotonic()
 
         # 如果这是第一个node。
         if sockmon == self.head:
-            self.head = sockmon.pnext
-            self.tail.pnext = sockmon
-            sockmon.pre = self.tail
-            sockmon.pnext = None
-        
-        # 如果这是最后一个，怎么都不做; 否则 移动它
-        elif sockmon !=  self.tail:
+            if sockmon.pnext != None:
+                self.head = sockmon.pnext
+                self.head.pre = None
+                self.tail.pnext = sockmon
+                sockmon.pre = self.tail
+                self.tail = sockmon
+                self.tail.pnext = None
+            else:
+                self.tail = self.head
+
+        # 如果这是尾node, 不用做
+        # elif sockmon == self.tail:
+            # self.tail.pnext = None
+
+        # 如果不是头，也不是尾；那至少有3个元素；sockmon.pre 和 sockmon.pnext 不为 None 。移动它
+        elif sockmon != self.head and sockmon != self.tail:
             sockmon.pre.pnext = sockmon.pnext
             sockmon.pnext.pre = sockmon.pre
             sockmon.pre = self.tail
@@ -161,21 +179,40 @@ class SelectorTimeout:
             self.tail = sockmon
             self.tail.pnext = None
 
+    def register(self, fileobj, event, data=None):
+        sockmon = SockMon(fileobj, time.monotonic())
+        self.map[fileobj] = sockmon
+        self.append(sockmon)
+        self.selector.register(fileobj, event, data=data)
+
+    def unregister(self, fileobj):
+        sockmon = self.map[fileobj]
+        self.delete(sockmon)
+        self.selector.unregister(fileobj)
+        sockmon.sock.close()
+    
+    def modify(self, fileobj, event, data=None):
+        self.selector.modify(fileobj, event, data=data)
+    
+    def select(self, timeout=None):
+        return self.selector.select(timeout)
+    
+    def close(self):
+        self.selector.close()
 
     def print(self):
-        cur = self.head
-        while cur != None:
-            print(cur, end="")
-            cur = cur.pnext
+        head = self.head
+        while head != None:
+            print(head, end="")
+            head = head.pnext
         print()
-                
+
     def pre_print(self):
         tail = self.tail
         while tail != None:
             print(tail, end="")
             tail = tail.pre
         print()
-
 
 
 def httpResponse(msg):
@@ -206,13 +243,13 @@ def return_ip(conn):
 
 def send_handler(conn, msg, s):
     conn.send(msg)
-    conn.close()
-    s.selector.unregister(conn)
+    s.unregister(conn)
 
 
 def recv_handler(conn, s):
 
     data = conn.recv(1024)
+    s.update(conn)
 
     if data:
 
@@ -230,18 +267,17 @@ def recv_handler(conn, s):
             print("有Exception子类异常:", e)
 
 
-        if not path and path == "/" + SECRET:
+        if path and path == "/" + SECRET:
             # 如果没有异常且 secret 是对的
             msg = "这样可以的~！".encode("utf-8")
         else:
             msg = return_ip(conn)
 
-        s.selector.modify(conn, EVENT_WRITE, lambda conn, selector: send_handler(conn, msg, selector))
+        s.selector.modify(conn, EVENT_WRITE, lambda conn, s: send_handler(conn, msg, s))
 
     else:
         # peer 没有发送数据就close
-        conn.close()
-        s.selector.unregister(conn)
+        s.unregister(conn)
 
 
 def handler_accept(conn, s):
@@ -253,7 +289,7 @@ def handler_accept(conn, s):
     addr = sock.getpeername()
     print("client:", addr, file=sys.stderr)
 
-    s.selector.register(sock, EVENT_READ, recv_handler)
+    s.register(sock, EVENT_READ, recv_handler)
 
 
 def httpmcsleep():
@@ -274,19 +310,18 @@ def httpmcsleep():
     s = SelectorTimeout()
     s.selector.register(sock6, EVENT_READ, handler_accept)
 
-    
-
     try:
+        run_time = 0
         while True:
-            event_list = s.selector.select(1)
-
+            event_list = s.select(1)
             for key, event in event_list:
-                print(f"selector.select() --> {event}")
                 conn = key.fileobj
                 func = key.data
                 func(conn, s)
             
-            # selector.select(1) 超时处理。
+            print("run_time:", run_time)
+            s.clear_timeout(5)
+            run_time +=1
 
     except Exception as e:
         print(f"httpmcsleep() 异常： {e}", file=sys.stderr)
@@ -294,8 +329,7 @@ def httpmcsleep():
 
     finally:
         sock6.close()
-        s.selector.unregister(sock6)
-        s.selector.close()
+        s.close()
 
 
 if __name__ == "__main__":

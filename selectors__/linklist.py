@@ -173,7 +173,6 @@ class DuLinklist:
             self.tail.pnext = sockmon
             sockmon.pre = self.tail
             self.tail = sockmon
-            self.tail.pnext = None
         
         self.length += 1
 
@@ -184,13 +183,22 @@ class DuLinklist:
 
         # 如果这是第一个node。
         if sockmon == self.head:
-            self.head = sockmon.pnext
-            self.tail.pnext = sockmon
-            sockmon.pre = self.tail
-            sockmon.pnext = None
-        
-        # 如果这是最后一个，怎么都不做; 否则 移动它
-        elif sockmon !=  self.tail:
+            if sockmon.pnext != None:
+                self.head = sockmon.pnext
+                self.head.pre = None
+                self.tail.pnext = sockmon
+                sockmon.pre = self.tail
+                self.tail = sockmon
+                self.tail.pnext = None
+            else:
+                self.tail = self.head
+
+        # 如果这是尾node, 不用做
+        # elif sockmon == self.tail:
+            # self.tail.pnext = None
+
+        # 如果不是头，也不是尾；那至少有3个元素；sockmon.pre 和 sockmon.pnext 不为 None 。移动它
+        elif sockmon != self.head and sockmon != self.tail:
             sockmon.pre.pnext = sockmon.pnext
             sockmon.pnext.pre = sockmon.pre
             sockmon.pre = self.tail
@@ -200,6 +208,7 @@ class DuLinklist:
 
 
     def print(self):
+        print("这是正输出：")
         cur = self.head
         while cur != None:
             print(cur, end="")
@@ -207,6 +216,7 @@ class DuLinklist:
         print()
                 
     def pre_print(self):
+        print("这是反输出：")
         tail = self.tail
         while tail != None:
             print(tail, end="")
@@ -262,3 +272,22 @@ dul.pre_print()
 
 print("="*40)
 print("双向链表测试 done")
+
+print("="*40)
+print("双向链表测试 一个节点，并更新")
+
+dul2 = DuLinklist()
+
+update_node = SockMon("5", time.monotonic())
+dul2.append(update_node)
+dul2.append(SockMon("6", time.monotonic()))
+dul2.append(SockMon("7", time.monotonic()))
+
+print("更新前")
+dul2.print()
+dul2.update(update_node)
+print("更新后")
+dul2.print()
+input()
+dul2.pre_print()
+print(f"debug length: {dul2.length}")
