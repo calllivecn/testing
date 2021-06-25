@@ -4,54 +4,23 @@
 # https://github.com/calllivecn
 
 
-
+import os
 import sys
-
-# tarfile 依赖
-#import tarzx
+import shutil
 import tarfile
 
 
-stdin = sys.stdin.buffer
-stdout = sys.stdout.buffer
-
-def tell_none():
-    print("call tell_none function")
-    return 0
-
-setattr(stdin, "tell", tell_none)
+# def read_tar(archivename):
+def read_tar():
+    with tarfile.open(mode="r|", fileobj=sys.stdin.buffer) as tar:
+        shutil.copyfileobj(tar.fileobj, sys.stdout.buffer)
 
 
-stdin.tell()
+def extract_tar(target):
+    with tarfile.open(mode="r|", fileobj=sys.stdin.buffer) as tar:
+        tar.extractall(target)
+        # tar.list()
 
-
-if stdin is sys.stdin.buffer:
-    print("is stdin")
-else:
-    print("is not stdin")
-
-#exit(0)
-
-#def tell():
-#    return 0
-#
-#if hasattr(stdin, "tell"):
-#    print("stdin 有tell()")
-#else:
-#    print("stdin 没有tell()")
-#    setattr(stdin, "tell", tell)
-#
-#sys.exit(0)
-
-#fp = open("my.tar", "wb")
-
-tar = tarfile.TarFile(mode="w", fileobj=stdin)
-
-#tar = tarzx.TarFile(mode="r", fileobj=stdin)
-
-tar.extractall()
-
-tar.close()
-
-#fp.close()
-
+if __name__ == "__main__":
+    read_tar() # test ok
+    # extract_tar(sys.argv[1]) # test ok
