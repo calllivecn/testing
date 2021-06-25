@@ -9,6 +9,11 @@ import sys
 import shutil
 import tarfile
 
+try:
+    import zstd
+except NotImplementedError:
+    print("pip install zstd", file=sys.stderr)
+    sys.exti(1)
 
 # def read_tar(archivename):
 def read_tar():
@@ -21,6 +26,10 @@ def extract_tar(target):
         tar.extractall(target)
         # tar.list()
 
+
+# zstd 的标准压缩块大小是128K , 这里我使用1MB 块
+# zstd.compress()
+
 if __name__ == "__main__":
-    read_tar() # test ok
+    # read_tar() # test ok
     # extract_tar(sys.argv[1]) # test ok
