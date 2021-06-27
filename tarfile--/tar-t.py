@@ -8,18 +8,40 @@ import os
 import sys
 import shutil
 import tarfile
+from functools import partial
 
 try:
-    import zstd
+    # import zstd 这个库太简单了，不方便使用
+    import pyzstd
+    import_zstd = True
 except NotImplementedError:
-    print("pip install zstd", file=sys.stderr)
-    sys.exti(1)
+    import_zstd = False
 
-# def read_tar(archivename):
+
+# zstd 的标准压缩块大小是128K , 这里我使用1MB 块
+# pyzstd.compress()
+BLOCKSIZE = (1<<20)
+
 def read_tar():
-    with tarfile.open(mode="r|", fileobj=sys.stdin.buffer) as tar:
-        shutil.copyfileobj(tar.fileobj, sys.stdout.buffer)
+    #with tarfile.open(mode="r|", fileobj=sys.stdin.buffer) as tar:
+        # shutil.copyfileobj(tar.fileobj, sys.stdout.buffer)
 
+    Zst = pyzstd.ZstdCompressor(level_or_option=10)
+
+    with tarfile.open(mode="r|", fileobj=sys.stdin.buffer) as tar, open("/tmp/pax1.tar.zst", "wb") as zst:
+        # 这样，需要 输入流 有 readinto() 方法
+        # pyzstd.compress_stream(tar, zst, level_or_option=10)
+
+        # for tar_data in iter(partial(tar.fileobj.read, BLOCKSIZE), b""):
+        while True:
+            tar_data = tar.fileobj.read(BLOCKSIZE)
+            if tar_data == b"":
+                zst.write(Zst.flush())
+                break
+            else:
+                comp_data = Zst.compress(tar_data)
+                zst.write(comp_data)
+        
 
 def extract_tar(target):
     with tarfile.open(mode="r|", fileobj=sys.stdin.buffer) as tar:
@@ -27,40 +49,13 @@ def extract_tar(target):
         # tar.list()
 
 
-# zstd 的标准压缩块大小是128K , 这里我使用1MB 块
-# zstd.compress()
-
-
-
-def main():
-    import argparse
-
-    parse = argparse.ArgumentParser(
-        description="like GNU tar",
-        usage="%(prog)s [option] [file ...]",
-        epilog="https://github.com/calllivecn/mytools"
-        )
-    
-    parse.add_argument("-f", help="tar 文件")
-    parse.add_argument("-x", help="解压")
-    parse.add_argument("-C", help="解压到指定目录(default: 当前目录)")
-    parse.add_argument("-z", help="使用压缩，zstd，default: level=11")
-    parse.add_argument("-l", help="使用压缩level=11，level: 1 ~ 22")
-    parse.add_argument("-e", help="使用 aes 加密")
-
-    # 从标准输入赢取
-    parse.add_argument("--stdin", help="从标准输入读取")
-    parse.add_argument("--stdout", help="输出到标准输出")
-
-
+def tarextract():
+    pass
 
 
 if __name__ == "__main__":
     # test ok
-    # read_tar()
+    read_tar()
 
     # test ok
     # extract_tar(sys.argv[1]) 
-    
-    main()
-
