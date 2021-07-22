@@ -3,7 +3,7 @@
 # date 2021-07-22 17:24:22
 # author calllivecn <c-all@qq.com>
 
-
+import time
 import json
 
 # 网上的实现
@@ -40,20 +40,20 @@ class DotDict(dict):
     def __getattr__(self, name):
         return self.get(name)
 
-    def __setattr__(self, key, value):
-        self.__setitem__(key, value)
+    def __setattr__(self, name, value):
+        self.__setitem__(name, value)
 
-    def loads(self, *args, **kwargs):
-        self.__dict__ = json.loads(*args, **kwargs, object_hook=self.__d2dd)
+    def loads(self, obj, *args, **kwargs):
+        self.update(json.loads(obj, *args, **kwargs, object_hook=self.__d2dd))
 
     def dumps(self, *args, **kwargs):
         return json.dumps(self, *args, **kwargs, default=self.__dd2d)
 
     def load(self, fp, *args, **kwargs):
-        self.__dict__ = json.load(fp, *args, **kwargs, object_hook=self.__d2dd)
+        self.update(json.load(fp, *args, **kwargs, object_hook=self.__d2dd))
 
-    def dump(self, *args, **kwargs):
-        return json.dump(self, *args, **kwargs, default=self.__dd2d)
+    def dump(self, fp, *args, **kwargs):
+        return json.dump(self, fp, *args, **kwargs, default=self.__dd2d)
     
     @classmethod
     def __d2dd(cls, obj):
@@ -74,25 +74,36 @@ print(d1)
 
 print("------------------")
 dd = DottableDict()
+if dd:
+    print("init dd:", dd, True)
+else:
+    print("init dd:", dd, False)
+
 dd.k1 = 1
 dd.k2 = 2
 print(dd)
 
+
 print("------------------")
-dd2 = DotDict(d1)
+dd2 = DotDict()
+dd2.loads('{"name": "zx"}')
 print(dd2)
+
 
 dd2.k1 = "test string"
 
 dd2.name = "zx"
 
-dd2.dep1.dep2.dep3 = "这是3层深度值"
+dd2.dep1 = "这是1层深度值"
+dd2.dep2 = int(time.time())
+print(dd2.dep1)
 
 print(dd2.k1)
 print(dd2.k2)
-print(dd2["k3"])
 print(dd2.k4)
 
 dd2.k4 = list(range(5))
 
-print(dd2.k4[3])
+print(dd2)
+
+print(dd2.dumps(ensure_ascii=False))
