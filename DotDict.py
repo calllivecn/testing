@@ -44,13 +44,13 @@ class DotDict(dict):
         self.__setitem__(key, value)
 
     def loads(self, *args, **kwargs):
-        return json.loads(*args, **kwargs, object_hook=self.__d2dd)
+        self.__dict__ = json.loads(*args, **kwargs, object_hook=self.__d2dd)
 
     def dumps(self, *args, **kwargs):
         return json.dumps(self, *args, **kwargs, default=self.__dd2d)
 
     def load(self, fp, *args, **kwargs):
-        return json.load(fp, *args, **kwargs, object_hook=self.__d2dd)
+        self.__dict__ = json.load(fp, *args, **kwargs, object_hook=self.__d2dd)
 
     def dump(self, *args, **kwargs):
         return json.dump(self, *args, **kwargs, default=self.__dd2d)
