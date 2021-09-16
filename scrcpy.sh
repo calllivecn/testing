@@ -51,9 +51,48 @@ CloseConnect(){
 	done
 }
 
+AutoConnectClose(){
+	sleep 10
+	oppo_win=$(xdotool search --name "$phonename")
+	if [ "$oppo_win"x != x ];then
+		xdotool key --window $oppo_win alt+F4
+		echo "$(date +%R-%F): close ~~~"
+	else
+		echo "$(date +%R-%F): 没有找到？？？"
+	fi
+}
+
 # 长时间不连接，wg 可能会断开。
-SleepAutoConnect(){
-	Connect
+AutoConnect(){
+
+	if ss dst "$phone" |grep -q "$localipport";then
+		:
+	else
+		# 连接 10秒 后关闭
+		AutoConnectClose &
+
+		adb connect $machine
+		scrcpy -s $machine --bit-rate 1M --max-size 800
+	fi
+
+}
+
+CronConnect(){
+
+	day=$(date +%d)
+	
+	while :
+	do
+		cur=$(date +%d)
+	
+		if [ "$day"x != "$cur"x ];then
+			AutoConnect	
+			day="$cur"
+		else
+			sleep 3600
+		fi
+	done
+
 }
 
 # 检测phone 是否连接
@@ -61,7 +100,7 @@ test_phone(){
 	while :;
 	do
 		if ss dst "$phone" |grep -q "$localipport";then
-			CloseConnect &
+			#CloseConnect &
 			Connect
 		else
 			sleep 2
@@ -69,4 +108,14 @@ test_phone(){
 	done
 }
 
-test_phone
+#test_phone
+
+# 每天连接 一次 使用crontab。
+
+if [ "$1"x == "--auto-connect"x ];then
+	set -x
+	CronConnect
+	exit 0
+fi
+
+Connect
