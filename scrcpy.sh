@@ -26,12 +26,13 @@ turn_off(){
 
 Connect(){
 
-	turn_off &
+	#turn_off &
+	# 可以使用 -S 选项
 	
 	adb connect $machine
 	# fps only support android 10
 	#scrcpy -s $machine --bit-rate 1M --max-size 800 --max-fps 15
-	scrcpy -s $machine --bit-rate 1M --max-size 800
+	scrcpy -S -s $machine --bit-rate 1M --max-size 800
 }
 
 CloseConnect(){
@@ -72,7 +73,7 @@ AutoConnect(){
 		AutoConnectClose &
 
 		adb connect $machine
-		scrcpy -s $machine --bit-rate 1M --max-size 800
+		scrcpy -S -s $machine --bit-rate 1M --max-size 800
 	fi
 
 }
