@@ -1,4 +1,4 @@
-#!/usr/bin/env py3
+#!/usr/bin/env python3
 #coding=utf-8
 # date 2018-11-08 20:17:20
 # author calllivecn <c-all@qq.com>
@@ -7,7 +7,7 @@ import configparser
 
 cfg = configparser.ConfigParser()
 
-cfg.read('test.timer')
+cfg.read('test.timer', 'utf8')
 
 
 print("cfg.sections()",cfg.sections())
