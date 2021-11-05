@@ -32,8 +32,13 @@ private_bytes = private_key.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEnc
 public_key = private_key.public_key()
 public_bytes = public_key.public_bytes(Encoding.Raw, PublicFormat.Raw)
 
+pre_shared_key = X25519PrivateKey.generate()
+pre_shared_bytes = pre_shared_key.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
+
 print("private key bytes:", private_bytes)
 print("private key base64:", base64.b64encode(private_bytes).decode("utf-8"))
 
 print("public key bytes:", public_bytes)
 print("public key base64:", base64.b64encode(public_bytes).decode("utf-8"))
+
+print("pre shared key base64:", base64.b64encode(pre_shared_bytes).decode("utf-8"))
