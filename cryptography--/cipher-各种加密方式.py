@@ -13,7 +13,13 @@ https://cryptography.io/en/latest/hazmat/primitives/aead/#cryptography.hazmat.pr
 
 import os
 
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+# 对称加密
+from cryptography.hazmat.primitives.ciphers import (
+    Cipher,
+    algorithms,
+    modes,
+)
+
 
 
 def chacha20():
