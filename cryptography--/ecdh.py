@@ -48,6 +48,7 @@ elif (type == 9):
     Bob_private_key = ec.generate_private_key(ec.BrainpoolP512R1())
     Alice_private_key = ec.generate_private_key(ec.BrainpoolP512R1())
 
+# 密钥交换
 Bob_shared_key = Bob_private_key.exchange(ec.ECDH(), Alice_private_key.public_key())
 
 Bob_derived_key = HKDF(algorithm=hashes.SHA256(), length=size, salt=None, info=b'',).derive(Bob_shared_key)
@@ -64,7 +65,8 @@ vals = Bob_private_key.private_numbers()
 print()
 print(f"Bob private key value: {vals.private_value}")
 vals = Bob_private_key.public_key()
-enc_point = binascii.b2a_hex(vals.public_bytes(Encoding.OpenSSH, PublicFormat.OpenSSH))
+# enc_point = binascii.b2a_hex(vals.public_bytes(Encoding.OpenSSH, PublicFormat.OpenSSH))
+enc_point = binascii.b2a_hex(vals.public_bytes(Encoding.Raw, PublicFormat.Raw))
 print("Bob's public key: ", enc_point)
 vals = Alice_private_key.private_numbers()
 print()
