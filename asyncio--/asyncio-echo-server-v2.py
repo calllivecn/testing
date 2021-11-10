@@ -9,8 +9,19 @@ import asyncio
 BLOCK = 1<<14 # 16k
 
 async def echo(reader, writer):
+
+    addr = writer.transport.get_extra_info("peername")
+    print("client addr:", addr)
+
+
     while True:
-        data = await reader.read(BLOCK)
+
+        try:
+            data = await asyncio.wait_for(reader.read(BLOCK), timeout=5)
+        except asyncio.exceptions.TimeoutError:
+            print("client timeout")
+            break
+
         if not data:
             break
 
