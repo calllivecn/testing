@@ -3,11 +3,10 @@
 # date 2021-03-09 15:26:026
 # author calllivecn <c-all@qq.com>
 
-import sys
+
+import io
 import asyncio
 import logging
-import socket
-from functools import partial
 from http import HTTPStatus
 from argparse import ArgumentParser
 
@@ -35,6 +34,15 @@ class MethodError(RequestError):
 class HostPostError(RequestError):
     pass
 
+class Buffer(bytearray):
+
+    def __init__(self, size=(1<<12)):
+        super().__init__(size)
+        self._mv = memoryview(self)
+
+    def __getitem__(self, slice):
+        return self._mv[slice]
+
 class Header:
 
     def __init__(self, reader, writer):
@@ -42,7 +50,7 @@ class Header:
         self.writer = writer
         
         self._method = None
-        self.buffer = b""
+        self.buffer = io.BytesIO()
         self.requestheaders = b""
         self.delimiter = 0
 
@@ -65,14 +73,17 @@ class Header:
             if buffer == b"":
                 raise RequestError("peer close connection")
 
-            self.buffer += buffer
+            self.buffer.write(buffer)
 
-            self.delimiter = self.buffer.find(b"\r\n\r\n")
-            if self.delimiter != -1:
+            delimiter = buffer.find(b"\r\n\r\n")
+            if delimiter != -1:
+                self.delimiter = self.buffer.tell() + delimiter
                 break
 
 
-            if len(self.buffer) >= 8192:
+
+            # if len(self.buffer) >= 8192:
+            if self.buffer.tell() >= 8192:
 
                 self.writer.write(b"HTTP/1.1 400 REQUEST TOO LONG")
                 await self.writer.drain()
@@ -80,10 +91,11 @@ class Header:
 
                 raise RequestError("request too long")
 
+        self.buffer = self.buffer.getvalue()
         # 这里可以 把 request line 分离出来了
         self.headers = self.buffer[:self.delimiter].decode("ascii")
 
-        logger.debug(f"self.headers ==> {self.headers}")
+        logger.debug(f"self.headers ==>\n{self.headers}")
 
         self.method = self.headers[:self.headers.find(" ")]
     
@@ -182,7 +194,7 @@ async def handle_add_timeout(reader, writer):
         # await writer.drain()
         await asyncio.wait_for(w2.drain(), timeout=TIMEOUT)
     else:
-        logger.debug(f"head.data ==> {head.data()}")
+        logger.debug(f"head.data ==>\n{head.data()}")
         w2.write(head.data())
         # await writer.drain()
         await asyncio.wait_for(w2.drain(), timeout=TIMEOUT)
@@ -200,7 +212,7 @@ async def handle(reader, writer):
     try:
         await handle_add_timeout(reader, writer)
     except asyncio.TimeoutError:
-        logger.warning(f"{addr} Timeout close()")
+        logger.debug(f"{addr} Timeout close()")
 
     except OSError as e:
         logger.warning(e)
