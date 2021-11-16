@@ -61,6 +61,7 @@ def show(n: int):
 
 
 big_number = 0x01020304
+big_number = 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffff
 
 test = number2store(big_number)
 print(binascii.b2a_hex(number2byte(big_number)[0]), "转换为7bit链式存储：", binascii.b2a_hex(test))
