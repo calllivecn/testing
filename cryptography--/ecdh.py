@@ -77,3 +77,4 @@ print("Alice's public key: ", enc_point)
 print()
 print("Bob's derived key: ", binascii.b2a_hex(Bob_derived_key).decode())
 print("Alice's derived key: ", binascii.b2a_hex(Alice_derived_key).decode())
+ 
