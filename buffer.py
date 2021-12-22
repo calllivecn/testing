@@ -28,14 +28,14 @@ SIZE = (1<<13) # 8k
 SIZE = (1<<14) # 16k
 
 # buf = memoryview(bytearray(SIZE))
-buf = Buffer(SIZE)
 
 # 看看使用这种方式 是不是 会省内存。 是省内存，省了差不多一半。 SIZE 为 16k 时，运行速度最快。
 
-sha = hashlib.sha256()
+if __name__ == "__main__":
+    buf = Buffer(SIZE)
+    sha = hashlib.sha256()
+    with open(sys.argv[1], "rb") as f:
+        while (n := f.readinto(buf)) != 0:
+            sha.update(buf[:n])
 
-with open(sys.argv[1], "rb") as f:
-    while (n := f.readinto(buf)) != 0:
-        sha.update(buf[:n])
-
-    print(sha.hexdigest())
+        print(sha.hexdigest())

@@ -32,6 +32,9 @@ from cryptography.hazmat.primitives.ciphers.aead import (
 )
 
 
+## chacha20p
+print("chacha20poly1305 加解密测试===========")
+
 # 生成key
 
 genkey = ChaCha20Poly1305.generate_key()
@@ -44,18 +47,47 @@ aad = b"authenticated but unencrypted data"
 # 和上面使用同一个私钥可行，但不应该，这里先实验。
 chacha20 = ChaCha20Poly1305(genkey)
 
+#####################################
+#
 # nonce 在每次加密时，不能重复。可以 +1 操作.
+#
+######################################
 nonce = os.urandom(12)
 
 cipher_text = chacha20.encrypt(nonce, text.encode("utf-8"), aad)
 
 print("密文：", base64.b64encode(cipher_text))
 
-
 decipher_text = chacha20.decrypt(nonce, cipher_text, aad)
 
 print("解文：", decipher_text.decode("utf-8"))
 
+
+## AESGCM
+
+print("chacha20poly1305 加解密测试===========")
+text = "这是 AESGCM 加密明文"
+
+data = text.encode("utf8")
+print("原文：", text, "lenght:", len(data))
+
+aad = b"authenticated but unencrypted data"
+
+#key = AESGCM.generate_key(bit_length=128)
+key = AESGCM.generate_key(256)
+aesgcm = AESGCM(key)
+
+nonce = os.urandom(12)
+
+ct = aesgcm.encrypt(nonce, data, aad)
+print("密文:", ct, "lenght:", len(ct))
+
+de_data = aesgcm.decrypt(nonce, ct, aad)
+
+print("解文:", de_data.decode("utf8"))
+
+
+sys.exit(0)
 
 
 #########################

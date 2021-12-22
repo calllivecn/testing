@@ -4,6 +4,7 @@
 # author calllivecn <c-all@qq.com>
 
 
+import io
 import binascii
 
 # 使用一种更好的方式，存储大数。
@@ -11,7 +12,7 @@ import binascii
 在存储时使用一个字节的后7bit来保存;
 首位1bit当结束标志。
 
-怎么转换？以测试可以。查看flag: 1
+怎么转换？测试可以。查看首位flag: 1
 """
 
 def number2byte(n, order="big"):
@@ -34,18 +35,28 @@ def number2store(n):
         store.append(n & 0x7f) # 取出后7bit
         n>>=7
     
-    store[0] ^= 0x7f # 把最后一个字节的首位置1。
+    store[0] ^= 0x80 # 把最后一个字节的首位bit置1。
     store.reverse()
     return store
 
-def store2number(buf):
+# 从 bytearray + memoryview 里读取。
+def store2number(mv, cur=0):
+    n = 0
+    while ((b := mv[cur]) >> 7) != 1:
+        n = (n<<7) + b
+        cur += 1
+
+    n = (n<<7) + (mv[cur] ^ 0x80) # 把最后一个字节的首位bit置0。
+    return n
+
+def store2number4byte(buf):
     n = 0
     for b in buf[:-1]:
         n = (n<<7) + b
 
-    n = (n<<7) + (buf[-1] ^ 0x7f)
+    n = (n<<7) + (buf[-1] ^ 0x80) # 把最后一个字节的首位bit置0。
     return n
-    
+
 # flag: 1 END
 
 
@@ -60,9 +71,17 @@ def show(n: int):
     print("-"*40)
 
 
-big_number = 0x01020304
-big_number = 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+import buffer
 
+big_number = 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+big_number = 0x01020304
+
+buf = buffer.Buffer()
+
+print("有多少个bit: ", big_number.bit_length())
 test = number2store(big_number)
+
+buf[:len(test)] = test
+
 print(binascii.b2a_hex(number2byte(big_number)[0]), "转换为7bit链式存储：", binascii.b2a_hex(test))
 print("还原：", hex(store2number(test)))
