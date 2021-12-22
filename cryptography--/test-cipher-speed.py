@@ -62,10 +62,13 @@ decipher_text = chacha20.decrypt(nonce, cipher_text, aad)
 
 print("解文：", decipher_text.decode("utf-8"))
 
-
+##########################
+##
 ## AESGCM
+##
+###########################
 
-print("chacha20poly1305 加解密测试===========")
+print("AESGCM 加解密测试===========")
 text = "这是 AESGCM 加密明文"
 
 data = text.encode("utf8")
