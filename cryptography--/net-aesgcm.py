@@ -5,6 +5,8 @@
 
 
 import os
+import sys
+import binascii
 import hashlib
 import socket
 from hashlib import sha256, pbkdf2_hmac
@@ -33,9 +35,8 @@ class Nonce:
         self.__max = 0xffffffffffffffffffffffff
 
         self.__nonce = int.from_bytes(os.urandom(12), "big")
+        print("nonce type:", type(self.__nonce))
 
-        self.nonce = self.__nonce
-    
     @property
     def nonce(self):
         return self.__nonce.to_bytes(12, "big")
@@ -43,11 +44,9 @@ class Nonce:
     @nonce.setter
     def nonce(self, value):
         self.__nonce = value
-        self.nonce = self.__nonce.to_bytes(12, "big")
     
     def add(self):
         self.__nonce += 1
-        self.nonce = self.__nonce.to_bytes(12, "big")
 
 
 def genkey(password, salt):
@@ -55,40 +54,89 @@ def genkey(password, salt):
     return key
 
 
-salt = os.urandom(16)
 
-aad = salt
+ADDR = ("127.0.0.1", 6789)
 
-nonce = Nonce()
+# 那这里，需要两边预有的。
+# password, salt, aad
 
-key = genkey("这是一个AESGCM密码")
-
-aesgcm = AESGCM(key)
 
 def server():
+    password = "这是一个AESGCM密码"
+    
+    salt = os.urandom(16)
+    
+    aad = os.urandom(16)
+    
+    key = genkey(password, salt)
+    
+    aesgcm = AESGCM(key)
 
-    sock = socket.socket()
-    sock.bind(("12.0.0.1", 6789))
-    sock.listne(5)
+    print("password:", password, "salt:", binascii.b2a_hex(salt), "aad:", binascii.b2a_hex(aad))
 
-    client, addr = sock.accept()
-    print("连接：", addr)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(ADDR)
+    #sock.listen(5)
 
-    sock.close()
+    #client, addr = sock.accept()
+    #print("连接：", addr)
+
 
     while True:
-        data = client.recv(8192)
+        data, addr = sock.recvfrom(8192)
+        print("从接收：", addr)
+
         nonce = data[:12]
-        aad = data[12:28]
-        text = aesgcm.decrypt(nonce, data[28:], aad)
+        text = aesgcm.decrypt(nonce, data[12:], aad)
         print("Server 解密：", text)
         if text == b"quit.":
-            print("done")
+            print("server done, exit.")
             break
     
-    client.close()
+    sock.close()
+    #client.close()
 
 
-def client():
+def client(password, salt, aad):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    #sock.connect(("127.0.0.1", 6789))
 
+    key = genkey(password, salt)
+
+    nonce = Nonce()
+
+    aesgcm = AESGCM(key)
+
+    for i in range(7):
+
+        data = b"varible data: " + str(i).encode("ascii")
+        print("Client 加密前：", data)
+
+        nonce.add()
+        cipher = aesgcm.encrypt(nonce.nonce, data, aad)
+
+        data = nonce.nonce + cipher
+        sock.sendto(data, ADDR)
+
+
+    nonce.add()
+    cipher = aesgcm.encrypt(nonce.nonce, b"quit.", aad)
+    data = nonce.nonce + cipher
+    sock.sendto(data, ADDR)
+    print("client done")
+    
+    sock.close()
+
+
+if __name__ == "__main__":
+    if sys.argv[1] == "server":
+        server()
+    elif sys.argv[1] == "client":
+        password = sys.argv[2]
+        salt = binascii.a2b_hex(sys.argv[3])
+        aad = binascii.a2b_hex(sys.argv[4])
+        print(password, salt, aad)
+        client(password, salt, aad)
+    else:
+        print(f"{sys.argv[0]} <server|client>")
 
