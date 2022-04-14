@@ -3,6 +3,10 @@
 # date 2022-01-13 05:57:26
 # author calllivecn <c-all@qq.com>
 
+"""
+在网上找到的示例
+"""
+
 import os
 import io
 import sys

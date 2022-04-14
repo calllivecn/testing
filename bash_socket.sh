@@ -27,7 +27,10 @@ done
 # 在bash下，你可以打开一个套接字并通过它发送数据。你不必使用 curl 或者 lynx 命令抓取远程服务器的数据。bash 和两个特殊的设备文件可用于打开网络套接字。以下选自 bash 手册：
 #
 # /dev/tcp/host/port - 如果 host 是一个有效的主机名或者网络地址，而且端口是一个整数或者服务名，bash 会尝试打开一个相应的 TCP 连接套接字。
+
+
 # /dev/udp/host/port - 如果 host 是一个有效的主机名或者网络地址，而且端口是一个整数或者服务名，bash 会尝试打开一个相应的 UDP 连接套接字。
+# 2022-03-16: udp 只能用来发送数据，不能接收....
 
 # 打开socket: exec $fd<>/dev/tcp/host/port
 # 关闭读socket: exec $fd<&-
