@@ -14,6 +14,9 @@ import socket
 import termios
 import selectors
 
+STDIN = sys.stdin.fileno()
+# STDIN = sys.stdin
+STDOUT = sys.stdout.fileno()
 
 def get_pty_size(fd):
     size = fcntl.ioctl(sys.stdin.fileno(), termios.TIOCGWINSZ, b"0000") # 占位符
@@ -38,44 +41,45 @@ def signal_SIGWINCH_handle(sigNum, frame):
     print("sigwinch 执行完成")
 
 
-signal.signal(signal.SIGWINCH, signal_SIGWINCH_handle)
+def client(addr, port):
+    server_addr = (addr, port)
+
+    signal.signal(signal.SIGWINCH, signal_SIGWINCH_handle)
+    
+
+    sock = socket.socket()
+
+    sock.connect(addr)
+
+    # tty 
+    tty_bak = termios.tcgetattr(sys.stdin)
+    tty.setraw(STDIN)
 
 
-addr = (sys.argv[1], int(sys.argv[2]))
+    ss = selectors.DefaultSelector()
 
-sock = socket.socket()
+    ss.register(sock, selectors.EVENT_READ)
+    ss.register(STDIN, selectors.EVENT_READ)
 
-sock.connect(addr)
+    exit_flag = True
+    while exit_flag:
+        for key, event in ss.select():
+            fd = key.fileobj
+            if fd == sock:
+                data = sock.recv(1024)
+                if not data:
+                    exit_flag = False
+                    break
+                os.write(STDOUT, data)
+            elif fd == STDIN:
+                data = os.read(STDIN, 1024)
+                sock.send(data)
 
-# tty 
-tty_bak = termios.tcgetattr(sys.stdin)
-tty.setraw(sys.stdin.fileno())
+    ss.close()
 
-STDIN = sys.stdin.fileno()
-# STDIN = sys.stdin
-STDOUT = sys.stdout.fileno()
+    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, tty_bak)
+    print("logout")
 
-ss = selectors.DefaultSelector()
 
-ss.register(sock, selectors.EVENT_READ)
-ss.register(STDIN, selectors.EVENT_READ)
-
-exit_flag = True
-while exit_flag:
-    for key, event in ss.select():
-        fd = key.fileobj
-        if fd == sock:
-            data = sock.recv(1024)
-            if not data:
-                exit_flag = False
-                break
-            os.write(STDOUT, data)
-        elif fd == STDIN:
-            data = os.read(STDIN, 1024)
-            sock.send(data)
-
-ss.close()
-
-termios.tcsetattr(sys.stdin, termios.TCSADRAIN, tty_bak)
-print("logout")
-
+if __name__ == "__main__":
+    client(sys.argv[1], int(sys.argv[2]))
