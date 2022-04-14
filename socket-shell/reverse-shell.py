@@ -54,8 +54,8 @@ def socketshell(sock):
         ss.close()
         print("sock exit")
 
-def server():
-    listen_addr = ("0.0.0.0", 6788)
+def server(addr, port=6789):
+    listen_addr = (addr, port))
     sock = socket.socket()
     sock.bind(listen_addr)
     sock.listen(5)
@@ -72,4 +72,6 @@ def server():
         th = threading.Thread(target=socketshell, args=(client,), daemon=True)
         th.start()
 
-server()
+
+if __name__ == "__main__":
+    server(sys.argv[1], int(sys.argv[2]))
