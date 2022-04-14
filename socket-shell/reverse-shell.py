@@ -9,7 +9,7 @@ import pty
 import socket
 import threading
 import selectors
-from subprocess import run, Popen, PIPE, STDOUT
+from subprocess import Popen
 
 SHELL='bash -i'
 
