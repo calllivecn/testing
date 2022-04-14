@@ -55,7 +55,7 @@ def socketshell(sock):
         print("sock exit")
 
 def server(addr, port=6789):
-    listen_addr = (addr, port))
+    listen_addr = (addr, port)
     sock = socket.socket()
     sock.bind(listen_addr)
     sock.listen(5)
