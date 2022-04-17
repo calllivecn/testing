@@ -26,3 +26,4 @@ if __name__ == "__main__":
     num = input("请输入一个小于{}的数: ".format(sys.maxsize))
     s = int(num)
     bit_64(s)
+
