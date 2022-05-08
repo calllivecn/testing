@@ -215,7 +215,7 @@ def main():
     server_func =  subparsers.add_parser("server", help="启动服务端")
     client_func = subparsers.add_parser("client", help="使用client端")
 
-    server_func.add_argument("--cmd", default=SHELL, help=f"需要使用的交互程序(default: {SHELL})")
+    # server_func.add_argument("--cmd", default=SHELL, help=f"需要使用的交互程序(default: {SHELL})")
     server_func.add_argument("--addr", default="", help="需要连接的IP或域名")
     server_func.add_argument("--port", default=6789, type=int, help="端口")
 

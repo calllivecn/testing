@@ -30,17 +30,30 @@ class server:
 
 """
 
+class NonceMaxError(Exception):
+    pass
+
 class Nonce:
+    """
+    Nonce 的含意是，每个密码对，每次加密中都不能重复使用同一个None值。
+    重点是不同。
+    """
 
     def __init__(self):
 
         self.__max = 0xffffffffffffffffffffffff
 
-        self.__nonce = int.from_bytes(os.urandom(12), "big")
+        # self.__nonce = int.from_bytes(os.urandom(12), "big")
+        self.__nonce = 0
         print("nonce type:", type(self.__nonce))
 
     @property
     def nonce(self):
+        self.__nonce += 1
+
+        if self.__nonce > self.__max:
+            raise NonceMaxError("None value too max")
+
         return self.__nonce.to_bytes(12, "big")
     
     @nonce.setter
