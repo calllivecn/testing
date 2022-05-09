@@ -3,85 +3,73 @@
 # date 2022-05-09 00:10:46
 # author calllivecn <c-all@qq.com>
 
-import re
-import sys
 import time
 import socket
 import argparse
 import subprocess
 
 def ping_works(payload_size, args):
-    try:
-        # we capture the output to prevent ping
-        # from printing to terminal
-        _output = subprocess.check_output([
-            'ping',
-            '-4' if args.ipv4 else '-6',
-            '-M', 'do',
-            '-c', '1',
-            '-w', str(args.step_timeout_sec),
-            '-n',
-            '-s', str(payload_size),
-            args.target,
-        ], stderr=subprocess.STDOUT).decode('utf8')
+    # we capture the output to prevent ping
+    # from printing to terminal
+    output = subprocess.run([
+        'ping',
+        '-4' if args.ipv4 else '-6',
+        '-M', 'do',
+        '-c', '1',
+        '-w', str(args.step_timeout_sec),
+        '-n',
+        '-s', str(payload_size),
+        args.target,
+    ], capture_output=True)
+    # , check=True) 
 
+    if output.returncode == 0:
         return True
-
-    except subprocess.CalledProcessError:
+    else:
         return False
 
 def main(args):
     lo = args.lo  # MTUs lower or equal do work
     hi = args.hi  # MTUs greater or equal don't work
-    print('>>> PMTU to %s in range [%d, %d)' % (args.target, lo, hi))
+    print(f'>>> PMTU to {args.target} in range [{lo}, {hi})')
 
     while lo + 1 < hi:
         mid = (lo + hi) // 2
 
-        sys.stdout.write('%d: ' % mid)
-        sys.stdout.flush()
+        print(f"{mid}: ", end="", flush=True)
 
         for i in range(args.max_pings_per_step):
             if ping_works(mid, args):
                 # ping went through, this payload size works
                 lo = mid
-                print('pong')
+                print('pong', flush=True)
                 break
             else:
-                sys.stdout.write('* ')
-                sys.stdout.flush()
+                print('* ', end="", flush=True)
                 time.sleep(args.ping_interval_sec)
         else:
             # all attempts failed, payload probably too big
             hi = mid
-            print('')
+            print(flush=True)
 
     header_size = 28 if args.ipv4 else 48
-    print('>>> optimal MTU to %s: %d + %d = %d' % (
-        args.target, lo, header_size, lo+header_size
-    ))
+    print(f">>> optimal MTU to {args.target}: {lo} + {header_size} = {lo+header_size}")
 
 def parse_args():
     p = argparse.ArgumentParser(description='Perform path MTU discovery.')
 
-    p.add_argument('target',
-        help='IP address or hostname to ping')
+    p.add_argument('target', help='IP address or hostname to ping')
 
     group = p.add_mutually_exclusive_group()
     group.add_argument('--ipv4', '-4', action='store_true', help='use IPv4')
     group.add_argument('--ipv6', '-6', action='store_true', help='use IPv6')
 
     # 68 or 576 for IPv4, 1280 for IPv6
-    p.add_argument('-l', metavar='MTU', dest='lo', type=int, default=0,
-        help='lower bound of the search range [%(default)s]')
-    p.add_argument('-u', metavar='MTU', dest='hi', type=int, default=1500,
-        help='upper bound of the search range [%(default)s]')
-    p.add_argument('-c', metavar='COUNT', dest='max_pings_per_step', type=int, default=2,
-        help='maximum number of pings per step [%(default)s]')
-    p.add_argument('-w', metavar='SECONDS', dest='step_timeout_sec', type=int, default=2,
-        help='step timeout [%(default)s]')
-    p.add_argument('-i', metavar='SECONDS', dest='ping_interval_sec', type=float, default=0.2,
-        help='ping interval [%(default)s]')
+    p.add_argument('-l', metavar='MTU', dest='lo', type=int, default=0, help='lower bound of the search range [%(default)s]')
+    p.add_argument('-u', metavar='MTU', dest='hi', type=int, default=1500, help='upper bound of the search range [%(default)s]')
+    p.add_argument('-c', metavar='COUNT', dest='max_pings_per_step', type=int, default=2, help='maximum number of pings per step [%(default)s]')
+    p.add_argument('-w', metavar='SECONDS', dest='step_timeout_sec', type=int, default=2, help='step timeout [%(default)s]')
+    p.add_argument('-i', metavar='SECONDS', dest='ping_interval_sec', type=float, default=0.2, help='ping interval [%(default)s]')
 
     args = p.parse_args()
 
