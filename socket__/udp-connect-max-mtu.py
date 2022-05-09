@@ -38,8 +38,10 @@ def _in_cksum(packet):
         packet += '\0'
     words = array.array('h', packet)
     chksums = 0
+
     for word in words:
         chksums += (word & 0xffff)
+
     hi = chksums >> 16
     lo = chksums & 0xffff
     chksums = hi + lo
@@ -51,7 +53,7 @@ def _search(size, pong, mid):
     if not (1472 >= size >= 548):
         print("illegal size option")
 
-    while 1:
+    while True:
         pong = pingNode(alive=alive, timeout=timeout, number=count, node=node)
         if not pong:
             mid = (size - 548) // 2
@@ -99,14 +101,18 @@ def pingNode(alive=0, timeout=1.0, number=sys.maxsize, node=None, size=1472):
         _error("")
     try:
         host = socket.gethostbyname(node)
-    except:
+    except Exception:
         _error("cannot resolve %s: Unknown host" % node)
+
     if int(string.split(dst_ip, ".")[-1]) == 0:
         _error("no support for network ping")
+
     if number == 0:
         _error("invalid count of packets to transmit")
+
     if alive:
         number = 1
+
     start = 1
 
     lost = 0
@@ -120,8 +126,8 @@ def pingNode(alive=0, timeout=1.0, number=sys.maxsize, node=None, size=1472):
                 pingSocket = socket.socket(socket.AF_INET, socket.IPPROTO_ICMP)
                 pingSocket.setsockopt(socket.SOL_IP, IP_MTU_DISCOVER, IP_PMTUDISC_DO)
             except socket.error as e:
-                print("socket error: %s" % e)
-                _error("You must be root (%s uses raw sockets)" % os.path.basename(sys.argv[0]))
+                print(f"socket error: {e}")
+                _error(f"You must be root ({os.path.basename(sys.argv[0])} uses raw sockets)")
 
             packet = construct(start, size)
             try:
@@ -162,9 +168,11 @@ def pingNode(alive=0, timeout=1.0, number=sys.maxsize, node=None, size=1472):
             """
     except (EOFError, KeyboardInterrupt):
         start += 1
-        pass
+
+    finally:
+        pingSocket.close()
+
     return pong
-    pingSocket.close()
 
 
 def _usage():
@@ -175,6 +183,7 @@ def _usage():
 
 
 if __name__ == "__main__":
+    print("__main__ 没行？")
     """
     Main loop
     """
@@ -182,6 +191,7 @@ if __name__ == "__main__":
     try:
         opts, args = getopt.getopt(sys.argv[1:-1], "hat:6c:fs:")
     except getopt.GetoptError:
+        print("Exception ???")
         _error("fucking illegal option")
 
     if len(sys.argv) >= 2:
@@ -193,6 +203,9 @@ if __name__ == "__main__":
 
     if args:
         _error("illegal option -- %s" % str(args))
+    else:
+        print("是没有 args 是吧？")
+
     alive = 0
     timeout = 1.0
     count = sys.maxsize
