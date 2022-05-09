@@ -4,6 +4,26 @@
 # author calllivecn <c-all@qq.com>
 
 """
+# 一个资源段。
+这是我最终选择的路线。
+我关注了 SashaN 在 D.Shwley 的回答的评论中发布的链接，并了解了为什么在 Linux 的 UDP 数据包中设置了“不分段”位。
+原来它与 PMTU 发现有关。长话短说，您可以使用套接字对象中的 setsockopts 函数从 Python 中的 UDP 数据包中清除不分段位。
+
+import socket
+IP_MTU_DISCOVER   = 10
+IP_PMTUDISC_DONT  =  0  # Never send DF frames.
+IP_PMTUDISC_WANT  =  1  # Use per route hints.
+IP_PMTUDISC_DO    =  2  # Always DF.
+IP_PMTUDISC_PROBE =  3  # Ignore dst pmtu.
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.connect(("10.0.0.1", 8000))
+s.send("Hello World!") # DF bit is set in this packet
+s.setsockopt(socket.SOL_IP, IP_MTU_DISCOVER, IP_PMTUDISC_DONT)
+s.send("Hello World!") # DF bit is cleared in this packet
+
+"""
+
+"""
 #define IP_PMTUDISC_DONT   0    /* Never send DF frames.  */
 #define IP_PMTUDISC_WANT   1    /* Use per route hints.  */
 #define IP_PMTUDISC_DO     2    /* Always DF.  */
