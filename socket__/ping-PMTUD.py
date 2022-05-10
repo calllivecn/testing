@@ -65,7 +65,7 @@ def parse_args():
     group.add_argument('--ipv6', '-6', action='store_true', help='use IPv6')
 
     # 68 or 576 for IPv4, 1280 for IPv6
-    p.add_argument('-l', metavar='MTU', dest='lo', type=int, default=0, help='lower bound of the search range [%(default)s]')
+    p.add_argument('-l', metavar='MTU', dest='lo', type=int, default=576, help='lower bound of the search range [%(default)s]')
     p.add_argument('-u', metavar='MTU', dest='hi', type=int, default=1500, help='upper bound of the search range [%(default)s]')
     p.add_argument('-c', metavar='COUNT', dest='max_pings_per_step', type=int, default=2, help='maximum number of pings per step [%(default)s]')
     p.add_argument('-w', metavar='SECONDS', dest='step_timeout_sec', type=int, default=2, help='step timeout [%(default)s]')
