@@ -28,6 +28,7 @@ import argparse
 
 # init RTT  还是叫 RTO ?
 RTT=5
+RTT_COUNT=3
 
 def wrap_rtt(func):
     def wrap(*args, **kwarg):
@@ -37,9 +38,13 @@ def wrap_rtt(func):
         t2 = time.time()
 
         e = t2-t1
-        RTT = e*2
-        if RTT > 30:
-            RTT=30
+        if result:
+            RTT = e*2
+            if RTT > 30:
+                RTT=30
+        else:
+            RTT = e*1.1
+
 
         return result
     
@@ -59,7 +64,7 @@ def pmtud(sock, MSS_try):
     return True
 
 
-def client(args):
+def client(args, sock):
 
     if args.target is None:
         print("需要目标地址")
@@ -68,20 +73,6 @@ def client(args):
     HOST = args.target               # Symbolic name meaning all available interfaces
     PORT = args.port                     # Arbitrary non-privileged port
 
-    sock = None
-    for res in socket.getaddrinfo(HOST, PORT, socket.AF_UNSPEC, socket.SOCK_DGRAM, 0, socket.AI_PASSIVE):
-        af, socktype, proto, canonname, sa = res
-        try:
-            sock = socket.socket(af, socktype, proto)
-        except OSError as msg:
-            sock = None
-            continue
-
-        break
-
-    if sock is None:
-        print('could not open socket')
-        sys.exit(1)
 
 
     lo = args.min
@@ -122,12 +113,14 @@ def client(args):
         sock.settimeout(RTT)
 
     # header_size = 28 if args.ipv4 else 48
-    if af == socket.AF_INET:
+    if sock.family == socket.AF_INET:
         header = 28
         print(f">>> IPv4 MTU to {args.target}: {lo} + {header} = {lo+header}")
     else:
         header = 48
         print(f">>> IPv6 MTU to {args.target}: {lo} + {header} = {lo+header}")
+    
+    sock.close()
 
 def server(port):
     BUF=32*(1<<10) # 32K
@@ -155,18 +148,34 @@ def main():
     parse.add_argument('--port', type=int, default=6789, help='端口 [%(default)s]')
 
     # 68 or 576 for IPv4, 1280 for IPv6
-    parse.add_argument('-l', metavar='MTU min', dest='min', type=int, default=576, help='探测起始包大小 [%(default)s]')
-    parse.add_argument('-u', metavar='MTU max', dest='max', type=int, default=1500, help='探测结束包大小 [%(default)s]')
-    parse.add_argument('-c', metavar='COUNT', dest='retry', type=int, default=2, help='最大重试次数 [%(default)s]')
-    parse.add_argument('-w', metavar='SECONDS', dest='timeout', type=float, default=2, help='首次探测的超时时间 [%(default)s]')
-    parse.add_argument('-i', metavar='SECONDS', dest='interval', type=float, default=0.2, help='探测包的发送间隔 [%(default)s]')
+    parse.add_argument('-l', metavar='MTU min', dest='min', type=int, default=512, help=f'探测起始包大小 ipv4:576-28=548, ipv6:1280-48=1232')
+    parse.add_argument('-u', metavar='MTU max', dest='max', type=int, default=1500, help='探测结束包大小 ipv6: 目前实测一般很大，万级。 [default:%(default)s]')
+    parse.add_argument('-c', metavar='COUNT', dest='retry', type=int, default=2, help='最大重试次数 [default:%(default)s]')
+    parse.add_argument('-w', metavar='SECONDS', dest='timeout', type=float, default=2, help='首次探测的超时时间 [default:%(default)s]')
+    parse.add_argument('-i', metavar='SECONDS', dest='interval', type=float, default=0.2, help='探测包的发送间隔 [default%(default)s]')
 
     args = parse.parse_args()
+
+    # 自动检测是ipv4 ipv6
+    sock = None
+    for res in socket.getaddrinfo(args.target, args.port, socket.AF_UNSPEC, socket.SOCK_DGRAM, 0, socket.AI_PASSIVE):
+        af, socktype, proto, canonname, sa = res
+        try:
+            sock = socket.socket(af, socktype, proto)
+        except OSError as msg:
+            sock = None
+            continue
+
+        break
+
+    if sock is None:
+        print('could not open socket')
+        sys.exit(1)
 
     if args.server:
         server(args.port)
     else:
-        client(args)
+        client(args, sock)
 
 
 if __name__ == "__main__":
