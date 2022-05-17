@@ -26,24 +26,25 @@ import socket
 import argparse
 
 
-# init RTT  还是叫 RTO ?
-RTT=5
-RTT_COUNT=3
+# init RTO  还是叫 RTO ? false : RTO（Retransmission TimeOut）
+# RTO=5
+RTO=5
+RTO_COUNT=3
 
 def wrap_rtt(func):
     def wrap(*args, **kwarg):
-        global RTT
+        global RTO
         t1 = time.time()
         result = func(*args, **kwarg)
         t2 = time.time()
 
         e = t2-t1
         if result:
-            RTT = e*2
-            if RTT > 30:
-                RTT=30
+            RTO = e*2
+            if RTO > 30:
+                RTO=30
         else:
-            RTT = e*1.1
+            RTO = e*1.1
 
 
         return result
@@ -55,7 +56,8 @@ def wrap_rtt(func):
 @wrap_rtt
 def pmtud(sock, MSS_try):
     # sock.send(bytes(MSS_try))
-    sock.send(ssl.RAND_bytes(MSS_try))
+    d = ssl.RAND_bytes(MSS_try)
+    sock.send(d)
     try:
         data, addr = sock.recvfrom(1024)
     except Exception:
@@ -78,13 +80,13 @@ def client(args, sock):
     lo = args.min
     hi = args.max
 
-    print(f'>>> UDP PMTU 探测目标：{args.target} 范围 [{lo}, {hi})')
+    print(f'>>> UDP PMTU 探测目标：{args.target} 范围 [{lo}, {hi}]')
 
     sock.connect((HOST, PORT))
     sock.settimeout(args.timeout)
 
     mid = lo
-    while lo+1 < hi:
+    while lo < hi:
 
         print(f"负载 {mid}: ", end="", flush=True)
 
@@ -100,17 +102,21 @@ def client(args, sock):
                 udp_ok = False
                 
             
+        # print(lo, hi)
         if udp_ok:
             lo = mid
         else:
             # all attempts failed, payload probably too big
             hi = mid
             print(flush=True)
+            if lo + 1 == hi:
+                lo = hi
+
 
         mid = (lo + hi + 1) // 2
         
-        # set RTT 为 timeout
-        sock.settimeout(RTT)
+        # set RTO 为 timeout
+        sock.settimeout(RTO)
 
     # header_size = 28 if args.ipv4 else 48
     if sock.family == socket.AF_INET:
@@ -123,9 +129,11 @@ def client(args, sock):
     sock.close()
 
 def server(port):
-    BUF=32*(1<<10) # 32K
+    BUF=1*(1<<20) # 32K --> 1MB
     sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
     sock.bind(("", port))
+
+    print(f"listen port: {port}")
 
     while True:
         data, addr = sock.recvfrom(BUF)
@@ -150,7 +158,7 @@ def main():
     # 68 or 576 for IPv4, 1280 for IPv6
     parse.add_argument('-l', metavar='MTU min', dest='min', type=int, default=512, help=f'探测起始包大小 ipv4:576-28=548, ipv6:1280-48=1232')
     parse.add_argument('-u', metavar='MTU max', dest='max', type=int, default=1500, help='探测结束包大小 ipv6: 目前实测一般很大，万级。 [default:%(default)s]')
-    parse.add_argument('-c', metavar='COUNT', dest='retry', type=int, default=2, help='最大重试次数 [default:%(default)s]')
+    parse.add_argument('-c', metavar='COUNT', dest='retry', type=int, default=3, help='最大重试次数 [default:%(default)s]')
     parse.add_argument('-w', metavar='SECONDS', dest='timeout', type=float, default=2, help='首次探测的超时时间 [default:%(default)s]')
     parse.add_argument('-i', metavar='SECONDS', dest='interval', type=float, default=0.2, help='探测包的发送间隔 [default%(default)s]')
 
