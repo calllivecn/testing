@@ -85,6 +85,11 @@ class UDPTranter:
         self.rto_count=5
 
 
+        # counter ack
+        self.counter = 1
+        self.packet = struct.Struct("!Q")
+
+
     def wrap_rto(func):
         def wrap(self, *args, **kwarg):
             t1 = time.time()
@@ -128,13 +133,15 @@ class UDPTranter:
 
         i = 0
         while i < self.rto_count:
-            self.sock.sendto(b"O", (self.addr, self.port))
+            pack = B"O" + self.packet.pack(self.counter)
+            self.sock.sendto(pack, (self.addr, self.port))
 
+            
+            # 等待确认
             try:
                 data, addr = self.sock.recvfrom(32)
             except TimeoutError:
                 i += 1
-                time.sleep(0.05)
                 logger.info(f"握手时，超时重传")
 
                 if i == self.rto_count:
@@ -145,6 +152,18 @@ class UDPTranter:
             if addr[0] == self.addr or addr[1] == self.port and data[0] == ord(b"A"):
                 self.sock.connect((self.addr, self.port))
                 logger.info("client connect 连接成功")
+                self.sock.send(b"O")
+
+                # ack = self.packet.unpack(data[1:9])
+                # if ack == self.counter + 1:
+                    # self.counter += 1
+                    # pack = b"O" + self.packet.pack(self.counter)
+                    # self.sock.sendto(pack, (self.addr, self.port))
+                # else:
+                    # logger.info(f"不是当前确认数据包ACK：{ack} data: {data}")
+                    # continue
+
+                logger.info("client ACK O")
                 break
             else:
                 logger.info(f"有其他人在向这个端口发包, 可能是在探测。data: {data}")
@@ -160,9 +179,26 @@ class UDPTranter:
             data, addr1 = self.sock.recvfrom(1024)
             if data[0] == ord(b"O"):
                 self.sock.connect(addr1)
-                logger.info(f"connected --> {addr1}")
                 self.sock.send(b"A")
-                return addr1
+
+                # ack = self.packet.unpack(data[1:9])
+                # if ack == self.counter:
+                    # self.sock.connect(addr1)
+                    # logger.info(f"connected --> {addr1}")
+                    # 确认接收
+                    # pack = b"A" + self.packet.pack(ack+1)
+                    # self.sock.send(pack)
+
+                for i in range(3):
+                    data, addr = self.sock.recvfrom(32)
+                    if data[0] == ord(b"O"):
+                        logger.info(f"握手完成")
+                        self.counter += 1
+                        return addr1
+                    else:
+                        continue
+                
+                logger.info(f"3次握手失败")
             else:
                 logger.info(f"{addr1}: 不是新建立连接的请求 data: {data}")
 
@@ -171,6 +207,7 @@ class UDPTranter:
     def send(self, data: bytes):
 
         self.sock.settimeout(self.rto)
+        rto = self.rto
 
         # for i in range(self.rto_count):
         i = 0
@@ -182,12 +219,13 @@ class UDPTranter:
                 data_recv = self.sock.recv(32)
             except TimeoutError:
                 i += 1
-                time.sleep(0.05)
                 logger.info(f"发送数据，超时重传")
+                rto *= 2
+                self.sock.settimeout(rto)
                 continue
 
             if data_recv[0] == ord(b"A"):
-                return len(data)
+                return len(data) - 1
             else:
                 logger.info(f"有其他人在向这个端口发包, 可能是在探测。data: {data_recv}")
                 continue
@@ -223,6 +261,7 @@ class UDPTranter:
 
     def close(self):
         self.sock.close()
+
 
 # UDP
 def socketshell_udp(sock, size):
@@ -409,7 +448,7 @@ def S():
     addr = sock.accept()
 
     i = 0
-    while i < 100:
+    while i <= 10:
         i += 1
         sock.send(str(i).encode())
         logger.info(f"server: send() --> {i}")
@@ -424,12 +463,19 @@ def S():
     
     sock.close()
 
-def C():
-    sock = UDPTranter("192.168.8.10", 6789)
+def C(addr):
+
+    sock = UDPTranter(addr, 6789)
 
     sock.connect()
 
-    while (data:= sock.recv()) == b"":
+    # while (data:= sock.recv()) == b"":
+    while True:
+        data = sock.recv()
+        if not data:
+            logger.info(f"peer close()")
+            break
+
         logger.info(f"client: recv() --> {data}")
 
         msg = b"echo: " + data
@@ -439,13 +485,13 @@ def C():
     sock.close()
 
 
-def testudp(arg):
+def testudp(arg, arg2):
     if arg == "S":
         S()
     elif arg == "C":
-        C()
+        C(arg2)
 
 
 if __name__ == "__main__":
-    testudp(sys.argv[1])
+    testudp(sys.argv[1], sys.argv[2])
     # main()
