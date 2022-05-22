@@ -149,7 +149,7 @@ class UDPTranter:
                 
                 continue
 
-            if addr[0] == self.addr or addr[1] == self.port and data[0] == ord(b"A"):
+            if addr[0] == self.addr or addr[1] == self.port and data[:1] == b"A":
                 self.sock.connect((self.addr, self.port))
                 logger.info("client connect 连接成功")
                 self.sock.send(b"O")
@@ -177,7 +177,7 @@ class UDPTranter:
 
         while True:
             data, addr1 = self.sock.recvfrom(1024)
-            if data[0] == ord(b"O"):
+            if data[:1] == b"O":
                 self.sock.connect(addr1)
                 self.sock.send(b"A")
 
@@ -191,7 +191,7 @@ class UDPTranter:
 
                 for i in range(3):
                     data, addr = self.sock.recvfrom(32)
-                    if data[0] == ord(b"O"):
+                    if data[:1] == b"O":
                         logger.info(f"握手完成")
                         self.counter += 1
                         return addr1
@@ -224,11 +224,14 @@ class UDPTranter:
                 self.sock.settimeout(rto)
                 continue
 
-            if data_recv[0] == ord(b"A"):
-                return len(data) - 1
+            if data_recv[:1] == b"A":
+                return len(data)
             else:
                 logger.info(f"有其他人在向这个端口发包, 可能是在探测。data: {data_recv}")
                 continue
+        
+        if i >= self.rto_count:
+            logger.info(f"发送没有收到确认...")
 
         self.sock.settimeout(None)
 
@@ -243,12 +246,12 @@ class UDPTranter:
             data = self.sock.recv(1024)
             logger.info(f"sock.recv() --> data: {data}")
 
-            if data[0] == ord(b"E"):
+            if data[:1] == b"E":
                 self.sock.send(b"A")
                 redata = b""
                 return redata
 
-            elif data[0] == ord(b"T"):
+            elif data[:1] == b"T":
                 self.sock.send(b"A")
                 redata = data[1:]
                 return redata
