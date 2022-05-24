@@ -6,7 +6,9 @@ import sys
 
 buf = 1024
 
-serverip = sys.argv[1]
+addr = sys.argv[1]
+port = sys.argv[2]
+data = sys.argv[3]
 
 try:
 
@@ -20,6 +22,7 @@ try:
     while 1:
         input0 = input('enter: ')
         data = input0.encode('utf-8')
+
         udp_C.sendto(data, (serverip, 6789))
         if input0 == 'quit':
             break
