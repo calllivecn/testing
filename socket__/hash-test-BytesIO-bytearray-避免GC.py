@@ -18,6 +18,7 @@ import hashlib
 # 3. 调小 buf 可能会看到性能差别？也没看到，还是 GC 回收会快一点点...
 # 4。 BytesIO() 使用姿势不对？
 
+# 最终结果在：buffer.py
 
 buf_size = 4096
 
