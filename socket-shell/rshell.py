@@ -165,19 +165,15 @@ def client(addr, port=6789):
             sock = socket.create_connection(server_addr, timeout=10)
         except TimeoutError:
             print(f"连接超时。。。重新连接")
-            continue
         except ConnectionRefusedError:
             print(f"服务端口关闭，等待重新打开。。。")
-            time.sleep(10)
-            continue
-        except gaierror:
+        except socket.gaierror:
             print(f"域名不存在")
-            continue
         except Exception:
             traceback.print_exc()
+        finally:
             time.sleep(10)
             continue
-
 
         # 拿到初始化终端大小
         """
