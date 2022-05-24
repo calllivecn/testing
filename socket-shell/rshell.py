@@ -170,6 +170,9 @@ def client(addr, port=6789):
             print(f"服务端口关闭，等待重新打开。。。")
             time.sleep(10)
             continue
+        except gaierror:
+            print(f"域名不存在")
+            continue
         except Exception:
             traceback.print_exc()
             time.sleep(10)
