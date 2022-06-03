@@ -63,11 +63,16 @@ def set_pty_size(fd, columns, rows):
 
 
 # 窗口大小调整, 这样是调控制端的。
-def signal_SIGWINCH_handle(sigNum, frame):
+def signal_SIGWINCH_handle(sock, sigNum, frame):
+    """
+    usage: lambda sigNum, frame: signal_SIGWINCH_handle(sock, sigNum, frame)
+    """
     size = get_pty_size(STDOUT)
-    logger.debug(f"窗口大小改变: {size}")
-    set_pty_size(STDOUT, *size)
-    logger.debug("sigwinch 执行完成")
+    # logging 要异步的信号量模式下不安全。在 signal handle 里不要用 logging
+    # logger.debug(f"窗口大小改变: {size}")
+    # logger.debug("sigwinch 向对端发送新窗口大小")
+    # set_pty_size(STDOUT, *size)
+    sock.write(PacketType.TTY_RESIZE, struct.pack("!HH", *size))
 
 
 class PacketType(enum.IntEnum):
@@ -207,7 +212,6 @@ def server(addr, port):
     logger.info(f"{sys.argv[0]} listen: {server_addr}")
 
     try:
-        # signal.signal(signal.SIGWINCH, signal_SIGWINCH_handle)
 
         sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
         sock.bind(server_addr)
@@ -220,6 +224,8 @@ def server(addr, port):
         logger.info(f"有反向shell连接上: {addr}")
 
         client = RecvSend(client_sock)
+        # 
+        signal.signal(signal.SIGWINCH, lambda sig, frame: signal_SIGWINCH_handle(client, sig, frame))
 
 
         size = get_pty_size(STDIN)
