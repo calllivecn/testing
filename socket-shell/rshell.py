@@ -285,7 +285,7 @@ def server(addr, port):
         traceback.print_exc()
 
     finally:
-        client.close()
+        client_sock.close()
         ss.close()
         termios.tcsetattr(STDIN, termios.TCSADRAIN, tty_bak)
         logger.info("logout")
