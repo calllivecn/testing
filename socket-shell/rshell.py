@@ -25,6 +25,7 @@ import traceback
 import threading
 import selectors
 from subprocess import Popen
+from logging.handlers import TimedRotatingFileHandler
 
 
 SHELL='bash'
@@ -39,7 +40,8 @@ def getlogger(level=logging.INFO):
     # stream = logging.StreamHandler(sys.stdout)
     # stream.setFormatter(fmt)
 
-    fp = logging.FileHandler("rshell.logs")
+    # fp = logging.FileHandler("rshell.logs")
+    fp = TimedRotatingFileHandler("rshell.logs", when="D", interval=1, backupCount=7)
     fp.setFormatter(fmt)
 
     logger = logging.getLogger("rshell")
