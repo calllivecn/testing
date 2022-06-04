@@ -91,6 +91,10 @@ class RecvSend:
     
     def read(self):
         data = self.sock.recv(2)
+        # 网络忙的时候，也有可能只recv()到一个字节。这里处理下
+        if len(data) == 1:
+            data+= self.sock.recv(1)
+
         logger.debug(f"read() payload 长度 --> {len(data)}")
         lenght = struct.unpack("!H", data)[0]
         payload = io.BytesIO()
