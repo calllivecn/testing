@@ -143,8 +143,10 @@ class PacketType(enum.IntEnum):
     VERFIY_REQUEST = enum.auto()
     VERFIY_ACK = enum.auto()
     CMD_ARGS = enum.auto()
-    
+
     RECODE = enum.auto()
 
-class Socket:
-    pass
+class Transport:
+    
+    def __init__(self, conn):
+        self.conn = conn
