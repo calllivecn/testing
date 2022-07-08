@@ -23,12 +23,13 @@ from common import (
 
 
 def run(conn, id_, cmd, cwd=None):
+    transport = Transport(conn)
     # 如果你希望捕获并将两个流合并在一起，使用 stdout=PIPE 和 stderr=STDOUT 来代替 capture_output。
     # p = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd, universal_newlines=True)
     p = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd, universal_newlines=True, bufsize=1)
 
     while (data := p.stdout.readline()) != "":
-        conn.send(data.encode("utf8"))
+        transport.write(data.encode("utf8"))
 
         # client 使用以下，输出。
         # sys.stdout.write(f"{i}: {data}")
