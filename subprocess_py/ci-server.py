@@ -9,17 +9,25 @@
 """
 
 
+
 import sys
 import socket
 import shlex
 import subprocess
+import configparser
+from pathlib import Path
 from threading import Thread
+
 
 from common import (
     PacketError,
-    Verify,
     Transport,
+    get_server_cfg,
+    get_client_cfg,
 )
+
+
+
 
 
 def run(conn, id_, cmd, cwd=None):
@@ -38,12 +46,13 @@ def run(conn, id_, cmd, cwd=None):
     transport.recode(p.returncode)
 
 
-def cmd_thread(conn):
+def cmd_thread(conn, s_secret):
 
-    V = Verify(conn, s_secret)
-    if V.client():
+    V = Transport(conn)
+    if V.server(s_secret):
         # 
-        rcmd(conn, id_, cmd, cwd)
+        cfg = get_server_cfg()
+        rcmd(conn, V.r.id_client, cmd=cfg, cwd)
     else:
         print("")
 
