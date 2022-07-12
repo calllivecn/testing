@@ -7,7 +7,6 @@
 import os
 import sys
 import socket
-from tkinter import Pack
 
 from common import (
     PacketError,

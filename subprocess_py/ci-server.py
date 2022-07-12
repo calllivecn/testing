@@ -13,10 +13,10 @@
 import sys
 import socket
 import shlex
+import traceback
 import subprocess
 from pathlib import Path
 from threading import Thread
-import traceback
 
 
 from common import (
