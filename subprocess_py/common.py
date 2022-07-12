@@ -64,7 +64,10 @@ def get_server_cfg():
         sys.exit(1)
     
     secret = conf.get("Server", "Secret")
-    host = conf.get("Server", "Host")
+    try:
+        host = conf.get("Server", "Host")
+    except (configparser.NoOptionError, configparser.NoSectionError):
+        host = ""
     port = conf.get("Server", "Port")
 
     return secret, host, port
@@ -72,16 +75,14 @@ def get_server_cfg():
 
 def get_client_cfg(id_):
     f = CONF
+    id_ = str(id_)
+    conf = configparser.ConfigParser()
+    conf.read(str(f))
 
-    if f.exists() and f.is_file():
-        conf = configparser.ConfigParser()
-        conf.read(str(f))
-    else:
-        with open(f, "w") as fp:
-            fp.write(example)
-        
-        print(f"需要配置 {f} 文件")
-        sys.exit(1)
+    enableIDs = [ i for _, i in conf.items("EnableId") ]
+
+    if id_ not in enableIDs:
+        raise ValueError(f"client ID:{id_} not enable")
 
     secret = conf.get(id_, "Secret")
     cmd = conf.get(id_, "Cmd")
@@ -134,6 +135,9 @@ class Request:
         self.sha_client = buf[4:]
 
     def verify(self, secret):
+        """
+        secret: client secret
+        """
         cur = int(time.time())
         shas = []
         for t in range(cur - 10, cur + 10):
@@ -176,7 +180,7 @@ class PacketType(enum.IntEnum):
     VERFIY_REQUEST = enum.auto()
     VERFIY_ACK = enum.auto()
     CMD_ARGS = enum.auto()
-
+    CMD_OUTPUT = enum.auto()
     RECODE = enum.auto()
 
 
@@ -194,29 +198,32 @@ class Transport:
         self.r = Request()
         buf = self.r.make(id_, c_secret)
 
-        self.conn.send(PacketType.VERFIY_REQUEST.to_bytes(2, "big") + buf)
-        s = self.__packet_recv(32)
+        self.write(PacketType.VERFIY_REQUEST, buf)
+        # s = self.__packet_recv(32)
+        ptype, payload = self.read()
 
-        return self.r.verifyAck(s, buf, s_secret)
+        return self.r.verifyAck(payload, s_secret)
 
 
-    def server(self, s_secret):
-        """
-        server端验证client
-        """
+    def recv_verify_request(self):
+        # payload 4(ID) + 32(sha256)
+        ptype, payload = self.read()
 
-        # 2(PType) + 32(sha256)
-        buf = self.conn.__packet_recv(34)
-
-        if int.from_bytes(buf[:2],"big") != PacketType.VERFIY_REQUEST:
+        if ptype != PacketType.VERFIY_REQUEST and len(payload) != 36:
             raise PacketError("client request verify invalid")
 
         self.r = Request()
 
-        self.r.frombuf(buf)
+        self.r.frombuf(payload)
 
-        if self.r.verify(s_secret):
-            self.conn.send(PacketType.VERFIY_ACK.to_bytes(2, "big") + r.ack(s_secret))
+        self.id_client = self.r.id_client
+
+    def server(self, c_secret):
+        """
+        server端验证client
+        """
+        if self.r.verify(c_secret):
+            self.write(PacketType.VERFIY_ACK, self.r.ack(c_secret))
             return True
         else:
             return False
@@ -234,18 +241,18 @@ class Transport:
     
 
     def write(self, ptype, data):
-        d_len = 2 + 2 + len(data)
+        d_len = len(data)
         
         return self.__packet_send(ptype.to_bytes(2, "big") + d_len.to_bytes(2, "big") + data)
 
 
     def __packet_recv(self, size):
-
         data = io.BytesIO()
+
         while size > 0:
-            d = self.conn.recv()
+            d = self.conn.recv(size)
             if d == b"":
-                break
+                raise PacketError("receive Packet Error")
 
             size -= len(d)
             data.write(d)
@@ -255,14 +262,15 @@ class Transport:
 
     def __packet_send(self, data):
         d_len = len(data)
-        while d_len > 0:
-            c = self.conn.send(data)
-            d_len -= c
+        cur = 0
+        while cur < d_len:
+            c = self.conn.send(data[cur:])
+            cur += c
     
 
     def close(self):
-        if not self.conn.colsed:
-            self.conn.close()
+        # if not self.conn.closed:
+        self.conn.close()
 
 
 

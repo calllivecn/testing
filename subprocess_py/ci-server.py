@@ -14,13 +14,14 @@ import sys
 import socket
 import shlex
 import subprocess
-import configparser
 from pathlib import Path
 from threading import Thread
+import traceback
 
 
 from common import (
     PacketError,
+    PacketType,
     Transport,
     get_server_cfg,
     get_client_cfg,
@@ -30,41 +31,60 @@ from common import (
 
 
 
-def run(conn, id_, cmd, cwd=None):
-    transport = Transport(conn)
+def run(transport, cmd, cwd=None):
     # 如果你希望捕获并将两个流合并在一起，使用 stdout=PIPE 和 stderr=STDOUT 来代替 capture_output。
-    # p = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd, universal_newlines=True)
-    p = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd, universal_newlines=True, bufsize=1)
-
-    while (data := p.stdout.readline()) != "":
-        transport.write(data.encode("utf8"))
-
-        # client 使用以下，输出。
-        # sys.stdout.write(f"{i}: {data}")
+    with subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd, encoding="utf8", universal_newlines=True, bufsize=1) as p:
+        # py3.6
+        while True:
+            data = p.stdout.readline()
+            if data != "":
+                transport.write(PacketType.CMD_OUTPUT, data.encode("utf8"))
+            else:
+                break
+            # log 
+            sys.stdout.write(data)
 
     # 发送退出码
-    transport.recode(p.returncode)
+    transport.write(PacketType.RECODE, p.returncode.to_bytes(2, "big"))
 
 
 def cmd_thread(conn, s_secret):
+    try:
+        V = Transport(conn)
 
-    V = Transport(conn)
-    if V.server(s_secret):
-        # 
-        cfg = get_server_cfg()
-        rcmd(conn, V.r.id_client, cmd=cfg, cwd)
-    else:
-        print("")
+        V.recv_verify_request()
+
+        c_secret, cmd, cwd = get_client_cfg(V.id_client)
+
+        # 验证client ok
+        if V.server(c_secret):
+            ptype, payload = V.read()
+            if ptype != PacketType.CMD_ARGS:
+                raise PacketError("CMD Error")
+
+            cmd_args = payload.decode("utf8")
+            print(f"cmd: {cmd}, cmd_args: {cmd_args}")
+            cmd = " ".join([str(Path(cmd)), cmd_args])
+            run(V, cmd, cwd)
+        else:
+            print(f"verify client error")
+    except Exception:
+        traceback.print_exc()
+    
+    finally:
+        V.close()
 
 
+def server():
 
-def server(host, port=17787):
+    s_secret, host, port = get_server_cfg()
+    print(s_secret, host, port)
 
-    with socket.create_server((host, port), family=socket.AF_INET6, backlog=128) as sock:
+    with socket.create_server((host, int(port)), family=socket.AF_INET6, backlog=128) as sock:
         while True:
             conn, addr = sock.accept()
-
-            th = Thread(target=cmd_thread, args=(conn,))
+            print(f"{addr} connected.")
+            th = Thread(target=cmd_thread, args=(conn, s_secret))
             th.start()
 
 
@@ -72,4 +92,4 @@ def server(host, port=17787):
 
 if __name__ == "__main__":
     # print(run("bash -c 'echo line1;echo lin2;echo line3;'"))
-    print(run("ping 223.5.5.5"))
+    server()
