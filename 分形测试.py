@@ -8,10 +8,10 @@
 # 1. convert-img t.pbm t.{webp|jpg}
 # 2. 使用图片工具查看
 
-from contextlib import closing
-from itertools import islice
 from os import cpu_count
 from sys import argv, stdout
+from itertools import islice
+from contextlib import closing
 
 def pixels(y, n, abs):
     range7 = bytearray(range(7))
