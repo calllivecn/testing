@@ -11,7 +11,6 @@ import os
 import io
 import sys
 import pty
-from tkinter import Pack
 import tty
 import time
 import enum
