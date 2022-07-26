@@ -11,6 +11,7 @@ import os
 import io
 import sys
 import pty
+from tkinter import Pack
 import tty
 import time
 import enum
@@ -96,8 +97,12 @@ class RecvSend:
         # 网络忙的时候，也有可能只recv()到一个字节。这里处理下
         if len(data) == 1:
             data+= self.sock.recv(1)
+        
+        if data == b"":
+            return PacketType.EXIT, b""
 
-        logger.debug(f"read() payload 长度 --> {len(data)}")
+        size = int.from_bytes(data, "big")
+        logger.debug(f"read() payload 长度 --> {size}")
         lenght = struct.unpack("!H", data)[0]
         payload = io.BytesIO()
 
@@ -115,7 +120,8 @@ class RecvSend:
         
         typ = payload.getvalue()[0]
         data = payload.getvalue()[1:]
-        logger.debug(f"sock recv --> typ: {typ}, data: {data}")
+        pt = PacketType(typ)
+        logger.debug(f"sock recv --> type: {pt.name}, data: {data}")
         return typ, data
     
     def write(self, typ, data):
@@ -153,19 +159,15 @@ def socketshell(conn):
         # p = Popen(SHELL.split(), stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid, universal_newlines=True)
         p = Popen(SHELL.split(), stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid)
 
-        BREAK=False
-        # while p.poll() is None:
-        while True:
-
-            for key, event in ss.select():
-
-                fd = key.fileobj
-                if fd == sock:
+        while p.poll() is None:
+            for key, event in ss.select(0.05):
+                if key.fileobj == sock:
                     typ, data = sock.read()
                     if typ == PacketType.TRANER:
                         os.write(pty_master, data)
 
                     elif typ == PacketType.EXIT:
+                        # 正常退出，根本不会走到这个分支。
                         logger.debug(f"正常退出")
                         BREAK=True
                         break
@@ -173,33 +175,21 @@ def socketshell(conn):
                     elif typ == PacketType.TTY_RESIZE:
                         # 设置成对面终端大小
                         if len(data) == 4:
-                            logger.debug(f"接收到的终端大小ok")
                             size = struct.unpack("!HH", data)
                             set_pty_size(pty_slave, *size)
+                            logger.debug(f"接收到的终端大小: {size}")
                         else:
                             logger.debug(f"接收到的终端大小不正常: {data}")
 
-                elif fd == pty_master:
+                elif key.fileobj == pty_master:
                     data = os.read(pty_master, 4096)
                     logger.debug(f"pty_master read: {data}")
                     if data:
                         sock.write(PacketType.TRANER, data)
                     else:
+                        # 正常退出，根本不会走到这个分支。
                         logger.debug(f"从 pty_master 读出了空字节")
 
-                # 这样按一次ctrl+D，就会正常退出了.
-                if p.poll() is not None:
-                    BREAK=True
-                    logger.debug(f"ctrl+D 退出")
-                    sock.write(PacketType.EXIT, b"")
-                    break
-                else:
-                    logger.debug(f"p.poll() --> {p.poll()} 没有退出")
-
-            if BREAK:
-                break
-
-            #logger.info("新的一轮 select()")
     except Exception as e:
         # raise e
         logger.error(f"捕获到异常退出: {e}")
@@ -259,8 +249,7 @@ def server(addr, port):
 
             for key, event in ss.select():
 
-                fd = key.fileobj
-                if fd == client:
+                if key.fileobj == client:
 
                     try:
                         typ, data = client.read()
@@ -274,6 +263,7 @@ def server(addr, port):
 
                     elif typ == PacketType.EXIT:
                         exit_flag = False
+                        logger.debug(f"收到{PacketType.EXIT.name}")
                         break
                     
                     elif typ == PacketType.TTY_RESIZE:
@@ -282,7 +272,7 @@ def server(addr, port):
                     else:
                         logger.error(f"未知的传输类型: {typ}")
 
-                elif fd == STDIN:
+                elif key.fileobj == STDIN:
                     data = os.read(STDIN, 4096)
                     if data == b"":
                         # 说明控制端， 主动退出？
