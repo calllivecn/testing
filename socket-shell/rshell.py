@@ -97,7 +97,7 @@ class RecvSend:
         if len(data) == 1:
             data+= self.sock.recv(1)
         
-        if data == b"":
+        if data == b"" or len(data) == 1:
             return PacketType.EXIT, b""
 
         size = int.from_bytes(data, "big")
