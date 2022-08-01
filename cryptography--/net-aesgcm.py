@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 # coding=utf-8
 # date 2021-11-06 21:18:37
+# modify 2022-08-01 11:16:07
 # author calllivecn <c-all@qq.com>
 
 
 import os
 import sys
 import binascii
-import hashlib
 import socket
-import argparse
 from hashlib import sha256, pbkdf2_hmac
 
 from cryptography import exceptions
@@ -81,7 +80,7 @@ def server():
             try:
                 text = aesgcm.decrypt(nonce.nonce, data, AAD)
             except exceptions.InvalidTag:
-                print(f"从 {addr} 接收到错误数据： {binascii.b2a_hex(data)}" )
+                print(f"从 {addr} 接收到错误数据： {binascii.b2a_hex(data)}")
                 continue
 
             nonce.add()

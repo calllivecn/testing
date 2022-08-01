@@ -1,7 +1,26 @@
 #!/usr/bin/env python3
 # coding=utf-8
 # date 2021-11-06 22:35:17
+# update 2022-08-01 17:35:17
 # author calllivecn <c-all@qq.com>
+
+"""
+这里测试的是： 对等方的认证加密通信的密钥交换。
+
+~~没有用到 密钥交换。双方是已知对等方 公钥的。~~(不对)
+
+目前的理解是：
+1. 是先生成一个临时密钥对，
+2. 使用这个临时密钥对，进行密钥交换，之后用来，认证加密传输。
+3. 一段时间之后，在轮换新密钥对。
+
+"""
+
+__all__ = (
+    "CipherSstate",
+    "TransferSession",
+    "Transfer",
+)
 
 
 import os
@@ -23,23 +42,12 @@ from cryptography.hazmat.primitives.serialization import (
     NoEncryption,
 )
 
-import socket
-
-
 from cryptography.hazmat.primitives.ciphers.aead import (
     AESGCM,
     ChaCha20Poly1305,
 )
 
 
-
-
-# 试用 chacha20-poly1305 和使用
-# class safenetwork:
-    # def __init
-
-def net_chacha20():
-    sock = socket.socket()
 def generate_data():
     # data 为 一个随机数，sha256组成，方便对端验证数据传输是否正确。
     rand_data = ssl.RAND_bytes(random.randint(128, 512))
@@ -55,20 +63,9 @@ def verity_data(data):
     else:
         return False
 
-"""
-我这里测试的是： 对等方的认证加密通信。
-
-没有用到 密钥交换。双方是已知对等方 公钥的。(不对)
-
-目前的理解是：
-1. 是先生成一个临时密钥对，
-2. 使用这个临时密钥对，进行密钥交换，之后用来，认证加密传输。
-3. 一段时间之后，在轮换新密钥对。
-
-"""
 
 # 密钥交换过程
-def key_swap(genkey, peer_pukey, salt, info):
+def swapkey(privkey, peer_pubkey, salt=b"", info=b""):
     """
     genkey:bytes --> private_key,
     peer_pubkey:bytes --> peer public key,
@@ -76,89 +73,91 @@ def key_swap(genkey, peer_pukey, salt, info):
     return --> 密钥交换，和派生后的对称密钥
     """
 
-    private_key = x25519.X25519PrivateKey.from_private_bytes(genkey)
-    shared_key = private_key.exchange(peer_pukey)
+    private_key = x25519.X25519PrivateKey.from_private_bytes(privkey)
+    shared_key = private_key.exchange(peer_pubkey)
     deriverd_key = HKDF(algorithm=hashes.SHA256, length=32, salt=salt, info=info)
     return deriverd_key.derive(shared_key)
 
 
-    
+def net_swapkey(sock, peer_pubkey, salt, info):
+    pass
 
-# 试用 chacha20-poly1305 和使用
-class TransferSession:
-    def __init__(self, key, aad, nonce=0):
-        self.__aad = aad
-        self.nonce = nonce
 
-        self.ccp = ChaCha20Poly1305(key)
+class NonceMaxError(Exception):
+    pass
 
-        self.encrypter = self.ccp.encrypt()
-        self.decrypter = self.ccp.decrypt()
+class CipherState:
+
+    def __init__(self, key, AAD=None):
+        self.key = key
+        self.AAD = AAD
+        self._n = 0
     
     @property
-    def aad(self):
-        return self.__aad
+    def nonce(self):
+        self._n += 1
+        return self._n.to_bytes(12, "big")
     
-    @aad.setter
-    def aad(self):
-         self.__aad = self.__aad
+    @nonce.setter
+    def nonce(self, value):
+        if value > 0xffffffffffffffffffffffff:
+            raise NonceMaxError("None value too max")
+        self._n = value
+
+    def next_nonce(self):
+        """
+        当前Nonce値, 每次引用后都会自动+1。
+        """
+        return self._n
+
+
+class Cipher:
+    def __init__(self, CS):
+        self._cs = CS
+
+        self.aead = AESGCM(self._cs.key)
+
+        self.encrypter = self.aead.encrypt()
+        self.decrypter = self.aead.decrypt()
     
     def encrypt(self, data):
-        enc_data = self.encryptr(self.nonce, data, self.aad)
+        enc_data = self.encryptr(self._cs.nonce, data, self._cs.aad)
         return enc_data
-        # return self.pack()
 
     def decrypt(self, data):
-        data = self.decryptr(self.nonce, data, self.aad)
+        data = self.decryptr(self._cs.nonce, data, self._cs.aad)
         return data
-        # return self.pack()
-    
-    def __nonce_change(self):
-        self.nonce += 1
-        return self.nonce.tobytes(12, "big")
 
 
+class Transfer:
+
+    def __init__(self,)
 
 
-def net_chacha20_server(genkey):
-    sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-    sock.bind(("::1", 6789))
-    sock.listen(5)
+def server(genkey):
+
+    sock = socket.create_server(("::1", 6789), family=socket.AF_INET6, backlog=128)
 
     client, addr = sock.accept()
     sock.close()
 
     # 密码交换
-    ChaCha20Poly1305()
-
-
-    sock.close()
+    net_swapkey()
 
     # generate pubk
     pubkey = x25519.X25519PrivateKey.from_private_bytes(genkey)
 
-    
-
-    # 认证加密传输
-    chacha20 = ChaCha20Poly1305(key)
-
-    # 这个是身份认证消息
-    aad = os.urandom(37)
-
-    nonce = b"0"
 
     while True:
 
         data = generate_data()
-        enc_data = chacha20.encrypt(nonce, data, aad)
+        enc_data = session.encrypt(nonce, data, aad)
 
         client.send(enc_data)
 
 
 def net_chacha20_client(key):
-    sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-
-    sock.connect(("::1", 6789))
+    sock = socket.create_connection(("::1", 6789))
 
     chacha20 = 
 
