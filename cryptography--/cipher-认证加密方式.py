@@ -23,7 +23,7 @@ from cryptography.hazmat.primitives.ciphers import (
 
 
 def chacha20():
-    text = "这是里是测试Chacha20加密的。"
+    text = "1234567890"
     print("原文:", text)
 
     key = os.urandom(32)
@@ -44,7 +44,7 @@ def chacha20():
 
 
 def aes():
-    text = "这是里是测试AES CFB加密的。"
+    text = "1234567890"
     print("原文:", text)
 
     key = os.urandom(32)
@@ -57,17 +57,12 @@ def aes():
     cipher = Cipher(algorithm, mode=modes.CFB(iv))
     
     encryptor = cipher.encryptor()
-    # ct = encryptor.update(text.encode("utf-8")) + encryptor.finalize()
-    ct = encryptor.update(text.encode("utf-8")) #+ encryptor.finalize()
+    ct = encryptor.update(text.encode("utf-8")) + encryptor.finalize()
     
     print("加密数据:", ct)
-
-    # CFB 和 CFB8 不一样。。。。。！！！xxxxx
-    # cipher = Cipher(algorithm, mode=modes.CFB8(iv))
     
     decryptor = cipher.decryptor()
-    # t = decryptor.update(ct) + decryptor.finalize()
-    t = decryptor.update(ct) #+ decryptor.finalize()
+    t = decryptor.update(ct) + decryptor.finalize()
     
     print("解密数据:", t.decode("utf-8"))
 
