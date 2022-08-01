@@ -16,20 +16,6 @@ from cryptography import exceptions
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 
-"""
-class server:
-
-    def __init__(self, sock, key, nonce, aad):
-        self.sock = sock
-        self._key = key
-        self._nonce = nonce
-        self._aad = aad
-
-    
-    def encrypt(self, data):
-
-"""
-
 class NonceMaxError(Exception):
     pass
 
@@ -42,18 +28,11 @@ class Nonce:
     def __init__(self):
 
         self.__max = 0xffffffffffffffffffffffff
-
-        # self.__nonce = int.from_bytes(os.urandom(12), "big")
         self.__nonce = 0
         print("nonce type:", type(self.__nonce))
 
     @property
     def nonce(self):
-        self.__nonce += 1
-
-        if self.__nonce > self.__max:
-            raise NonceMaxError("None value too max")
-
         return self.__nonce.to_bytes(12, "big")
     
     @nonce.setter
@@ -62,90 +41,87 @@ class Nonce:
     
     def add(self):
         self.__nonce += 1
+        if self.__nonce > self.__max:
+            raise NonceMaxError("None value too max")
 
 
-def genkey(password, salt):
+# 要想使用使用密码验证，不能这么用，而是使用临时密钥协商好后，在进行一般的密码验证。
+def genkey(password, salt=b""):
     key = pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 2000)
     return key
 
 
-
 ADDR = "0.0.0.0" 
-PORT=6789
+ADDR = "::" 
+PORT = 6789
 
-# 那这里，需要两边预有的。
-# password, salt, aad
 
+# 可以不用AAD, wiregurad 就没用。
+AAD="整个软件指定一个値？".encode("utf8")
+AAD=None
 
 def server():
     password = "这是一个AESGCM密码"
     
-    salt = os.urandom(16)
-    
-    aad = os.urandom(16)
-    
-    key = genkey(password, salt)
+    key = genkey(password)
     
     aesgcm = AESGCM(key)
 
-    print("password:", password, "salt:", binascii.b2a_hex(salt), "aad:", binascii.b2a_hex(aad))
+    print("password:", password)
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(("0.0.0.0", PORT))
-    #sock.listen(5)
+    sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+    sock.bind((ADDR, PORT))
 
-    #client, addr = sock.accept()
-    #print("连接：", addr)
+    nonce = Nonce()
 
+    try:
+        while True:
+            data, addr = sock.recvfrom(8192)
 
-    while True:
-        data, addr = sock.recvfrom(8192)
+            try:
+                text = aesgcm.decrypt(nonce.nonce, data, AAD)
+            except exceptions.InvalidTag:
+                print(f"从 {addr} 接收到错误数据： {binascii.b2a_hex(data)}" )
+                continue
 
-        try:
-            nonce = data[:12]
-            text = aesgcm.decrypt(nonce, data[12:], aad)
-        except exceptions.InvalidTag:
-            print(f"从 {addr} 接收到错误数据： {binascii.b2a_hex(data)}" )
-            continue
+            nonce.add()
 
-        print("Server 解密：", text)
+            print("Server 解密：", text)
 
-        """
-        if text == b"quit.":
-            print("server done, exit.")
-            break
-        """
-    
-    sock.close()
-    #client.close()
+            """
+            if text == b"quit.":
+                print("server done, exit.")
+                break
+            """
+    except KeyboardInterrupt:
+        sock.close()
 
 
-def client(password, salt, aad, addr, server_exit=False):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    #sock.connect(("127.0.0.1", 6789))
+def client(password, addr, server_exit=False):
+    sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
 
-    key = genkey(password, salt)
+    key = genkey(password)
 
     nonce = Nonce()
 
     aesgcm = AESGCM(key)
 
-    for i in range(100):
+    for i in range(10):
 
         data = b"varible data: " + str(i).encode("ascii") + b" --- " + os.urandom(16)
-        print("Client 加密前：", data)
+        print(f"Client 加密前长度：{len(data)}, 数据：{data}")
 
+        cipher = aesgcm.encrypt(nonce.nonce, data, AAD)
         nonce.add()
-        cipher = aesgcm.encrypt(nonce.nonce, data, aad)
 
-        data = nonce.nonce + cipher
-        sock.sendto(data, (addr, PORT))
+        print(f"Client 加密后：{cipher}, 长度：{len(cipher)}")
+
+        sock.sendto(cipher, (addr, PORT))
 
 
     if server_exit:
+        cipher = aesgcm.encrypt(nonce.nonce, b"quit.", AAD)
         nonce.add()
-        cipher = aesgcm.encrypt(nonce.nonce, b"quit.", aad)
-        data = nonce.nonce + cipher
         sock.sendto(data, (addr, PORT))
         print("client done")
     
@@ -157,14 +133,13 @@ if __name__ == "__main__":
 
     if sys.argv[1] == "server" and len(sys.argv) == 2:
         server()
-    elif sys.argv[1] == "client" and len(sys.argv) == 6:
+    elif sys.argv[1] == "client" and len(sys.argv) == 4:
         password = sys.argv[2]
-        salt = binascii.a2b_hex(sys.argv[3])
-        aad = binascii.a2b_hex(sys.argv[4])
-        server_addr = sys.argv[5]
+        print(f"passwd: {password}")
+        server_addr = sys.argv[3]
 
-        print(password, salt, aad)
-        client(password, salt, aad, server_addr)
+        print(password)
+        client(password, server_addr)
     else:
         print(f"{sys.argv[0]} <server|client>")
 
