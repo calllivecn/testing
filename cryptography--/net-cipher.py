@@ -7,7 +7,7 @@
 """
 这里测试的是： 对等方的认证加密通信的密钥交换。
 
-~~没有用到 密钥交换。双方是已知对等方 公钥的。~~(不对)
+没有用到 密钥交换。双方是已知对等方 公钥的。
 
 目前的理解是：
 1. 是先生成一个临时密钥对，
@@ -17,9 +17,16 @@
 """
 
 __all__ = (
-    "CipherSstate",
-    "TransferSession",
+    "Cipher",
     "Transfer",
+    "PROTOCOL_NUMBER",
+    "NetCipherError",
+    "NonceMaxError",
+    # 这几个可能还要思考下
+    "privkey2base64",
+    "pubkey2base64",
+    "base64privkey",
+    "base64pubkey",
 )
 
 
@@ -32,6 +39,7 @@ import random
 import socket
 import base64
 import struct
+import logging
 import hashlib
 
 
@@ -50,6 +58,18 @@ from cryptography.hazmat.primitives.ciphers.aead import (
     AESGCM,
     ChaCha20Poly1305,
 )
+
+def getlogger(level=logging.INFO):
+    fmt = logging.Formatter("%(asctime)s %(filename)s:%(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
+    stream = logging.StreamHandler(sys.stdout)
+    stream.setFormatter(fmt)
+    logger = logging.getLogger("AES")
+    logger.setLevel(level)
+    logger.addHandler(stream)
+    return logger
+
+logger = getlogger(level=logging.DEBUG)
+
 
 
 def generate_data():
@@ -120,9 +140,8 @@ class Cipher:
 
         self.aead = AESGCM(self.key)
 
-    def timestamp_ge_180(self):
-        if (time.time() - self._timestamp) >= 180:
-        # if (time.time() - self._timestamp) >= 3:
+    def timestamp_ge_180(self, interval=180):
+        if (time.time() - self._timestamp) >= interval:
             return True
         else:
             return False
@@ -140,7 +159,7 @@ class Cipher:
 
     def next_nonce(self):
         """
-        当前Nonce値, 每次引用后都会自动+1。
+        当前Nonce値, 每次引用前都会自动+1。
         """
         return self._n
 
@@ -156,6 +175,8 @@ class Cipher:
 
 # 当前使用的协议版本
 PROTOCOL_NUMBER = 0x01
+
+HKDF_INFO="今天是个好天气呀！咿呀咿呀咿呀！".encode("utf8")
 
 class PacketType(enum.IntEnum):
     Reserved = 0 # 保留
@@ -183,7 +204,7 @@ class Packet:
     --------------
     0x03 rekey packet: 格式与 0x02 相同
     --------------
-    0x04 packet:
+    0x04 transfer packet:
     前面与0x01 相同, payload 为负载的加密数据
     --------------
     """
@@ -268,7 +289,7 @@ class Transfer:
             Epub_bytes = self.__read(pk.payload_len)
             Epub = x25519.X25519PublicKey.from_public_bytes(Epub_bytes)
             shared_key = self.Spriv.exchange(Epub)
-            aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=b"handshake data").derive(shared_key)
+            aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=HKDF_INFO).derive(shared_key)
             self.Raes = Cipher(aeskey)
 
             pk = Packet()
@@ -289,7 +310,7 @@ class Transfer:
             pk = Packet(typ=PacketType.Rekey)
             self.Epriv = x25519.X25519PrivateKey.generate()
             shared_key = self.Epriv.exchange(self.PeerSpubkey)
-            aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=b"handshake data").derive(shared_key)
+            aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=HKDF_INFO).derive(shared_key)
             self.Taes = Cipher(aeskey)
             Epub = self.Epriv.public_key()
             Epub_bytes = Epub.public_bytes(Encoding.Raw, PublicFormat.Raw)
@@ -306,7 +327,7 @@ class Transfer:
         Epub = Epriv.public_key()
 
         shared_key = Epriv.exchange(self.PeerSpubkey)
-        aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=b"handshake data").derive(shared_key)
+        aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=HKDF_INFO).derive(shared_key)
 
         # 发送加密器
         self.Taes = Cipher(aeskey)
@@ -331,7 +352,8 @@ class Transfer:
         Epub = x25519.X25519PublicKey.from_public_bytes(data[:32])
 
         shared_key = self.Spriv.exchange(Epub)
-        aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=b"handshake data").derive(shared_key)
+        aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=HKDF_INFO).derive(shared_key)
+        logger.debug(f"INitiator 接收到的 shared_key: {shared_key}")
 
         #接收加密器
         self.Raes = Cipher(aeskey)
@@ -348,13 +370,12 @@ class Transfer:
         Epub = x25519.X25519PublicKey.from_public_bytes(data[:32])
         sSpub = data[32:]
 
-        # 解出接收密钥
         shared_key = self.Spriv.exchange(Epub)
-        aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=b"handshake data").derive(shared_key)
-
+        aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=HKDF_INFO).derive(shared_key)
         #接收加密器
         self.Raes = Cipher(aeskey)
 
+        # 解出接收密钥
         Spub_bytes = self.Raes.decrypt(sSpub)
 
         self.PeerSpubkey = x25519.X25519PublicKey.from_public_bytes(Spub_bytes)
@@ -368,9 +389,10 @@ class Transfer:
         # 生成发送临时密钥
         Epriv = x25519.X25519PrivateKey.generate()
         Epub = Epriv.public_key()
-        shared_key = Epriv.exchange(self.Spub)
+        shared_key = Epriv.exchange(self.PeerSpubkey)
+        aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=HKDF_INFO).derive(shared_key)
+        logger.debug(f"Repsonder 发送的 shared_key: {shared_key}")
 
-        aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=b"handshake data").derive(shared_key)
         # 生成发送临时密钥
         self.Taes = Cipher(aeskey)
 
@@ -405,10 +427,17 @@ class Transfer:
 def handle(sock, Spriv, peers):
     trans = Transfer()
     trans.server(sock, Spriv, peers)
-    while (data := trans.read()) != b"":
-        tf = verity_data(data)
-        print(f"验证数据：{tf}, 数据：{data}")
+    # while (data := trans.read()) != b"":
+        # tf = verity_data(data)
+        # print(f"验证数据：{tf}, 数据：{data}")
 
+    for i in range(20):
+        data = generate_data()
+        trans.write(data)
+        print("="*40)
+        print(f"发送数据: {data}")
+        time.sleep(0.5)
+    
     trans.close()
     print("done")
 
@@ -433,16 +462,22 @@ def server():
 def client():
     trans = Transfer()
     trans.connect("2OLgBlB4IOeTtWHlX+qYfBnZAtEkxdwexHdf3ik3NHU=", "uzgG7z/gbeHyNLpkrZxIGoR4PckcGm/9pcYOvPOzXms=", ("::1", 6789))
-    for i in range(10):
-        data = generate_data()
-        trans.write(data)
-        print(f"发送数据: {data}")
+    # for i in range(10):
+        # data = generate_data()
+        # trans.write(data)
+        # print(f"发送数据: {data}")
+        # time.sleep(0.5)
     
-    print("wait....")
-    time.sleep(5)
-    data = generate_data()
-    trans.write(data)
-    print(f"发送数据: {data}")
+    # print("wait....")
+    # data = generate_data()
+    # trans.write(data)
+    # print(f"发送数据: {data}")
+
+    print("测试client 接收")
+
+    while (data := trans.read()) != b"":
+        tf = verity_data(data)
+        print(f"验证数据：{tf}, 数据：{data}")
     
     print("done")
 
