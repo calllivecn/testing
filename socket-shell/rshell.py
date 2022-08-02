@@ -117,7 +117,7 @@ class RecvSend:
 
             payload.write(d)
         
-        typ = payload.getvalue()[0]
+        typ = payload.getbuffer()[0]
         data = payload.getvalue()[1:]
         pt = PacketType(typ)
         logger.debug(f"sock recv --> type: {pt.name}, data: {data}")
@@ -133,7 +133,7 @@ class RecvSend:
 
         payload.write(data)
 
-        return self.sock.send(payload.getvalue())
+        return self.sock.send(payload.getbuffer())
 
     def fileno(self):
         return self.sock.fileno()
