@@ -23,16 +23,20 @@ __all__ = (
 )
 
 
-import os
+import io
+import sys
 import ssl
+import time
+import enum
 import random
 import socket
 import base64
+import struct
 import hashlib
 
 
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import x25519, ec
+from cryptography.hazmat.primitives.asymmetric import x25519
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from cryptography.hazmat.primitives.serialization import (
@@ -53,15 +57,35 @@ def generate_data():
     rand_data = ssl.RAND_bytes(random.randint(128, 512))
     sha256 = hashlib.sha256(rand_data)
 
-    return sha256 + rand_data
+    return sha256.digest() + rand_data
 
 def verity_data(data):
     sha = data[:32]
     now = hashlib.sha256(data[32:])
-    if sha == now.digest:
+    if sha == now.digest():
         return True
     else:
         return False
+
+# key to base64
+def privkey2base64(private_key):
+    private_bytes = private_key.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
+    return base64.b64encode(private_bytes)
+
+def pubkey2base64(public_key):
+    public_bytes = public_key.public_bytes(Encoding.Raw, PublicFormat.Raw)
+    return base64.b64encode(public_bytes)
+
+# base64 to key
+def base64privkey(p):
+    b = base64.b64decode(p.encode("ascii"))
+    return x25519.X25519PrivateKey.from_private_bytes(b)
+
+def base64pubkey(p):
+    pe = p.encode("ascii")
+    print(f"P E: {pe}")
+    b = base64.b64decode(pe)
+    return x25519.X25519PublicKey.from_public_bytes(b)
 
 
 # 密钥交换过程
@@ -79,19 +103,28 @@ def swapkey(privkey, peer_pubkey, salt=b"", info=b""):
     return deriverd_key.derive(shared_key)
 
 
-def net_swapkey(sock, peer_pubkey, salt, info):
+class NetCipherError(Exception):
     pass
 
-
-class NonceMaxError(Exception):
+class NonceMaxError(NetCipherError):
     pass
 
-class CipherState:
+class Cipher:
 
     def __init__(self, key, AAD=None):
         self.key = key
         self.AAD = AAD
         self._n = 0
+
+        self._timestamp = time.time()
+
+        self.aead = AESGCM(self.key)
+
+    def timestamp_ge_180(self):
+        if (time.time() - self._timestamp) >= 180:
+            return True
+        else:
+            return False
     
     @property
     def nonce(self):
@@ -110,62 +143,295 @@ class CipherState:
         """
         return self._n
 
-
-class Cipher:
-    def __init__(self, CS):
-        self._cs = CS
-
-        self.aead = AESGCM(self._cs.key)
-
-        self.encrypter = self.aead.encrypt()
-        self.decrypter = self.aead.decrypt()
-    
     def encrypt(self, data):
-        enc_data = self.encryptr(self._cs.nonce, data, self._cs.aad)
+        enc_data = self.aead.encrypt(self.nonce, data, self.AAD)
         return enc_data
 
     def decrypt(self, data):
-        data = self.decryptr(self._cs.nonce, data, self._cs.aad)
+        data = self.aead.decrypt(self.nonce, data, self.AAD)
         return data
+
+
+
+# 当前使用的协议版本
+PROTOCOL_NUMBER = 0x01
+
+class PacketType(enum.IntEnum):
+    Reserved = 0 # 保留
+    Initiator = enum.auto()
+    Responder = enum.auto()
+    Rekey = enum.auto()
+    Transfer = enum.auto()
+
+class Packet:
+    """
+    --------------
+    0x01 Initiator packet:
+    1B version
+    1B packet type
+    2B payload length
+        payload:
+            32B Epub, 32B+16B encrypt(Spub)
+    --------------
+    0x02 Responder packet:
+    1B version
+    1B packet type
+    2B payload length
+    payload:
+        32B Epub
+    --------------
+    0x03 rekey packet: 格式与 0x02 相同
+    --------------
+    0x04 packet:
+    前面与0x01 相同, payload 为负载的加密数据
+    --------------
+    """
+    ph = struct.Struct("!BBH")
+    protohsize = ph.size
+
+    def __init__(self, Version=PROTOCOL_NUMBER, typ=PacketType.Initiator):
+
+        self.Version = Version
+        self.typ = typ
+        self.payload_len = 0
+
+    def from_buf(self, header):
+        self.Version, self.typ, self.payload_len = self.ph.unpack(header)
+
+    def to_initiator_buf(self, Epub, sSpub):
+        buf = io.BytesIO()
+        self.payload_len = 80 # 32 + 32 + 16
+        buf.write(self.ph.pack(self.Version, self.typ, self.payload_len))
+        buf.write(Epub)
+        buf.write(sSpub)
+        return buf.getbuffer()
+
+    def to_responder_buf(self, Epub):
+        buf = io.BytesIO()
+        self.payload_len = 32 # Epub 32B
+        buf.write(self.ph.pack(self.Version, self.typ, self.payload_len))
+
+        buf.write(Epub)
+        return buf.getbuffer()
+        
+    def to_rekey_buf(self, Epub):
+        self.payload_len = 32 # Epub 32B
+        buf = io.BytesIO()
+        buf.write(self.ph.pack(self.Version, self.typ, self.payload_len))
+
+        buf.write(Epub)
+        return buf.getbuffer()
+    
+    def to_transfer_buf(self, payload):
+        self.payload_len = len(payload)
+        buf = io.BytesIO()
+        buf.write(self.ph.pack(self.Version, self.typ, self.payload_len))
+
+        buf.write(payload)
+        return buf.getbuffer()
 
 
 class Transfer:
 
-    def __init__(self,)
+    def __init__(self):
+        pass
+
+    def server(self, sock, Spriv, peers):
+        self.Spriv = base64privkey(Spriv)
+        self.Spub = self.Spriv.public_key()
+        self.peers = tuple(map(lambda p: base64.b64decode(p.encode("ascii")), peers))
+        print(f"peers: {self.peers}")
+
+        self.sock = sock
+        self.Responder()
+
+    def connect(self, Sprivkey, PeerSpubkey, *args, **kwargs):
+        self.Spriv = base64privkey(Sprivkey)
+        self.Spub = self.Spriv.public_key()
+        self.PeerSpubkey = base64pubkey(PeerSpubkey)
+
+        self.sock = socket.create_connection(*args, **kwargs)
+
+        self.Initiator()
+    
+    def read(self):
+        pk = Packet()
+        header = self.__read(pk.protohsize)
+        pk.from_buf(header)
+
+        if pk.typ == PacketType.Transfer:
+            en_data = self.__read(pk.payload_len)
+
+        elif pk.typ == PacketType.Rekey:
+            self.Epriv = x25519.X25519PrivateKey.generate()
+            shared_key = self.Epriv.exchange(self.Speerpubkey)
+            aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=b"handshake data").derive(shared_key)
+
+        data = self.Raes.decrypt(en_data)
+        return data
+    
+    def write(self, data):
+        if self.Taes.timestamp_ge_180():
+            pk = Packet(typ=PacketType.Rekey)
+            self.Epriv = x25519.X25519PrivateKey.generate()
+            shared_key = self.Epriv.exchange(self.Speerpubkey)
+            aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=b"handshake data").derive(shared_key)
+            self.Taes = Cipher(aeskey)
+            Epub = self.Epriv.public_key()
+            Epub_bytes = Epub.public_bytes(Encoding.Raw, PublicFormat.Raw)
+            self.__write(pk.to_rekey_buf(Epub_bytes))
+
+        pk = Packet(typ=PacketType.Transfer)
+        en_data = self.Taes.encrypt(data)
+        self.__write(pk.to_transfer_buf(en_data))
 
 
-def server(genkey):
+    def Initiator(self):
 
-    sock = socket.create_server(("::1", 6789), family=socket.AF_INET6, backlog=128)
+        Epriv = x25519.X25519PrivateKey.generate()
+        Epub = Epriv.public_key()
 
-    client, addr = sock.accept()
-    sock.close()
+        shared_key = Epriv.exchange(self.PeerSpubkey)
+        aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=b"handshake data").derive(shared_key)
 
-    # 密码交换
-    net_swapkey()
+        # 发送加密器
+        self.Taes = Cipher(aeskey)
 
-    # generate pubk
-    pubkey = x25519.X25519PrivateKey.from_private_bytes(genkey)
+        Spubkey_cipher = self.Taes.encrypt(self.Spub.public_bytes(Encoding.Raw, PublicFormat.Raw))
+
+        pk = Packet(typ=PacketType.Initiator)
+        data = pk.to_initiator_buf(
+            Epub.public_bytes(Encoding.Raw, PublicFormat.Raw),
+            Spubkey_cipher
+        )
+
+        self.__write(data)
+
+        data = self.__read(Packet.protohsize)
+        pk = Packet()
+        pk.from_buf(data)
+        if pk.typ != PacketType.Responder:
+            raise NetCipherError("invalid packet")
+
+        data = self.__read(pk.payload_len)
+        Epub = x25519.X25519PublicKey.from_public_bytes(data[:32])
+
+        shared_key = self.Spriv.exchange(Epub)
+        aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=b"handshake data").derive(shared_key)
+
+        #接收加密器
+        self.Raes = Cipher(aeskey)
 
 
+    def Responder(self):
+        pk = Packet()
+        data = self.__read(pk.protohsize)
+        pk.from_buf(data)
+        if pk.typ != PacketType.Initiator:
+            raise NetCipherError("invalid packet")
+
+        data = self.__read(pk.payload_len)
+        Epub = x25519.X25519PublicKey.from_public_bytes(data[:32])
+        sSpub = data[32:]
+
+        # 解出接收密钥
+        shared_key = self.Spriv.exchange(Epub)
+        aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=b"handshake data").derive(shared_key)
+
+        #接收加密器
+        self.Raes = Cipher(aeskey)
+
+        Spub_bytes = self.Raes.decrypt(sSpub)
+
+        self.PeerSpub = x25519.X25519PublicKey.from_public_bytes(Spub_bytes)
+
+        # check peer Spub 是否是已知的。
+        if Spub_bytes not in self.peers:
+            addr = self.sock.getpeername()
+            Spub_base64 = pubkey2base64(self.PeerSpub)
+            raise NetCipherError(f"client: {addr} 验证失败, publick key: {Spub_base64}")
+
+        # 生成发送临时密钥
+        Epriv = x25519.X25519PrivateKey.generate()
+        Epub = Epriv.public_key()
+        shared_key = Epriv.exchange(self.Spub)
+
+        aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=b"handshake data").derive(shared_key)
+        # 生成发送临时密钥
+        self.Taes = Cipher(aeskey)
+
+        pk = Packet(typ=PacketType.Responder)
+        self.__write(pk.to_responder_buf(Epub.public_bytes(Encoding.Raw, PublicFormat.Raw)))
+
+
+    def __read(self, size):
+        buf = io.BytesIO()
+        while (data:= self.sock.recv(size)) != b"":
+            buf.write(data)
+            size -= len(data)
+        
+        if size > 0:
+            print(f"recv data: {buf.getvalue()}")
+            raise NetCipherError(f"peer close()")
+        
+        return buf.getvalue()
+    
+    def __write(self, payload):
+        l = len(payload)
+        v = memoryview(payload)
+        n = 0
+        while n < l:
+            n += self.sock.send(v[n:])
+    
+    def close(self):
+        self.sock.close()
+
+
+
+def handle(sock, Spriv, peers):
+    trans = Transfer()
+    trans.server(sock, Spriv, peers)
     while True:
+        data = trans.read()
+        tf = verity_data(data)
+        print(f"验证数据：{tf}, 数据：{data}")
 
+
+
+def server():
+    addr=("::1", 6789)
+    print(f"server listen: {addr}")
+    sock = socket.create_server(addr, family=socket.AF_INET6, backlog=128)
+
+    try:
+        client, addr = sock.accept()
+        print(f"connected: {addr}")
+        sock.close()
+
+        handle(client, "+OVbr1LiIRfsR3BjXgKbZUO6AFgJ/xr9FxUU77BcVkM=", ("H1MOwZAlkYoz9eYYdWhBAESkvR13QDSn7CiGksms7Bw=",))
+
+    except KeyboardInterrupt:
+        pass
+    finally:
+        sock.close()
+
+
+def client():
+    trans = Transfer()
+    trans.connect("2OLgBlB4IOeTtWHlX+qYfBnZAtEkxdwexHdf3ik3NHU=", "uzgG7z/gbeHyNLpkrZxIGoR4PckcGm/9pcYOvPOzXms=", ("::1", 6789))
+    for i in range(10):
         data = generate_data()
-        enc_data = session.encrypt(nonce, data, aad)
+        trans.write(data)
+        print(f"发送数据: {data}")
+    
+    print("done")
 
-        client.send(enc_data)
-
-
-def net_chacha20_client(key):
-    sock = socket.create_connection(("::1", 6789))
-
-    chacha20 = 
+    trans.close()
 
 
 
-
-# peer 1
-pkey1 = b"mAJGO9nzQ/aPCz8mPqAxGCcJmiEAyZ78rVC+Z1YP2nM="
-
-# pper 2
-pkey2 = b"OFl5iDjKS5X4O+A0AMm8Xqdh9+AXmtXp+jmfBhjP2H8="
+if __name__ == "__main__":
+    if sys.argv[1] == "client":
+        client()
+    elif sys.argv[1] == "server":
+        server()

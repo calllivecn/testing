@@ -18,7 +18,10 @@ from cryptography.hazmat.primitives.serialization import (
     NoEncryption,
 )
 
-from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.x25519 import (
+    X25519PrivateKey,
+    X25519PublicKey,
+)
 
 
 
@@ -39,6 +42,12 @@ print("private key bytes:", private_bytes)
 print("private key base64:", base64.b64encode(private_bytes).decode("utf-8"))
 
 print("public key bytes:", public_bytes)
-print("public key base64:", base64.b64encode(public_bytes).decode("utf-8"))
+pkb64 = base64.b64encode(public_bytes).decode("utf-8")
+print("public key base64:", pkb64)
 
 print("pre shared key base64:", base64.b64encode(pre_shared_bytes).decode("utf-8"))
+
+# base64 to key
+from_bytes_pubkey = X25519PublicKey.from_public_bytes(base64.b64decode(pkb64.encode("utf8")))
+print("从bytes 读取pubkey", from_bytes_pubkey)
+
