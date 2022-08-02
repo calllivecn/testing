@@ -122,6 +122,7 @@ class Cipher:
 
     def timestamp_ge_180(self):
         if (time.time() - self._timestamp) >= 180:
+        # if (time.time() - self._timestamp) >= 3:
             return True
         else:
             return False
@@ -197,6 +198,7 @@ class Packet:
 
     def from_buf(self, header):
         self.Version, self.typ, self.payload_len = self.ph.unpack(header)
+        self.typ = PacketType(self.typ)
 
     def to_initiator_buf(self, Epub, sSpub):
         buf = io.BytesIO()
@@ -257,15 +259,27 @@ class Transfer:
     def read(self):
         pk = Packet()
         header = self.__read(pk.protohsize)
+        if header == b"":
+            return b""
+
         pk.from_buf(header)
 
+        if pk.typ == PacketType.Rekey:
+            Epub_bytes = self.__read(pk.payload_len)
+            Epub = x25519.X25519PublicKey.from_public_bytes(Epub_bytes)
+            shared_key = self.Spriv.exchange(Epub)
+            aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=b"handshake data").derive(shared_key)
+            self.Raes = Cipher(aeskey)
+
+            pk = Packet()
+            header = self.__read(pk.protohsize)
+            pk.from_buf(header)
+
+        en_data = b""
         if pk.typ == PacketType.Transfer:
             en_data = self.__read(pk.payload_len)
-
-        elif pk.typ == PacketType.Rekey:
-            self.Epriv = x25519.X25519PrivateKey.generate()
-            shared_key = self.Epriv.exchange(self.Speerpubkey)
-            aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=b"handshake data").derive(shared_key)
+        else:
+            raise NetCipherError("invalid packet")
 
         data = self.Raes.decrypt(en_data)
         return data
@@ -274,7 +288,7 @@ class Transfer:
         if self.Taes.timestamp_ge_180():
             pk = Packet(typ=PacketType.Rekey)
             self.Epriv = x25519.X25519PrivateKey.generate()
-            shared_key = self.Epriv.exchange(self.Speerpubkey)
+            shared_key = self.Epriv.exchange(self.PeerSpubkey)
             aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=b"handshake data").derive(shared_key)
             self.Taes = Cipher(aeskey)
             Epub = self.Epriv.public_key()
@@ -343,12 +357,12 @@ class Transfer:
 
         Spub_bytes = self.Raes.decrypt(sSpub)
 
-        self.PeerSpub = x25519.X25519PublicKey.from_public_bytes(Spub_bytes)
+        self.PeerSpubkey = x25519.X25519PublicKey.from_public_bytes(Spub_bytes)
 
         # check peer Spub 是否是已知的。
         if Spub_bytes not in self.peers:
             addr = self.sock.getpeername()
-            Spub_base64 = pubkey2base64(self.PeerSpub)
+            Spub_base64 = pubkey2base64(self.PeerSpubkey)
             raise NetCipherError(f"client: {addr} 验证失败, publick key: {Spub_base64}")
 
         # 生成发送临时密钥
@@ -370,9 +384,9 @@ class Transfer:
             buf.write(data)
             size -= len(data)
         
-        if size > 0:
-            print(f"recv data: {buf.getvalue()}")
-            raise NetCipherError(f"peer close()")
+        # if size > 0:
+            # print(f"recv data: {buf.getvalue()}")
+            # raise NetCipherError(f"peer close()")
         
         return buf.getvalue()
     
@@ -391,12 +405,12 @@ class Transfer:
 def handle(sock, Spriv, peers):
     trans = Transfer()
     trans.server(sock, Spriv, peers)
-    while True:
-        data = trans.read()
+    while (data := trans.read()) != b"":
         tf = verity_data(data)
         print(f"验证数据：{tf}, 数据：{data}")
 
-
+    trans.close()
+    print("done")
 
 def server():
     addr=("::1", 6789)
@@ -423,6 +437,12 @@ def client():
         data = generate_data()
         trans.write(data)
         print(f"发送数据: {data}")
+    
+    print("wait....")
+    time.sleep(5)
+    data = generate_data()
+    trans.write(data)
+    print(f"发送数据: {data}")
     
     print("done")
 
