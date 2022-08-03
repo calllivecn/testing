@@ -74,7 +74,8 @@ logger = getlogger(level=logging.DEBUG)
 
 def generate_data():
     # data 为 一个随机数，sha256组成，方便对端验证数据传输是否正确。
-    rand_data = ssl.RAND_bytes(random.randint(128, 512))
+    # rand_data = ssl.RAND_bytes(random.randint(128, 512))
+    rand_data = ssl.RAND_bytes(random.randint(512, 4096))
     sha256 = hashlib.sha256(rand_data)
 
     return sha256.digest() + rand_data
@@ -103,7 +104,7 @@ def base64privkey(p):
 
 def base64pubkey(p):
     pe = p.encode("ascii")
-    print(f"P E: {pe}")
+    # print(f"P E: {pe}")
     b = base64.b64decode(pe)
     return x25519.X25519PublicKey.from_public_bytes(b)
 
@@ -140,7 +141,7 @@ class Cipher:
 
         self.aead = AESGCM(self.key)
 
-    def timestamp_ge_180(self, interval=180):
+    def timestamp_expire(self, interval=180):
         if (time.time() - self._timestamp) >= interval:
             return True
         else:
@@ -306,7 +307,7 @@ class Transfer:
         return data
     
     def write(self, data):
-        if self.Taes.timestamp_ge_180():
+        if self.Taes.timestamp_expire():
             pk = Packet(typ=PacketType.Rekey)
             self.Epriv = x25519.X25519PrivateKey.generate()
             shared_key = self.Epriv.exchange(self.PeerSpubkey)
@@ -353,7 +354,7 @@ class Transfer:
 
         shared_key = self.Spriv.exchange(Epub)
         aeskey = HKDF(hashes.SHA256(), length=32, salt=None, info=HKDF_INFO).derive(shared_key)
-        logger.debug(f"INitiator 接收到的 shared_key: {shared_key}")
+        logger.debug(f"Initiator 接收到的 shared_key: {shared_key}")
 
         #接收加密器
         self.Raes = Cipher(aeskey)
@@ -431,12 +432,26 @@ def handle(sock, Spriv, peers):
         # tf = verity_data(data)
         # print(f"验证数据：{tf}, 数据：{data}")
 
+    """
     for i in range(20):
         data = generate_data()
         trans.write(data)
         print("="*40)
         print(f"发送数据: {data}")
         time.sleep(0.5)
+    """
+    datasum = 0
+    t = time.time()
+    for i in range(1000000):
+        data = generate_data()
+        trans.write(data)
+        datasum += len(data)
+
+        end = time.time()
+        if (end - t) >= 1:
+            print(f"传输速度: {round(datasum/(1<<20), 2)}/s")
+            t = end
+            datasum = 0
     
     trans.close()
     print("done")
@@ -477,7 +492,7 @@ def client():
 
     while (data := trans.read()) != b"":
         tf = verity_data(data)
-        print(f"验证数据：{tf}, 数据：{data}")
+        # print(f"验证数据：{tf}, 数据：{data}")
     
     print("done")
 
