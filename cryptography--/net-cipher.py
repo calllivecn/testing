@@ -257,24 +257,21 @@ class Packet:
 
 class Transfer:
 
-    def __init__(self):
-        pass
+    def __init__(self, sock):
+        self.sock = sock
 
-    def server(self, sock, Spriv, peers):
+    def server(self, Spriv, peers):
         self.Spriv = base64privkey(Spriv)
         self.Spub = self.Spriv.public_key()
         self.peers = tuple(map(lambda p: base64.b64decode(p.encode("ascii")), peers))
         print(f"peers: {self.peers}")
 
-        self.sock = sock
         self.Responder()
 
-    def connect(self, Sprivkey, PeerSpubkey, *args, **kwargs):
+    def connect(self, Sprivkey, PeerSpubkey):
         self.Spriv = base64privkey(Sprivkey)
         self.Spub = self.Spriv.public_key()
         self.PeerSpubkey = base64pubkey(PeerSpubkey)
-
-        self.sock = socket.create_connection(*args, **kwargs)
 
         self.Initiator()
     
@@ -426,8 +423,8 @@ class Transfer:
 
 
 def handle(sock, Spriv, peers):
-    trans = Transfer()
-    trans.server(sock, Spriv, peers)
+    trans = Transfer(sock)
+    trans.server(Spriv, peers)
     # while (data := trans.read()) != b"":
         # tf = verity_data(data)
         # print(f"验证数据：{tf}, 数据：{data}")
@@ -475,8 +472,10 @@ def server():
 
 
 def client():
-    trans = Transfer()
-    trans.connect("2OLgBlB4IOeTtWHlX+qYfBnZAtEkxdwexHdf3ik3NHU=", "uzgG7z/gbeHyNLpkrZxIGoR4PckcGm/9pcYOvPOzXms=", ("::1", 6789))
+    addr=("::1", 6789)
+    sock = socket.create_connection(addr)
+    trans = Transfer(sock)
+    trans.connect("2OLgBlB4IOeTtWHlX+qYfBnZAtEkxdwexHdf3ik3NHU=", "uzgG7z/gbeHyNLpkrZxIGoR4PckcGm/9pcYOvPOzXms=")
     # for i in range(10):
         # data = generate_data()
         # trans.write(data)
