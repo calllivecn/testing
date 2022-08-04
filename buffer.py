@@ -18,7 +18,7 @@ class Buffer(bytearray):
         self._mv = memoryview(self)
     
     def __getitem__(self, slice):
-        return self._mv[slice]
+        return self._mv[slice].tobytes()
     
 
 # data = Buffer(128)
@@ -28,8 +28,8 @@ SIZE = (1<<13) # 8k
 SIZE = (1<<14) # 16k
 
 # buf = memoryview(bytearray(SIZE))
-
-# 看看使用这种方式 是不是 会省内存。 是省内存，省了差不多一半。 SIZE 为 16k 时，运行速度最快。
+# 并不能提高性能。。。。
+# 看看使用这种方式是不是会省内存。 是省内存，省了差不多一半。 SIZE 为 16k 时，运行速度最快。
 
 if __name__ == "__main__":
     buf = Buffer(SIZE)
