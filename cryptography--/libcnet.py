@@ -10,6 +10,7 @@ __all__ = (
     "PROTOCOL_NUMBER",
     "NetCipherError",
     "NonceMaxError",
+    "HandshakeError",
     # 这几个可能还要思考下
     "privkey2base64",
     "pubkey2base64",
@@ -28,7 +29,12 @@ import base64
 import struct
 import hashlib
 
+from typing import (
+    Union,
+)
 
+
+from cryptography import exceptions
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import x25519
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
@@ -39,6 +45,7 @@ from cryptography.hazmat.primitives.serialization import (
     PublicFormat,
     NoEncryption,
 )
+
 
 from cryptography.hazmat.primitives.ciphers.aead import (
     AESGCM,
@@ -62,42 +69,32 @@ def verity_data(data):
         return False
 
 # key to base64
-def privkey2base64(private_key):
+def privkey2base64(private_key: x25519.X25519PrivateKey) -> base64.b64encode:
     private_bytes = private_key.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
     return base64.b64encode(private_bytes)
 
-def pubkey2base64(public_key):
+def pubkey2base64(public_key: x25519.X25519PublicKey) -> base64.b64encode:
     public_bytes = public_key.public_bytes(Encoding.Raw, PublicFormat.Raw)
     return base64.b64encode(public_bytes)
 
 # base64 to key
-def base64privkey(p):
-    b = base64.b64decode(p.encode("ascii"))
+def base64privkey(p: str) -> x25519.X25519PrivateKey:
+    pe = p.encode("ascii")
+    # print(f"Privkey: {pe}")
+    b = base64.b64decode(pe)
     return x25519.X25519PrivateKey.from_private_bytes(b)
 
-def base64pubkey(p):
+def base64pubkey(p: str) -> x25519.X25519PublicKey:
     pe = p.encode("ascii")
-    # print(f"P E: {pe}")
+    # print(f"Pubkey: {pe}")
     b = base64.b64decode(pe)
     return x25519.X25519PublicKey.from_public_bytes(b)
 
 
-# 密钥交换过程
-def swapkey(privkey, peer_pubkey, salt=b"", info=b""):
-    """
-    genkey:bytes --> private_key,
-    peer_pubkey:bytes --> peer public key,
-    HKDF() 时使用的 salt 和 info: bytes
-    return --> 密钥交换，和派生后的对称密钥
-    """
-
-    private_key = x25519.X25519PrivateKey.from_private_bytes(privkey)
-    shared_key = private_key.exchange(peer_pubkey)
-    deriverd_key = HKDF(algorithm=hashes.SHA256, length=32, salt=salt, info=info)
-    return deriverd_key.derive(shared_key)
-
-
 class NetCipherError(Exception):
+    pass
+
+class HandshakeError(NetCipherError):
     pass
 
 class NonceMaxError(NetCipherError):
@@ -105,7 +102,7 @@ class NonceMaxError(NetCipherError):
 
 class Cipher:
 
-    def __init__(self, key, AAD=None):
+    def __init__(self, key: bytes, AAD: Union[None, bytes] = None):
         self.key = key
         self.AAD = AAD
         self._n = 0
@@ -114,34 +111,34 @@ class Cipher:
 
         self.aead = AESGCM(self.key)
 
-    def timestamp_expire(self, interval=180):
+    def timestamp_expire(self, interval: int =180) -> bool:
         if (time.time() - self._timestamp) >= interval:
             return True
         else:
             return False
     
     @property
-    def nonce(self):
+    def nonce(self) -> bytes:
         self._n += 1
         return self._n.to_bytes(12, "big")
     
     @nonce.setter
-    def nonce(self, value):
+    def nonce(self, value: int):
         if value > 0xffffffffffffffffffffffff:
             raise NonceMaxError("None value too max")
         self._n = value
 
-    def next_nonce(self):
+    def next_nonce(self) -> int:
         """
         当前Nonce値, 每次引用前都会自动+1。
         """
         return self._n
 
-    def encrypt(self, data):
+    def encrypt(self, data: bytes) -> bytes:
         enc_data = self.aead.encrypt(self.nonce, data, self.AAD)
         return enc_data
 
-    def decrypt(self, data):
+    def decrypt(self, data: bytes) -> bytes:
         data = self.aead.decrypt(self.nonce, data, self.AAD)
         return data
 
@@ -185,17 +182,17 @@ class Packet:
     ph = struct.Struct("!BBH")
     protohsize = ph.size
 
-    def __init__(self, Version=PROTOCOL_NUMBER, typ=PacketType.Initiator):
+    def __init__(self, Version: int = PROTOCOL_NUMBER, typ: PacketType =PacketType.Initiator):
 
         self.Version = Version
         self.typ = typ
         self.payload_len = 0
 
-    def from_buf(self, header):
+    def from_buf(self, header: bytes):
         self.Version, self.typ, self.payload_len = self.ph.unpack(header)
         self.typ = PacketType(self.typ)
 
-    def to_initiator_buf(self, Epub, sSpub):
+    def to_initiator_buf(self, Epub: bytes, sSpub: bytes) -> memoryview:
         buf = io.BytesIO()
         self.payload_len = 80 # 32 + 32 + 16
         buf.write(self.ph.pack(self.Version, self.typ, self.payload_len))
@@ -203,7 +200,7 @@ class Packet:
         buf.write(sSpub)
         return buf.getbuffer()
 
-    def to_responder_buf(self, Epub):
+    def to_responder_buf(self, Epub: bytes) -> memoryview:
         buf = io.BytesIO()
         self.payload_len = 32 # Epub 32B
         buf.write(self.ph.pack(self.Version, self.typ, self.payload_len))
@@ -211,7 +208,7 @@ class Packet:
         buf.write(Epub)
         return buf.getbuffer()
         
-    def to_rekey_buf(self, Epub):
+    def to_rekey_buf(self, Epub: bytes) -> memoryview:
         self.payload_len = 32 # Epub 32B
         buf = io.BytesIO()
         buf.write(self.ph.pack(self.Version, self.typ, self.payload_len))
@@ -219,7 +216,7 @@ class Packet:
         buf.write(Epub)
         return buf.getbuffer()
     
-    def to_transfer_buf(self, payload):
+    def to_transfer_buf(self, payload: bytes) -> memoryview:
         self.payload_len = len(payload)
         buf = io.BytesIO()
         buf.write(self.ph.pack(self.Version, self.typ, self.payload_len))
@@ -230,26 +227,32 @@ class Packet:
 
 class Transfer:
 
-    def __init__(self, sock):
+    def __init__(self, sock: socket.SocketType):
         self.sock = sock
 
-    def server(self, Spriv, peers):
+    def server(self, Spriv: str, peers: str):
         self.Spriv = base64privkey(Spriv)
         self.Spub = self.Spriv.public_key()
         print(f"peers: {peers}")
         self.peers = tuple(map(lambda p: base64.b64decode(p.encode("ascii")), peers))
 
-        self.Responder()
+        try:
+            self.Responder()
+        except exceptions.InvalidTag:
+            raise HandshakeError("handshake fail.")
 
-    def connect(self, Sprivkey, PeerSpubkey):
+    def connect(self, Sprivkey: str, PeerSpubkey: str):
         self.Spriv = base64privkey(Sprivkey)
         self.Spub = self.Spriv.public_key()
-        print(f"peers: {PeerSpubkey}")
+        # print(f"peers: {PeerSpubkey}")
         self.PeerSpubkey = base64pubkey(PeerSpubkey)
 
-        self.Initiator()
+        try:
+            self.Initiator()
+        except exceptions.InvalidTag:
+            raise HandshakeError("handshake fail.")
     
-    def read(self):
+    def read(self) -> bytes:
         pk = Packet()
         header = self.__read(pk.protohsize)
         if header == b"":
@@ -277,7 +280,7 @@ class Transfer:
         data = self.Raes.decrypt(en_data)
         return data
     
-    def write(self, data):
+    def write(self, data: bytes):
         if self.Taes.timestamp_expire(5):
             pk = Packet(typ=PacketType.Rekey)
             self.Epriv = x25519.X25519PrivateKey.generate()
@@ -369,23 +372,19 @@ class Transfer:
         pk = Packet(typ=PacketType.Responder)
         self.__write(pk.to_responder_buf(Epub.public_bytes(Encoding.Raw, PublicFormat.Raw)))
     
-    def fileno(self):
+    def fileno(self) -> int:
         return self.sock.fileno()
 
 
-    def __read(self, size):
+    def __read(self, size: int) -> bytes:
         buf = io.BytesIO()
         while (data:= self.sock.recv(size)) != b"":
             buf.write(data)
             size -= len(data)
         
-        # if size > 0:
-            # print(f"recv data: {buf.getvalue()}")
-            # raise NetCipherError(f"peer close()")
-        
         return buf.getvalue()
     
-    def __write(self, payload):
+    def __write(self, payload: bytes):
         l = len(payload)
         v = memoryview(payload)
         n = 0
