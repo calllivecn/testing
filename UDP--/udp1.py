@@ -11,6 +11,7 @@
 """
 
 import time
+import enum
 import queue
 import socket
 import struct
@@ -35,18 +36,30 @@ class logger:
 
 
 class Buffer(bytearray):
-    def __init__(self, size: int=4096):
+    def __init__(self, size: int = 4096):
 
         super().__init__(size)
         # self._ba = bytearray(size)
         self._mv = memoryview(self)
     
-    def __getitem__(self, slice: slice):
+    def __getitem__(self, slice: slice) -> memoryview:
         return self._mv[slice]
+    
+    def getvalue(self, start: int = 0, end: None|int = None) -> bytes:
+        return self._mv[start:end].tobytes()
+
 
 
 class PacketError(Exception):
     pass
+
+class PacketType(enum.IntEnum):
+    Reserved = 0 # 保留
+    Initiator = enum.auto()
+    Responder = enum.auto()
+    Rekey = enum.auto()
+    Transfer = enum.auto()
+
 
 class Packet:
 
@@ -71,7 +84,7 @@ class Packet:
             self.payload,
         ) = self.proto.unpack(data[:self.proto.size])
 
-    def tobuf(self, data: bytes):
+    def tobuf(self, data: bytes) -> memoryview:
 
         self.payload = len(data)
 
@@ -94,7 +107,7 @@ class Packet:
 class TranterStatusError(Exception):
     pass
 
-class Tranter:
+class Transfer:
     """
     这个就是对上层提供的服务类？time:2022-05-15 
     """

@@ -10,16 +10,24 @@ import ssl
 import hashlib
 import time
 
+from typing import (
+    Union,
+    Iterable,
+)
+
 class Buffer(bytearray):
-    def __init__(self, size=4096):
+    def __init__(self, size: int = 4096):
 
         super().__init__(size)
         # self._ba = bytearray(size)
         self._mv = memoryview(self)
     
-    def __getitem__(self, slice):
-        return self._mv[slice].tobytes()
+    def __getitem__(self, slice: slice) -> memoryview:
+        return self._mv[slice]
     
+    def getvalue(self, start: int = 0, end: None|int = None) -> bytes:
+        return self._mv[start:end].tobytes()
+
 
 # data = Buffer(128)
 
