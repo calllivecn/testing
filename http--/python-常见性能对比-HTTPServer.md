@@ -608,6 +608,16 @@ Percentage of the requests served within a certain time (ms)
 ```
 
 
+## 这里使用 http-echo-asyncio+uvloop.py。
+
+- 我去厉害，这个()k
+
+```shell
+root@xiaomi:/# ab -c 2000 -n 10000 http://127.0.0.1:6785/calllivecn
+
+
+```
+
 ## linux 优化选项 (在新内核里，好多选项都没有了，还有选项发生了变化)
 
 ```shell
