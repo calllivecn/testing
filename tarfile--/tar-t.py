@@ -6,11 +6,15 @@
 
 import io
 import os
+import re
 import sys
+import glob
 import shutil
 import tarfile
 import pathlib
 import threading
+from pathlib import Path
+from fnmatch import fnmatchcase
 
 
 try:
@@ -68,37 +72,9 @@ class Pipe:
         return os.write(self.w, data)
     
     def close(self):
-        os.close(self.w)
-    
-    def close2(self):
         os.close(self.r)
+        os.close(self.w)
 
-class Pipe2:
-    """
-    试着添加上缓存性能会不会提高点？, 2022-08-18 没区别呀
-    """
-
-    def __init__(self):
-        self.r, self.w = os.pipe()
-        self.r = open(self.r, mode="rb", buffering=BLOCKSIZE)
-        self.w = open(self.w, mode="wb", buffering=BLOCKSIZE)
-        # self.r = io.BufferedReader(self.r, BLOCKSIZE)
-        # self.w = io.BufferedWriter(self.w, BLOCKSIZE)
-    
-    def read(self, size):
-        return self.r.read(size)
-
-    def readinto(self, buf):
-        return self.r.readinto(buf)
-
-    def write(self, data):
-        return self.w.write(data)
-    
-    def close(self):
-        self.w.close()
-    
-    def close2(self):
-        self.r.close()
 
 # 需要先定义 zstd 处理函数，以启动线程处理。
 
@@ -127,6 +103,8 @@ def compress(pipe, w):
         w.write(comp_data)
     
     w.write(zst.flush())
+    pipe.close()
+
     print("compress done")
 
 def decompress(r, pipe):
@@ -196,20 +174,45 @@ def test2():
     else:
         print("Usage: <c|x> <archive> <target>")
 
+# 用户过滤参数转为 list
+def exclude(ls):
+    return [ re.compile(l) for l in ls]
+
+# 测试过滤
+def filter1(tarinfo, fs):
+    for ref in fs:
+        if ref.match(tarinfo.name):
+            print("过滤：", tarinfo.name)
+            return None
+    else:
+        print("打包：", tarinfo.name)
+        return tarinfo
+
+def filter2(tarinfo, fs, verbose):
+    for fm in fs:
+        if fnmatchcase(tarinfo.name, fm):
+            return None
+    else:
+        if verbose:
+            print(tarinfo.name, file=sys.stderr)
+        return tarinfo
 
 
-def test3(archive, path):
+def maketar(archive, path, verbose, excludes=[]):
     """
     处理打包路径安全:
     只使用 给出路径最右侧做为要打包的内容
     例："../../dir1/dir2" --> 只会打包 dir2 目录|文件
     """
-    abspath = path.resolve()
+    p = Path(path)
+    abspath = p.resolve()
     arcname = abspath.relative_to(abspath.parent)
 
-    with tarfile.open(archive, mode="w:gz") as tar:
-        # tar.add(path, filter=filter)
-        tar.add(path, arcname)
+    # ls = exclude(fs)
+
+    with tarfile.open(archive, mode="w") as tar:
+        # tar.add(p, arcname)
+        tar.add(p, arcname, filter=lambda x: filter2(x, excludes, verbose))
 
 
 def order_bad_path(tarinfo):
@@ -230,8 +233,10 @@ def order_bad_path(tarinfo):
 
 
 # 测试 处理 解包 tar 时的路径问题
-def test4(archive, path, safe_extract=False):
-    with tarfile.open(archive, mode="r:*") as tar:
+# def test4(archive, path, safe_extract=False):
+    # with tarfile.open(archive, mode="r:*") as tar:
+def test4(path, safe_extract=False):
+    with tarfile.open(mode="r|*", fileobj=sys.stdin.buffer) as tar:
         while (tarinfo := tar.next()) is not None:
             if ".." in tarinfo.name:
                 if safe_extract:
@@ -246,4 +251,7 @@ def test4(archive, path, safe_extract=False):
 
 if __name__ == "__main__":
     # test3(pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]))
-    test4(pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]))
+    # test4(pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]))
+    # test4(pathlib.Path(sys.argv[1]))
+    # maketar(sys.argv[1], sys.argv[2], sys.argv[3:])
+    maketar(sys.argv[1], sys.argv[2], True)

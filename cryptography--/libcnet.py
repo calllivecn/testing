@@ -147,7 +147,7 @@ class Cipher:
 # 当前使用的协议版本
 PROTOCOL_NUMBER = 0x01
 
-HKDF_INFO="今天是个好天气呀！咿呀咿呀咿呀！".encode("utf8")
+HKDF_INFO="今天是个好天气呀！咿呀咿呀咿！".encode("utf8")
 
 class PacketType(enum.IntEnum):
     Reserved = 0 # 保留
