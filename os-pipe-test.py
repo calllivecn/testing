@@ -27,18 +27,23 @@ class Pipe:
         os.close(self.r)
 
 
-def output(pipe):
-    while (data := os.read(pipe, 32)) != b"":
-        print("pipe.read:", data)
+def output(pipe, threadname=None):
+    while (data := pipe.read(32)) != b"":
+        print(threadname, "pipe.read():", data)
 
     print("output 执行完成")
 
 
 def test1():
-    r, w = os.pipe()
-
-    th1 = threading.Thread(target=output, args=(r,))
+    pipe = Pipe()
+    th1 = threading.Thread(target=output, args=(pipe,), daemon=True)
     th1.start()
+
+    for i in range(50):
+        pipe.write(i.to_bytes(4, "big"))
+    pipe.close()
+    th1.join()
+    pipe.close2()
 
 
 class Pipefork:
@@ -74,20 +79,32 @@ class Pipefork:
         for pipe in self.pipes:
             pipe.close2()
 
+def input(pipe):
+    for i in range(1<<20):
+        pipe.write(i.to_bytes(4, "big"))
+    pipe.close()
 
 def test2():
     pipe = Pipefork()
     split = pipe.fork()
     sha = pipe.fork()
 
-    pipe.write(b"data1")
-    pipe.write(b" --> data2")
-    pipe.close()
+    n = "input"
+    th0 = threading.Thread(target=input, args=(pipe,), name=n, daemon=True)
+    th0.start()
 
-    print("read from split:", split.read(4096))
-    print("read from sha:", sha.read(4096))
+    n = "split--"
+    th1 = threading.Thread(target=output, args=(split, n), name=n, daemon=True)
+    th1.start()
+
+    n = "sha--"
+    th2 = threading.Thread(target=output, args=(sha, n), name=n, daemon=True)
+    th2.start()
+
+    th1.join()
+    th2.join()
     pipe.close2()
 
-
 if __name__ == "__main__":
+    # test1()
     test2()
