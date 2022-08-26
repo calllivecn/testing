@@ -610,11 +610,63 @@ Percentage of the requests served within a certain time (ms)
 
 ## 这里使用 http-echo-asyncio+uvloop.py。
 
-- 我去厉害，这个()k
+- 我去厉害，这个17k
 
 ```shell
-root@xiaomi:/# ab -c 2000 -n 10000 http://127.0.0.1:6785/calllivecn
+root@xiaomi:~# ab -c 2000 -n 10000 http://127.0.0.1:6785/calllivecn
+This is ApacheBench, Version 2.3 <$Revision: 1843412 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
 
+Benchmarking 127.0.0.1 (be patient)
+Completed 1000 requests
+Completed 2000 requests
+Completed 3000 requests
+Completed 4000 requests
+Completed 5000 requests
+Completed 6000 requests
+Completed 7000 requests
+Completed 8000 requests
+Completed 9000 requests
+Completed 10000 requests
+Finished 10000 requests
+
+
+Server Software:        py
+Server Hostname:        127.0.0.1
+Server Port:            6785
+
+Document Path:          /calllivecn
+Document Length:        13 bytes
+
+Concurrency Level:      2000
+Time taken for tests:   0.585 seconds
+Complete requests:      10000
+Failed requests:        0
+Total transferred:      900000 bytes
+HTML transferred:       130000 bytes
+Requests per second:    17087.27 [#/sec] (mean)
+Time per request:       117.046 [ms] (mean)
+Time per request:       0.059 [ms] (mean, across all concurrent requests)
+Transfer rate:          1501.81 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0   21  12.1     18      55
+Processing:     0   35  34.2     26     248
+Waiting:        0   28  33.0     20     240
+Total:          2   56  38.5     42     270
+
+Percentage of the requests served within a certain time (ms)
+  50%     42
+  66%     63
+  75%     73
+  80%     81
+  90%     93
+  95%    107
+  98%    233
+  99%    240
+ 100%    270 (longest request)
 
 ```
 
