@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # coding=utf-8
 # date 2022-01-12 15:44:57
+# updated 2022-08-27 17:35:35
 # author calllivecn <c-all@qq.com>
 
 """
@@ -392,31 +393,19 @@ def main():
         epilog="END",
     )
 
-    # parse.add_argument("--client", action="store_true", help="使用client端")
-    # parse.add_argument("--addr", default="", help="需要连接的IP或域名")
-    # parse.add_argument("--port", default=6789, type=int, help="端口")
+    parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
+    parse.add_argument("--debug", action="store_true", help=argparse.SUPPRESS)
+
+    parse.add_argument("--addr", default="", help="需要连接的IP或域名")
+    parse.add_argument("--port", default=6789, type=int, help="端口")
+
+    parse.add_argument("--Spub", action="store", nargs="+", required=True, help="使用加密通信的对方公钥，server端可能有多个。")
+    parse.add_argument("--Spriv", action="store", required=True, help="使用加密通信的私钥。")
 
     subparsers = parse.add_subparsers(title="指令", metavar="")
     server_func =  subparsers.add_parser("server", help="启动服务端")
     client_func = subparsers.add_parser("client", help="使用client端")
-
-    # server_func.add_argument("--cmd", default=SHELL, help=f"需要使用的交互程序(default: {SHELL})")
-    server_func.add_argument("--addr", default="", help="需要连接的IP或域名")
-    server_func.add_argument("--port", default=6789, type=int, help="端口")
-
-    client_func.add_argument("--addr", default="", help="需要连接的IP或域名")
-    client_func.add_argument("--port", default=6789, type=int, help="端口")
-
-
-    client_func.add_argument("--Spriv", action="store", help="使用加密通信的私钥。")
-    client_func.add_argument("--Spub", action="store", nargs="+", help="使用加密通信的对方公钥，server端可能有多个。")
-
-    server_func.add_argument("--Spriv", action="store", help="使用加密通信的私钥。")
-    server_func.add_argument("--Spub", action="store", nargs="+", help="使用加密通信的对方公钥，server端可能有多个。")
-
-    parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
-
-    parse.add_argument("--debug", action="store_true", help=argparse.SUPPRESS)
+    server_func.add_argument("--cmd", default=SHELL, help=f"需要使用的交互程序(default: {SHELL})")
 
     server_func.set_defaults(func=server)
     
