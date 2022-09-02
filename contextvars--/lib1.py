@@ -7,7 +7,6 @@ __all__ = ("server")
 
 import contextvars
 
-
 server = contextvars.ContextVar("plugin server")
 
 
