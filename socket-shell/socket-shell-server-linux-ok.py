@@ -9,9 +9,37 @@ import pty
 import socket
 import threading
 import selectors
-from subprocess import run, Popen, PIPE, STDOUT
+from subprocess import Popen
 
-SHELL='bash -i'
+
+SHELL='bash'
+
+# 管理子进程退出的
+class Watch(threading.Thread):
+
+    def __init__(self, pty_slave):
+        super().__init__()
+
+        self.rpipe, self.wpipe = os.pipe()
+        self.pty_slave = pty_slave
+    
+    def run(self):
+        self.p = Popen(SHELL.split(), stdin=self.pty_slave, stdout=self.pty_slave, stderr=self.pty_slave, preexec_fn=os.setsid, universal_newlines=True)
+        recode = self.p.wait()
+        os.write(self.wpipe, recode.to_bytes(4, "big"))
+
+    def recode(self):
+        I = os.read(self.rpipe, 4)
+        return int.from_bytes(I, "big")
+
+
+    def fileno(self):
+        return self.rpipe
+
+    def close(self):
+        os.close(self.rpipe)
+        os.close(self.wpipe)
+
 
 def socketshell(sock):
     try:
@@ -23,19 +51,26 @@ def socketshell(sock):
         ss.register(pty_master, selectors.EVENT_READ)
         ss.register(sock, selectors.EVENT_READ)
 
-        p = Popen(SHELL.split(), stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid, universal_newlines=True)
+        # p = Popen(SHELL.split(), stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid, universal_newlines=True)
 
-        while p.poll() is None:
+        p = Watch(pty_slave)
+        p.start()
+        p_fd = p.fileno()
 
+        ss.register(p_fd, selectors.EVENT_READ)
+
+        # while p.poll() is None:
+        RUNNING=True
+        while RUNNING:
             for key, event in ss.select():
                 fd = key.fileobj
                 if fd == sock:
                     data = sock.recv(1024)
-                    print("recv:", data)
                     
                     # 在peer挂掉的情况下会出现
                     if data == b"":
                         p.communicate()
+                        RUNNING = False
                         break
                     os.write(pty_master, data)
 
@@ -44,24 +79,24 @@ def socketshell(sock):
                     if data:
                         sock.send(data)
 
-            #print("新的一轮 select()")
+                elif fd == p_fd:
+                    recode = p.recode()
+                    print("shell exit code:", recode)
+                    RUNNING = False
+                    break
+
     except Exception as e:
-        # raise e
         print(f"捕获到异常退出: {e}")
 
     finally:
+        print(f"client disconnected: {sock.getsockname()}")
         sock.close()
         ss.close()
-        print("sock exit")
+        p.close()
 
 def server():
-    listen_addr = ("0.0.0.0", 6788)
-    sock = socket.socket()
-    sock.bind(listen_addr)
-    sock.listen(5)
-
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
-    #sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, True)
+    listen_addr = ("", 6788)
+    sock = socket.create_server(listen_addr, family=socket.AF_INET6, reuse_port=True)
 
     print(sys.argv[0], "start:", listen_addr)
 

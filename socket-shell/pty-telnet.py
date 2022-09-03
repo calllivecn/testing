@@ -47,9 +47,7 @@ def client(addr, port):
     signal.signal(signal.SIGWINCH, signal_SIGWINCH_handle)
     
 
-    sock = socket.socket()
-
-    sock.connect(addr)
+    sock = socket.create_connection(server_addr)
 
     # tty 
     tty_bak = termios.tcgetattr(sys.stdin)
