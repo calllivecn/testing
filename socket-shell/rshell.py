@@ -80,6 +80,32 @@ def signal_SIGWINCH_handle(sock, sigNum, frame):
     # set_pty_size(STDOUT, *size)
     sock.write(PacketType.TTY_RESIZE, struct.pack("!HH", *size))
 
+# 管理子进程退出的
+class Watch(threading.Thread):
+
+    def __init__(self, pty_slave):
+        super().__init__()
+
+        self.rpipe, self.wpipe = os.pipe()
+        self.pty_slave = pty_slave
+    
+    def run(self):
+        self.p = Popen(SHELL.split(), stdin=self.pty_slave, stdout=self.pty_slave, stderr=self.pty_slave, preexec_fn=os.setsid, universal_newlines=True)
+        recode = self.p.wait()
+        os.write(self.wpipe, recode.to_bytes(4, "big"))
+
+    def recode(self):
+        I = os.read(self.rpipe, 4)
+        return int.from_bytes(I, "big")
+
+
+    def fileno(self):
+        return self.rpipe
+
+    def close(self):
+        os.close(self.rpipe)
+        os.close(self.wpipe)
+
 
 class PacketType(enum.IntEnum):
     """
@@ -138,6 +164,9 @@ class RecvSend:
         payload.write(data)
 
         return self.sock.send(payload.getbuffer())
+    
+    def getsockname(self):
+        return self.sock.getsockname()
 
     def fileno(self):
         return self.sock.fileno()
@@ -170,6 +199,9 @@ class CRecvSend:
 
         return self.sock.write(payload.getvalue())
 
+    def getsockname(self):
+        return self.sock.getsockname()
+
     def fileno(self):
         return self.sock.fileno()
 
@@ -190,11 +222,17 @@ def socketshell(sock):
 
         # 这两个种在linux上都可以,目前还没看出区别在哪。
         # p = Popen(SHELL.split(), stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid, universal_newlines=True, env=env)
-        p = Popen(SHELL.split(), stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid, env=env)
+        # p = Popen(SHELL.split(), stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid, env=env)
+        p = Watch(pty_slave)
+        p_fd = p.fileno()
+        ss.register(p_fd, selectors.EVENT_READ)
+        p.start()
 
-        while p.poll() is None:
-            for key, event in ss.select(0.05):
-                if key.fileobj == sock:
+        RUNNING = True
+        while RUNNING:
+            for key, event in ss.select():
+                fd = key.fileobj
+                if fd == sock:
                     typ, data = sock.read()
                     if typ == PacketType.TRANER:
                         os.write(pty_master, data)
@@ -202,7 +240,7 @@ def socketshell(sock):
                     elif typ == PacketType.EXIT:
                         # 正常退出，根本不会走到这个分支。
                         logger.debug(f"正常退出")
-                        BREAK=True
+                        RUNNING=False
                         break
 
                     elif typ == PacketType.TTY_RESIZE:
@@ -214,7 +252,7 @@ def socketshell(sock):
                         else:
                             logger.debug(f"接收到的终端大小不正常: {data}")
 
-                elif key.fileobj == pty_master:
+                elif fd == pty_master:
                     data = os.read(pty_master, 4096)
                     logger.debug(f"pty_master read: {data}")
                     if data:
@@ -223,6 +261,11 @@ def socketshell(sock):
                         # 正常退出，根本不会走到这个分支。
                         logger.debug(f"从 pty_master 读出了空字节")
 
+                elif fd == p_fd:
+                    recode =p.recode()
+                    logger.info(f"shell exit code: {recode}")
+                    RUNNING = False
+
     except Exception as e:
         # raise e
         logger.error(f"捕获到异常退出: {e}")
@@ -230,17 +273,17 @@ def socketshell(sock):
         logger.error(traceback.format_exc())
 
     finally:
+        logger.info(f"client disconnected: {sock.getsockname()}")
         sock.close()
         ss.close()
-        p.terminate()
-        logger.info("sock exit")
+        p.close()
 
 
 def server(args):
     server_addr = (args.addr, args.port)
 
     Spriv = args.Spriv 
-    Spub = tuple(args.Spub)
+    Spub = tuple(args.Spub) if args.Spub else None
 
     logger.info(f"{sys.argv[0]} listen: {server_addr}")
 
@@ -339,7 +382,7 @@ def client(args):
     addr = args.addr
     port = args.port
     Spriv = args.Spriv 
-    Spub = args.Spub[0]
+    Spub = args.Spub[0] if args.Spub else None
 
     if addr == "":
         logger.info("client 需要 server 地址")
@@ -399,8 +442,8 @@ def main():
     parse.add_argument("--addr", default="", help="需要连接的IP或域名")
     parse.add_argument("--port", default=6789, type=int, help="端口")
 
-    parse.add_argument("--Spub", action="store", nargs="+", required=True, help="使用加密通信的对方公钥，server端可能有多个。")
-    parse.add_argument("--Spriv", action="store", required=True, help="使用加密通信的私钥。")
+    parse.add_argument("--Spub", action="store", nargs="+", help="使用加密通信的对方公钥，server端可能有多个。")
+    parse.add_argument("--Spriv", action="store", help="使用加密通信的私钥。")
 
     subparsers = parse.add_subparsers(title="指令", metavar="")
     server_func =  subparsers.add_parser("server", help="启动服务端")
