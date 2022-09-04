@@ -28,7 +28,7 @@ def useproxy(url):
     req = request.Request(url, headers=headers)
 
 
-    proxy_handler = request.ProxyHandler({"http": "127.0.0.1:8080", "https": "127.0.0.1:8080"})
+    proxy_handler = request.ProxyHandler({"http": "127.0.0.1:8080", "https": "10.1.2.1:9998"})
 
     print("req.headers -->\n", req.headers)
     opener = request.build_opener(proxy_handler)

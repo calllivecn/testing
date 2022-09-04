@@ -20,8 +20,14 @@ async def main():
     task1 = asyncio.create_task(say_after(1))
     task2 = asyncio.create_task(say_after(2))
 
+    print("task1 begin...")
     await task1
+    print("task1 end...")
+
+    print("task1 begin...")
     await task2
+    print("task2 end...")
+
     print("耗时：{}s".format(round(time.time() - start)))
 
 asyncio.run(main())
