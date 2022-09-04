@@ -277,6 +277,8 @@ def socketshell(sock):
         sock.close()
         ss.close()
         p.close()
+        os.close(pty_master)
+        os.close(pty_slave)
 
 
 def server(args):
