@@ -329,8 +329,8 @@ def server(args):
         ss.register(client, selectors.EVENT_READ)
         ss.register(STDIN, selectors.EVENT_READ)
 
-        exit_flag = True
-        while exit_flag:
+        RUNNING = True
+        while RUNNING:
 
             for key, event in ss.select():
 
@@ -340,14 +340,14 @@ def server(args):
                         typ, data = client.read()
                     except ValueError:
                         traceback.print_exc()
-                        exit_flag = False
+                        RUNNING = False
                         break
 
                     if typ == PacketType.TRANER:
                         os.write(STDOUT, data)
 
                     elif typ == PacketType.EXIT:
-                        exit_flag = False
+                        RUNNING = False
                         logger.debug(f"收到{PacketType.EXIT.name}")
                         break
                     
@@ -367,7 +367,7 @@ def server(args):
                         logger.debug(f"os.read(STDIN) --> {data}")
                         client.write(PacketType.TRANER, data)
             
-        logger.debug(f"exit_flag: {exit_flag} 退出了")
+        logger.debug(f"RUNNING: {RUNNING} 退出了")
     except Exception:
         traceback.print_exc()
 
