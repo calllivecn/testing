@@ -104,13 +104,21 @@ def server():
 
     print(sys.argv[0], "start:", listen_addr)
 
-    while True:
-        client, addr = sock.accept()
-        print("client", addr)
+    try:
+        while True:
+            client, addr = sock.accept()
+            print("client", addr)
 
-        # th = threading.Thread(target=socketshell, args=(client,))
-        # 使用进程
-        th = Process(target=socketshell, args=(client,))
-        th.start()
-        client.close()
+            # th = threading.Thread(target=socketshell, args=(client,))
+            # 使用进程
+            th = Process(target=socketshell, args=(client,))
+            th.start()
+            client.close()
+    except KeyboardInterrupt:
+        pass
+
+    finally:
+        sock.close()
+
+
 server()
