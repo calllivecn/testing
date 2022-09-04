@@ -10,6 +10,7 @@ import socket
 import threading
 import selectors
 from subprocess import Popen
+from multiprocessing import Process
 
 
 SHELL='bash'
@@ -93,6 +94,9 @@ def socketshell(sock):
         sock.close()
         ss.close()
         p.close()
+        os.close(pty_master)
+        os.close(pty_slave)
+
 
 def server():
     listen_addr = ("", 6788)
@@ -104,7 +108,9 @@ def server():
         client, addr = sock.accept()
         print("client", addr)
 
-        th = threading.Thread(target=socketshell, args=(client,), daemon=True)
+        # th = threading.Thread(target=socketshell, args=(client,))
+        # 使用进程
+        th = Process(target=socketshell, args=(client,))
         th.start()
-
+        client.close()
 server()

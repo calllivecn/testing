@@ -50,7 +50,7 @@ def client(addr, port):
     sock = socket.create_connection(server_addr)
 
     # tty 
-    tty_bak = termios.tcgetattr(sys.stdin)
+    tty_bak = termios.tcgetattr(STDIN)
     tty.setraw(STDIN)
 
 
@@ -59,14 +59,14 @@ def client(addr, port):
     ss.register(sock, selectors.EVENT_READ)
     ss.register(STDIN, selectors.EVENT_READ)
 
-    exit_flag = True
-    while exit_flag:
+    RUNNING = True
+    while RUNNING:
         for key, event in ss.select():
             fd = key.fileobj
             if fd == sock:
                 data = sock.recv(1024)
                 if not data:
-                    exit_flag = False
+                    RUNNING = False
                     break
                 os.write(STDOUT, data)
             elif fd == STDIN:
@@ -75,8 +75,7 @@ def client(addr, port):
 
     ss.close()
 
-    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, tty_bak)
-    print("logout")
+    termios.tcsetattr(STDIN, termios.TCSADRAIN, tty_bak)
 
 
 if __name__ == "__main__":
