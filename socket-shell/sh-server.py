@@ -7,8 +7,11 @@
 import os
 import sys
 import pty
-import argparse
+import fcntl
+import struct
+import termios
 import asyncio
+import argparse
 
 from asyncio import (
     subprocess,
@@ -20,11 +23,40 @@ from asyncio import (
 
 from typing import (
     BinaryIO,
+    Tuple,
 )
 
 SHELL="bash"
 
 BUFSIZE = 1<<12 # 4K
+
+STDIN = sys.stdin.fileno()
+# STDIN = sys.stdin
+STDOUT = sys.stdout.fileno()
+
+def get_pty_size(fd):
+    size = fcntl.ioctl(STDIN, termios.TIOCGWINSZ, b"0000") # 占位符
+    return struct.unpack("HH", size)
+
+def set_pty_size(fd, columns, rows):
+    size = struct.pack("HH", columns, rows)
+    # 这个返回还知道是什么
+    return fcntl.ioctl(STDIN, termios.TIOCSWINSZ, size)
+
+
+# 窗口大小调整
+def signal_SIGWINCH_handle(sigNum, frame):
+    size = get_pty_size(STDOUT)
+    print(f"窗口大小改变: {size}")
+    
+    # termios.tcgetattr(sys.stdin)
+    # termios.tcsetattr(sys.stdin, termios.TCSADRAIN, tty_bak)
+
+    set_pty_size(STDOUT, *size)
+
+    print("sigwinch 执行完成")
+
+
 
 # async def waitproc(p: subprocess.Process) -> int:
 async def waitproc(pty_slave: int) -> int:
@@ -35,7 +67,7 @@ async def waitproc(pty_slave: int) -> int:
     return recode
 
 
-async def connect_read_write(pty_master):
+async def connect_read_write(pty_master) -> Tuple[StreamReader, StreamWriter]:
     fileobj = open(pty_master)
     loop = asyncio.get_running_loop()
 
