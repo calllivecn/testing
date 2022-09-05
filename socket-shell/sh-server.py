@@ -31,6 +31,7 @@ async def waitproc(pty_slave: int) -> int:
     p = await subprocess.create_subprocess_exec(SHELL, stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid)
     recode = await p.wait()
     print(f"shell wait() done, recode: {recode}")
+    os.close(pty_slave)
     return recode
 
 
@@ -49,11 +50,14 @@ async def connect_read_write(pty_master):
 
 
 async def relay(reader: StreamReader, writer: StreamWriter):
+    print(f"relay start: {reader}")
     while (data := await reader.read(BUFSIZE)) != b"":
         print(reader, data)
         writer.write(data)
         await writer.drain()
     print(f"stream close()")
+
+
 
 
 async def socketshell(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
@@ -74,25 +78,26 @@ async def socketshell(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     await p_task
     print("shell exit")
 
+    writer.close()
+    await writer.wait_closed()
 
-    # p_task.add_done_callback(lambda :print("退出"))
+    # 什么 pty_master 或者 pty_writer 不用close() ???
+    # pty_writer.close()
+    # await pty_writer.wait_closed()
 
     print("pty2sock start")
-    await pty2sock
+    pty2sock.cancel()
     print("pty2sock end")
 
     print("sock2pty start")
-    await sock2pty
+    sock2pty.cancel()
     print("sockpty end")
 
-    # results = await asyncio.gather(pty2sock, sock2pty, p_task)
+    results = await asyncio.gather(pty2sock, sock2pty, p_task, return_exceptions=True)
+    print(f"gather() --> {results}")
 
     recode = p_task.result()
-    writer.close()
-    await writer.wait_closed()
     print(f"client {addr} disconnect, recode: {recode}")
-    # pty_writer.close()
-    # await pty_writer.wait_closed()
 
 
 async def server(addr, port):
