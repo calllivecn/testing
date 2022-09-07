@@ -6,6 +6,7 @@
 
 import os
 import sys
+import tty
 import pty
 import fcntl
 import struct
@@ -47,15 +48,9 @@ def set_pty_size(fd, columns, rows):
 # 窗口大小调整
 def signal_SIGWINCH_handle(sigNum, frame):
     size = get_pty_size(STDOUT)
-    print(f"窗口大小改变: {size}")
-    
     # termios.tcgetattr(sys.stdin)
     # termios.tcsetattr(sys.stdin, termios.TCSADRAIN, tty_bak)
-
     set_pty_size(STDOUT, *size)
-
-    print("sigwinch 执行完成")
-
 
 
 # async def waitproc(p: subprocess.Process) -> int:
@@ -82,14 +77,11 @@ async def connect_read_write(pty_master) -> Tuple[StreamReader, StreamWriter]:
 
 
 async def relay(reader: StreamReader, writer: StreamWriter):
-    print(f"relay start: {reader}")
+    print(f"relay: {reader} --> {writer}")
     while (data := await reader.read(BUFSIZE)) != b"":
-        print(reader, data)
         writer.write(data)
         await writer.drain()
     print(f"stream close()")
-
-
 
 
 async def socketshell(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
@@ -114,6 +106,7 @@ async def socketshell(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     await writer.wait_closed()
 
     # 什么 pty_master 或者 pty_writer 不用close() ???
+    # 目前看应该是 connect_read_write() 自动关闭的。
     # pty_writer.close()
     # await pty_writer.wait_closed()
 
@@ -141,6 +134,30 @@ async def server(addr, port):
 
 async def client(addr, port):
     reader, writer = await asyncio.open_connection(addr, port)
+
+    tty_bak = termios.tcgetattr(STDIN)
+    tty.setraw(STDIN)
+    
+    loop = asyncio.get_running_loop()
+
+    stdiner = StreamReader()
+    protocol = StreamReaderProtocol(stdiner)
+    await loop.connect_read_pipe(lambda: protocol, sys.stdin)
+
+    w_transport, w_protocol = await loop.connect_write_pipe(streams.FlowControlMixin, sys.stdout)
+    stdouter = StreamWriter(w_transport, w_protocol, stdiner, loop)
+
+    stdin2sock = asyncio.create_task(relay(stdiner, writer))
+    sock2stdout = asyncio.create_task(relay(reader, stdouter))
+
+    await sock2stdout
+    stdin2sock.cancel()
+
+    writer.close()
+    await writer.wait_closed()
+
+    print("restore termios")
+    termios.tcsetattr(STDIN, termios.TCSADRAIN, tty_bak)
 
 
 
@@ -178,7 +195,8 @@ def main():
         # logger.setLevel(logging.DEBUG)
     
 
-    asyncio.run(args.func(args.addr, args.port), debug=True)
+    # asyncio.run(args.func(args.addr, args.port), debug=True)
+    asyncio.run(args.func(args.addr, args.port))
 
 
 if __name__ == "__main__":
