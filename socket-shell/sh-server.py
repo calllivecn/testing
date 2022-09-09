@@ -142,9 +142,9 @@ async def client(addr, port):
 
     stdiner = StreamReader()
     protocol = StreamReaderProtocol(stdiner)
-    await loop.connect_read_pipe(lambda: protocol, sys.stdin)
+    r_transport, r_protocol = await loop.connect_read_pipe(lambda: protocol, STDIN)
 
-    w_transport, w_protocol = await loop.connect_write_pipe(streams.FlowControlMixin, sys.stdout)
+    w_transport, w_protocol = await loop.connect_write_pipe(streams.FlowControlMixin, STDOUT)
     stdouter = StreamWriter(w_transport, w_protocol, stdiner, loop)
 
     stdin2sock = asyncio.create_task(relay(stdiner, writer))
