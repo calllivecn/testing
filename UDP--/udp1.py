@@ -64,14 +64,14 @@ class PacketType(enum.IntEnum):
 class Packet:
 
     def __init__(self):
-        self.version = struct.pack("!H", packet_version) # 2byte
+        self.version = struct.pack("<H", packet_version) # 2byte
         self.seq = bytes(8) # 8byte
         # self.clientid = bytes(8) # 8byte, 服务端需要看看，怎么高效的分配client id; 不需要，直接使用ip+port对的方式, 不过需要在Server, 内部标识。
         self.ctl = bytes(2) # type 字段，初始化 packet 时为0
         # ctl： 包类型，如：SYN, ACK, FIN, RESET, DAT(连接后的数据传输类型),  NACK(另端主动要 ACK)
         self.payload = bytes(2) # 2bytes, UDP的负载大小。(实际还有PMTU有关，需要实测。)
 
-        self.proto = struct.Struct("!HQQHH")
+        self.proto = struct.Struct("<HQQHH")
 
         self.MAX_PAYLOAD = 65535 - self.proto.size
 

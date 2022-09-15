@@ -25,7 +25,7 @@ class Buffer(bytearray):
     def __getitem__(self, slice: slice) -> memoryview:
         return self._mv[slice]
     
-    def getvalue(self, start: int = 0, end: None|int = None) -> bytes:
+    def getvalue(self, start: int = 0, end: Union[int, None] = None) -> bytes:
         return self._mv[start:end].tobytes()
 
 

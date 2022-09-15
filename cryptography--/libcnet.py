@@ -107,12 +107,13 @@ class Cipher:
         self.AAD = AAD
         self._n = 0
 
-        self._timestamp = time.time()
+        # self._timestamp = time.time()
+        self._timestamp = time.monotonic()
 
         self.aead = AESGCM(self.key)
 
     def timestamp_expire(self, interval: int =180) -> bool:
-        if (time.time() - self._timestamp) >= interval:
+        if (time.monotonic() - self._timestamp) >= interval:
             return True
         else:
             return False
@@ -281,7 +282,8 @@ class Transfer:
         return data
     
     def write(self, data: bytes):
-        if self.Taes.timestamp_expire(5):
+        # if self.Taes.timestamp_expire(5):
+        if self.Taes.timestamp_expire():
             pk = Packet(typ=PacketType.Rekey)
             self.Epriv = x25519.X25519PrivateKey.generate()
             shared_key = self.Epriv.exchange(self.PeerSpubkey)
