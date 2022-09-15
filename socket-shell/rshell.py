@@ -13,6 +13,7 @@ import io
 import sys
 import pty
 import tty
+import json
 import time
 import enum
 import fcntl
@@ -25,6 +26,7 @@ import argparse
 import traceback
 import threading
 import selectors
+from pathlib import Path
 from subprocess import Popen
 from logging.handlers import TimedRotatingFileHandler
 
@@ -200,7 +202,7 @@ class CRecvSend:
         return self.sock.write(payload.getvalue())
 
     def getsockname(self):
-        return self.sock.getsockname()
+        return self.sock.sock.getsockname()
 
     def fileno(self):
         return self.sock.fileno()
@@ -284,8 +286,8 @@ def socketshell(sock):
 def server(args):
     server_addr = (args.addr, args.port)
 
-    Spriv = args.Spriv 
-    Spub = tuple(args.Spub) if args.Spub else None
+    Spriv = args.keyfile["Spriv"]
+    Spub = tuple(args.keyfile["Spub"]) if args.keyfile.get("Spub") else None
 
     logger.info(f"{sys.argv[0]} listen: {server_addr}")
 
@@ -383,8 +385,8 @@ def server(args):
 def client(args):
     addr = args.addr
     port = args.port
-    Spriv = args.Spriv 
-    Spub = args.Spub[0] if args.Spub else None
+    Spriv = args.keyfile["Spriv"]
+    Spub = args.keyfile["Spub"][0] if args.keyfile["Spub"] else None
 
     if addr == "":
         logger.info("client 需要 server 地址")
@@ -431,6 +433,16 @@ def client(args):
         time.sleep(10)
 
 
+def keypair(filename: str):
+    filename = Path(filename)
+    if filename.exists():
+        with open(filename) as f:
+            j = json.load(f)
+            print(j)
+            return j
+    else:
+        argparse.ArgumentError(f"{filename} 必须是公私钥配置文件")
+
 def main():
     parse = argparse.ArgumentParser(
         usage="%(prog)s <命令> [option]",
@@ -444,8 +456,10 @@ def main():
     parse.add_argument("--addr", default="", help="需要连接的IP或域名")
     parse.add_argument("--port", default=6789, type=int, help="端口")
 
-    parse.add_argument("--Spub", action="store", nargs="+", help="使用加密通信的对方公钥，server端可能有多个。")
-    parse.add_argument("--Spriv", action="store", help="使用加密通信的私钥。")
+    # parse.add_argument("--Spub", action="store", nargs="+", help="使用加密通信的对方公钥，server端可能有多个。")
+    # parse.add_argument("--Spriv", action="store", help="使用加密通信的私钥。")
+
+    parse.add_argument("--keyfile", action="store", type=keypair, help="加密通信的公私钥。")
 
     subparsers = parse.add_subparsers(title="指令", metavar="")
     server_func =  subparsers.add_parser("server", help="启动服务端")
