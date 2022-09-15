@@ -10,8 +10,21 @@ import asyncio
 import threading
 
 
+class Frame:
+    """
+    frame type:
+    
+    """
+
+    def __init__(self):
+        self.typ = 
+        self.
+
+
 class ConnectPacket:
+
     VERSION = 0x01
+
     def __init__(self, CID, typ):
 
         self.version = self.VERSION # uint32
@@ -20,7 +33,13 @@ class ConnectPacket:
         self.number = 0 # packet number
         self.paylaod = b""
 
-        self.peer = ()
+        self.PEER = {} # {"addr:port": 
 
     def frombuf(self, buf):
         self.CID = 
+        self.typ = 
+    
+
+    def tobuf(self):
+
+
