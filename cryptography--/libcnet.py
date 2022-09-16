@@ -102,6 +102,8 @@ class NonceMaxError(NetCipherError):
 
 class Cipher:
 
+    MAX_NONCE=0xffffffffffffffffffffffff
+
     def __init__(self, key: bytes, AAD: Union[None, bytes] = None):
         self.key = key
         self.AAD = AAD
@@ -113,25 +115,26 @@ class Cipher:
         self.aead = AESGCM(self.key)
 
     def timestamp_expire(self, interval: int =180) -> bool:
-        if (time.monotonic() - self._timestamp) >= interval:
+        if (time.monotonic() - self._timestamp) >= interval or self._n > self.MAX_NONCE:
             return True
         else:
             return False
     
     @property
     def nonce(self) -> bytes:
+        data = self._n.to_bytes(12, "big")
         self._n += 1
-        return self._n.to_bytes(12, "big")
+        return data
     
     @nonce.setter
     def nonce(self, value: int):
-        if value > 0xffffffffffffffffffffffff:
+        if value > self.MAX_NONCE:
             raise NonceMaxError("None value too max")
         self._n = value
 
-    def next_nonce(self) -> int:
+    def get_nonce(self) -> int:
         """
-        当前Nonce値, 每次引用前都会自动+1。
+        当前Nonce値, 每次引用后都会自动+1。
         """
         return self._n
 
