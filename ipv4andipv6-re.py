@@ -35,7 +35,6 @@ for ip in test_ipv4_false:
         print("测试结果：错误",ip)
 
 
-exit(0)
 
 print("ipv6 test","-"*60)
 
