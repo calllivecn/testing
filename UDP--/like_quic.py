@@ -16,9 +16,9 @@ class Frame:
     
     """
 
-    def __init__(self):
-        self.typ = 
-        self.
+    def __init__(self, frame_type, stream_id):
+        self.frame_typ = frame_type
+        self.stream_id = stream_id
 
 
 class ConnectPacket:
