@@ -443,10 +443,24 @@ def keypair(filename: str):
     else:
         argparse.ArgumentError(f"{filename} 必须是公私钥配置文件")
 
+
+description=r"""
+"""
+
 def main():
     parse = argparse.ArgumentParser(
         usage="%(prog)s <命令> [option]",
-        description="反向shell连接",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="反向shell连接\n\n"
+        "key1.json:\n"
+        """
+{
+	"Spriv": "QMU540a6tp0eBvZrZ9y+MUP/EJ7YAVHTlIXEev2O8ko=",
+	"Spub": [
+		"A7rc6wXszIcl89Rwk/vXke1obnT74MEgDxUNfWiTOy0="
+	]
+}
+        """,
         epilog="END",
     )
 
