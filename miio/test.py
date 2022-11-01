@@ -23,6 +23,8 @@ Out: chuangmi.plug.m3 v1.3.8_0002 (04:CF:8C:5F:**:**) @ 192.168.1.20 - token: **
 
 """
 
+info()
+
 ############## 我是分割线 ######################
 
 from miio.chuangmi_plug  import ChuangmiPlug
@@ -33,6 +35,10 @@ x=d.status() # 给出设备的状态
 print(f"status() --> {x}")
 # x: <ChuangmiPlugStatus power=True, usb_power=None, temperature=46, load_power=None, wifi_led=None>
 # x.power = True
+
+exit(0)
+
+print(f"led: {d.led()}")
 
 if x.is_on:
     x=d.off()
