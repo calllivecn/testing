@@ -37,6 +37,8 @@ hdfs--/input/
 *.pid
 
 *.zip
+*.mp4
+*.mkv
 
 *.class
 *.jar
