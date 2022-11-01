@@ -54,7 +54,10 @@ else:
 for v in files:
     # cmd = f'python inference_realesrgan_video.py -n realesr-animevideov3 -s 3 --fp32 --suffix outx3 -i {in_} -o {out_dir}'
     #cmd = ["python", "inference_realesrgan_video.py", "-n", "realesr-animevideov3", "-s", args.scale, "--fp32", "--suffix", f"AIx{args.scale}", "-i", v, "-o", args.outdir]
-    cmd = ["ffmpeg", "-hide_banner", "-i", v, "-vcodec", "hevc_nvenc", "-acodec", "copy", args.outdir / v]
+
+    # 这样可以在转码时，解码和编码 都使用GPU
+    cmd = ["ffmpeg", "-hide_banner", "-vcodec", "h264_cuvid", "-i", v, "-vcodec", "hevc_nvenc", "-acodec", "copy", args.outdir / v]
+
     print(f"加入任务: {cmd}")
     loop.submit(video, cmd)
 
