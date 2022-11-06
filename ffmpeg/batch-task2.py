@@ -18,6 +18,7 @@ from threading import (
     Thread,
     Lock,
 )
+import traceback
 
 from typing import (
     Union,
@@ -53,7 +54,6 @@ class Task:
             raise ValueError(f"给出的命令格式不对")
 
     def run(self):
-        print("start: task.run():")
         self.start = timestamp()
         p = subprocess.Popen(self.cmd, cwd=self.cwd, env=self.env)
         self.pid = p.pid
@@ -136,8 +136,9 @@ class Executer:
         """
         同队列下，添加一个执行器(并行跑一个任务队列)。
         """
-        th = Thread(target=self.__exec)
+        th = Thread(target=self.__exec, daemon=True)
         th.start()
+        self.name = th.name
 
     def done(self):
         """
@@ -148,6 +149,7 @@ class Executer:
     def __exec(self):
         while True:
             if self._done:
+                print(f"{self.name} 执行器退出")
                 return
 
             # 当前执行器 正在执行的任务
@@ -191,7 +193,7 @@ class Manager:
     def done_executer(self, seq: int):
         l = len(self.ths)
         if 0 <= seq <= l - 1:
-            t = self.ths[seq]
+            t = self.ths.pop(seq)
             t.done()
 
     def status(self):
@@ -246,8 +248,12 @@ def server(args):
 
     while True:
         client, addr = sock.accept()
-        # print(addr)
         data =  client.recv(8192)
+        if not data:
+            print("peer close()")
+            client.close()
+            continue
+
         proto = pickle.loads(data)
         # print("type:", proto[0])
 
@@ -277,9 +283,13 @@ def server(args):
 
         elif proto[0] == CmdType.Move:
             i, n = proto[1], proto[2]
-            m.move(i, n)
-            
-            reply = pickle.dumps((CmdType.ReOK,))
+            try:
+                m.move(i, n)
+            except IndexError as e:
+                reply = pickle.dumps((CmdType.ReERR,))
+                traceback.print_exc()
+            else: 
+                reply = pickle.dumps((CmdType.ReOK,))
         
         elif proto[0] == CmdType.Done:
             i = proto[1]
@@ -295,6 +305,8 @@ def server(args):
 
         client.send(reply)
         client.close()
+    
+    sock.close()
 
 
 
@@ -312,16 +324,16 @@ def client(args):
     elif args.task:
         cmd = pickle.dumps((CmdType.Task, Task(args.taskcmd, cwd)))
 
-    elif args.insert:
+    elif args.insert is not None:
         cmd = pickle.dumps((CmdType.Insert, args.insert, Task(args.taskcmd, cwd)))
 
-    elif args.remove:
+    elif args.remove is not None:
         cmd = pickle.dumps((CmdType.Remove, args.remove))
 
     elif args.move:
-        cmd = pickle.dumps((CmdType.Move, args.taskcmd[0], args.taskcmd[1]))
+        cmd = pickle.dumps((CmdType.Move, int(args.taskcmd[0]), int(args.taskcmd[1])))
     
-    elif args.done:
+    elif args.done is not None:
         cmd = pickle.dumps((CmdType.Done, args.done))
 
     elif args.add:
@@ -342,7 +354,7 @@ def client(args):
         recode = 0
 
     elif reply[0] == CmdType.ReERR:
-        print("有什么出错了")
+        print("有什么出错了, 查看服务端日志。")
         recode = 1
 
     elif reply[0] == CmdType.Result:
@@ -393,7 +405,7 @@ def main():
 
     if args.parse:
         print(args)
-        parse.print_help()
+        # parse.print_help()
         sys.exit(0)
 
 
