@@ -39,7 +39,7 @@ def infile(f):
 
 class Task:
 
-    def __init__(self, cmd: Union[str, list[str]], cwd=None, env=None):
+    def __init__(self, cmd: Union[str, List[str]], cwd=None, env=None):
         self.cwd = cwd
         self.env = env
 
