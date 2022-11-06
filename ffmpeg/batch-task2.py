@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 
+import io
 import os
 import sys
 import time
@@ -303,7 +304,8 @@ def server(args):
 
             reply = pickle.dumps((CmdType.ReOK,))
 
-        client.send(reply)
+        # client.send(reply)
+        client.sendall(reply)
         client.close()
     
     sock.close()
@@ -346,8 +348,12 @@ def client(args):
     sock = socket.create_connection((host, port))
 
     sock.send(cmd)
-    data = sock.recv(8192)
-    reply = pickle.loads(data)
+
+    buf = io.BytesIO()
+    while (data := sock.recv(8192)) != b"":
+        buf.write(data)
+
+    reply = pickle.loads(buf.getvalue())
     # print("reply:", reply)
 
     if reply[0] == CmdType.ReOK:
