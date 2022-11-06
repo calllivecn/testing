@@ -53,16 +53,16 @@ class Task:
             raise ValueError(f"给出的命令格式不对")
 
     def run(self):
+        print("start: task.run():")
         self.start = timestamp()
-        p = subprocess.Popen(self.cmd, self.cwd, self.env)
+        p = subprocess.Popen(self.cmd, cwd=self.cwd, env=self.env)
         self.pid = p.pid
-        while (recode := p.poll()) is not None:
+        while (recode := p.poll()) is None:
 
             if self._exit:
                 p.terminate()
                 print(f"中止执行:\n{self}")
                 break
-
             time.sleep(1)
 
         self.end = timestamp()
@@ -96,7 +96,7 @@ class Q(List):
         self._empty_full_lock = Lock().acquire()
 
     def put(self, item):
-        print("Q put():", item)
+        # print("Q put():", item)
         with self._lock:
             self.append(item)
     
@@ -129,6 +129,7 @@ class Executer:
         self.q = queue
         self._done = False
 
+        self.running = False
         self.add()
 
     def add(self):
@@ -155,12 +156,16 @@ class Executer:
             print("="*40)
             print(f"开始时间: {timestamp()}")
             print(self.task)
+            print("="*40)
 
+            self.running = True
             self.task.run()
+            self.running = False
 
             print("="*40)
             print(f"开始时间: {self.task.start}, 结束时间: {self.task.end}")
             print(self.task)
+            print("="*40)
 
 
 class Manager:
@@ -179,8 +184,9 @@ class Manager:
     def add_task(self, task: Task):
         self.q.put(task)
 
-    def add_executer(self):
-        self.ths.append(Executer(self.q))
+    def add_executer(self, i: int):
+        for _ in range(i):
+            self.ths.append(Executer(self.q))
 
     def done_executer(self, seq: int):
         l = len(self.ths)
@@ -190,13 +196,16 @@ class Manager:
 
     def status(self):
         buf = []
-        buf.append(f"执行器编号:")
-        for i, _ in enumerate(self.ths):
-            buf.append(f"{i}, ")
+        buf.append(f"执行器(总数: {len(self.ths)}):")
+        for i, th in enumerate(self.ths):
+            s = f"执行中(pid: {th.task.pid}) -- CMD: {th.task.cmd}" if th.running else "等待中"
+            buf.append(f"编号:{i}: {s}")
         
-        buf.append(f"任务队列:")
-        for i, task in self.q:
-            buf.append(f"{i}: {str(task)}")
+        buf.append(f"任务队列(总数: {len(self.q)}):")
+        for i, task in enumerate(self.q):
+            s = "="*10
+            buf.append(f"{s} 任务号:{i} {s}\n{str(task)}")
+
         return "\n".join(buf)
 
     def insert(self, i: int, task: Task):
@@ -229,16 +238,18 @@ def server(args):
     host = args.host
     port = args.port
 
+    print(f"启动执行管理器: {host}:{port}")
+
     m = Manager()
 
     sock = socket.create_server((host, port), family=socket.AF_INET6, dualstack_ipv6=True)
 
     while True:
         client, addr = sock.accept()
-        print(addr)
+        # print(addr)
         data =  client.recv(8192)
         proto = pickle.loads(data)
-        print("type:", proto[0])
+        # print("type:", proto[0])
 
         if proto[0] == CmdType.Status:
             data = m.status()
@@ -246,7 +257,7 @@ def server(args):
         
         elif proto[0] == CmdType.Task:
             task = proto[1]
-            print(f"添加任务：{task.cmd}")
+            # print(f"添加任务：{task.cmd}")
             m.add_task(task)
 
             reply = pickle.dumps((CmdType.ReOK,))
@@ -277,7 +288,8 @@ def server(args):
             reply = pickle.dumps((CmdType.ReOK,))
 
         elif proto[0] == CmdType.ADD:
-            m.add_executer()
+            i = proto[1]
+            m.add_executer(i)
 
             reply = pickle.dumps((CmdType.ReOK,))
 
@@ -316,7 +328,7 @@ def client(args):
         cmd = pickle.dumps((CmdType.ADD, args.add))
     
     else:
-        cmd = pickle.dumps((CmdType.Task, Task(args.taskcmd)))
+        cmd = pickle.dumps((CmdType.Task, Task(args.taskcmd, cwd)))
 
 
     sock = socket.create_connection((host, port))
@@ -334,8 +346,9 @@ def client(args):
         recode = 1
 
     elif reply[0] == CmdType.Result:
-        from pprint import pprint
-        pprint(reply[1])
+        # from pprint import pprint
+        # pprint(reply[1])
+        print(reply[1])
         recode = 0
 
     else:
@@ -358,7 +371,7 @@ def main():
 
     c = parse.add_argument_group(title="client 参数")
     group = c.add_mutually_exclusive_group()
-    group.add_argument("--add-executer", dest="add", type=int, default=1, help="添加一个并行执行器")
+    group.add_argument("--add-executer", dest="add", type=int, help="添加一个并行执行器")
     group.add_argument("--done-executer", dest="done", type=int, help="指定一个执行器，本次执行完后退出。(减少一个并行执行)")
 
     c.add_argument("--task", action="store_true", help="任务(默认选项)")
