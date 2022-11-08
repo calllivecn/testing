@@ -44,15 +44,16 @@ def check_jpn(streams):
 
 def main(f):
     p = Path(f)
-    print("="*40)
     j = ffprobe(p)
+    print("-"*40)
     # pprint.pprint(j)
     index = check_jpn(j["streams"])
     if index != 2:
         print(f"{p.name} -- jpn音轨不是:2, 是: {index}")
-    else:
+    elif index is None:
         print(f"{p.name} -- 没有找到音轨类型.")
-    print()
+
+    print("="*20, "我是分割线", "="*20)
 
 
 if __name__ == "__main__":
