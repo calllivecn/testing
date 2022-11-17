@@ -384,8 +384,8 @@ def main():
 
     option = parse.add_argument_group(title="通用参数")
     option.add_argument("--server", action="store_true", help="启动server端")
-    option.add_argument("--host", default="::1", help="默认地址(server: '::', or client: '::1')")
-    option.add_argument("--port", type=int, default=1122, help="server 地址(default: 1122)")
+    option.add_argument("--host", default="::1", help="默认地址(server: '::', or client: '::1'， 如果有BATCH_TASK_HOST环境变量优先使用)")
+    option.add_argument("--port", type=int, default=1122, help="server 地址(default: 1122，如果有BATCH_TASK_PORT环境变量优先使用)")
 
     c = parse.add_argument_group(title="client 参数")
     group = c.add_mutually_exclusive_group()
@@ -403,10 +403,6 @@ def main():
 
     parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
 
-    #group = parse.add_mutually_exclusive_group()
-    #group.add_argument("-i", "--infile", type=Path, help="从文件读取输入，一行一个文件。")
-    #group.add_argument("files", nargs="*", help="输入的 *.mp4")
-
     args = parse.parse_args()
 
     if args.parse:
@@ -414,11 +410,18 @@ def main():
         # parse.print_help()
         sys.exit(0)
 
+    ENV_HOST = os.environ.get("BATCH_TASK_HOST")
+    ENV_PORT = os.environ.get("BATCH_TASK_PORT")
 
     if args.server:
-        args.host = ""
+        args.host = ENV_HOST if ENV_HOST else "::1"
+        args.port = int(ENV_PORT) if ENV_PORT else args.port
+
         server(args)
     
+    if ENV_PORT:
+        args.port = int(ENV_PORT)
+
     client(args)
 
 
