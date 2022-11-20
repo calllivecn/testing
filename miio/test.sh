@@ -6,4 +6,8 @@
 # miiocli -d -o json_pretty chuangmiplug --ip $MIROBO_IP --token $MIROBO_TOKEN status
 
 # on: 开，off: 关
-miiocli -d -o json_pretty chuangmiplug --ip $MIROBO_IP --token $MIROBO_TOKEN off
+if [ "$1"x = x ];then
+	miiocli chuangmiplug --ip $MIROBO_IP --token $MIROBO_TOKEN status
+else
+	miiocli chuangmiplug --ip $MIROBO_IP --token $MIROBO_TOKEN "$1"
+fi

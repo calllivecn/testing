@@ -1,5 +1,6 @@
+# 收集的 ffmpeg 一些用法
 
-# 1 每个轨道分别指定 titile
+- 1 每个轨道分别指定 titile 分别修改音轨-字幕轨的
 
 ffmpeg -i 001.mkv -i /tmp/zx-2.ass -map 0:v -vcodec copy -metadata:g title="第001集" -map 0:a:1 -acodec copy -map 1:s,0:s -scodec copy -metadata:s:a:0 title="日语原版" -metadata:s:s:0 title="简体中文" 001-4.mkv
 
@@ -11,4 +12,20 @@ ffmpeg -i 001.mkv -i /tmp/zx-2.ass -map 0:v -vcodec copy -metadata:g title="第0
 
 # 参考
 man ffmpeg /-map_metadata
+
+
+
+- 2 关键帧无损视频分割剪切 与 合并
+ffmpeg -i "In.mp4" -f segment -segment_times 00:00:06.165,00:00:14.293 -c copy -map 0 "Out_%04d.mp4"
+
+ffmpeg -i "In.mp4" -f segment -segment_time 00:00:05.000 -c copy -map 0 "Out_%04d.mp4"
+
+## 合并 
+ffmpeg -f concat -i list.txt -c copy Out.mp4
+
+list.txt:
+file '00.mp4'
+file '01.mp4'
+file '02.mp4'	
+
 
