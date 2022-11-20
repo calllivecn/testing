@@ -16,8 +16,11 @@ man ffmpeg /-map_metadata
 
 
 - 2 关键帧无损视频分割剪切 与 合并
+
+## 手动选择每个分割的时间点
 ffmpeg -i "In.mp4" -f segment -segment_times 00:00:06.165,00:00:14.293 -c copy -map 0 "Out_%04d.mp4"
 
+## 按时间段分割
 ffmpeg -i "In.mp4" -f segment -segment_time 00:00:05.000 -c copy -map 0 "Out_%04d.mp4"
 
 ## 合并 
