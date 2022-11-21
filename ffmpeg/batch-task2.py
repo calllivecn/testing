@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# coding=utf-8
+# date 2022-11-21 20:39:09
+# author calllivecn <c-all@qq.com>
 
 
 import io
@@ -37,6 +40,9 @@ def infile(f):
 
     return [ l.rstrip("\n") for l in tmp ]
 
+BIG_SPLIT = "="*10
+SMALL_SPLIT = "-"*10
+BIG2_SPLIT = BIG_SPLIT*2
 
 class Task:
 
@@ -70,15 +76,22 @@ class Task:
         self.recode = recode
         return self.recode
 
-    def kill(self):
+    def done(self):
+        """
+        当前任务执行完后退出。
+        """
         self._exit = True
 
     def __str__(self):
         s=[]
-        s.append(f"env: {self.env}")
-        s.append(f"cwd: {self.cwd}")
+        if self.env is not None:
+            s.append(f"env: {self.env}")
+
+        s.append(f"CWD: {self.cwd}")
+
         if hasattr(self, "pid"):
             s.append(f"PID: {self.pid}")
+
         s.append(f"CMD: {self.cmd}")
         if hasattr(self, "recode"):
             s.append(f"recode: {self.recode}")
@@ -156,19 +169,19 @@ class Executer:
             # 当前执行器 正在执行的任务
             self.task = self.q.get()
 
-            print("="*40)
+            print(BIG2_SPLIT)
             print(f"开始时间: {timestamp()}")
             print(self.task)
-            print("="*40)
+            print(BIG2_SPLIT)
 
             self.running = True
             self.task.run()
             self.running = False
 
-            print("="*40)
+            print(BIG2_SPLIT)
             print(f"开始时间: {self.task.start}, 结束时间: {self.task.end}")
             print(self.task)
-            print("="*40)
+            print(BIG2_SPLIT)
 
 
 class Manager:
@@ -199,11 +212,21 @@ class Manager:
 
     def status(self):
         buf = []
-        buf.append(f"执行器(总数: {len(self.ths)}):")
+        buf.append(f"{BIG_SPLIT} 执行器(总数: {len(self.ths)}) {BIG_SPLIT}")
         for i, th in enumerate(self.ths):
-            s = f"执行中(pid: {th.task.pid}) -- CMD: {th.task.cmd}" if th.running else "等待中"
-            buf.append(f"编号:{i}: {s}")
+            buf.append(f"{SMALL_SPLIT} 执行器编号:{i} {SMALL_SPLIT}")
+            if th.running:
+                if th.task.env is not None:
+                    buf.append(f"ENV: {th.task.env}")
+                buf.append(f"执行中(pid: {th.task.pid})")
+                buf.append(f"CMD: {th.task.cmd}")
+            else:
+                buf.append("等待中")
+
+        return "\n".join(buf)
         
+    def list(self):
+        buf = []
         buf.append(f"任务队列(总数: {len(self.q)}):")
         for i, task in enumerate(self.q):
             s = "="*10
@@ -225,6 +248,7 @@ class CmdType(enum.IntEnum):
     
     Status = 0x01
     Task = enum.auto()
+    List = enum.auto()
     Insert = enum.auto()
     Remove = enum.auto()
     Move = enum.auto()
@@ -260,6 +284,11 @@ def server(args):
 
         if proto[0] == CmdType.Status:
             data = m.status()
+            data = f"{'+'*10} 服务port: {port} {'+'*10}\n" + data
+            reply = pickle.dumps((CmdType.Result, data))
+        
+        elif proto[0] == CmdType.List:
+            data = m.list()
             reply = pickle.dumps((CmdType.Result, data))
         
         elif proto[0] == CmdType.Task:
@@ -323,6 +352,9 @@ def client(args):
     if args.status:
         cmd = pickle.dumps((CmdType.Status,))
     
+    elif args.list:
+        cmd = pickle.dumps((CmdType.List,))
+    
     elif args.task:
         cmd = pickle.dumps((CmdType.Task, Task(args.taskcmd, cwd)))
 
@@ -366,7 +398,10 @@ def client(args):
     elif reply[0] == CmdType.Result:
         # from pprint import pprint
         # pprint(reply[1])
-        print(reply[1])
+        try:
+            print(reply[1])
+        except BrokenPipeError:
+            pass
         recode = 0
 
     else:
@@ -395,6 +430,7 @@ def main():
     c.add_argument("--task", action="store_true", help="任务(默认选项)")
 
     group.add_argument("--status", action="store_true", help="查看状态")
+    group.add_argument("--list", action="store_true", help="查看队列")
     group.add_argument("--insert", type=int, help="在队列指定位置插入新任务")
     group.add_argument("--remove", type=int, help="删除队列指定位置任务")
     group.add_argument("--move", action="store_true", help="删除队列指定位置任务")
