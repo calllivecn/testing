@@ -9,13 +9,12 @@ import os
 import sys
 import time
 import enum
-import glob
 import shlex
 import pickle
+import signal
 import socket
 import argparse
 import subprocess
-from pathlib import Path
 from datetime import datetime
 
 from threading import (
@@ -28,6 +27,7 @@ from typing import (
     Union,
     List,
 )
+
 
 def timestamp():
     t = datetime.now()
@@ -50,8 +50,6 @@ class Task:
         self.cwd = cwd
         self.env = env
 
-        self._exit = False
-
         if isinstance(cmd, str):
             self.cmd = shlex.split(cmd)
 
@@ -65,22 +63,11 @@ class Task:
         p = subprocess.Popen(self.cmd, cwd=self.cwd, env=self.env)
         self.pid = p.pid
         while (recode := p.poll()) is None:
-
-            if self._exit:
-                p.terminate()
-                print(f"中止执行:\n{self}")
-                break
             time.sleep(1)
-
         self.end = timestamp()
         self.recode = recode
         return self.recode
 
-    def done(self):
-        """
-        当前任务执行完后退出。
-        """
-        self._exit = True
 
     def __str__(self):
         s=[]
@@ -141,9 +128,11 @@ class Executer:
     """
     def __init__(self, queue: Q):
         self.q = queue
-        self._done = False
+        self.done_exit = False
 
         self.running = False
+        self.pause_flag = False
+
         self.add()
 
     def add(self):
@@ -158,12 +147,23 @@ class Executer:
         """
         当前执行，执行完后退出。
         """
-        self._done = True
+        self.done_exit = True
+    
+    def kill(self, sig: signal.signal):
+        self.done_exit = True
+        os.kill(self.task.pid, sig)
+
+    def pause(self):
+        self.pause_flag = True
+        os.kill(self.task.pid, signal.SIGSTOP)
+
+    def recover(self):
+        os.kill(self.task.pid, signal.SIGCONT)
 
     def __exec(self):
         while True:
-            if self._done:
-                print(f"{self.name} 执行器退出")
+            if self.done_exit:
+                print(f"{self.name} 执行完退出")
                 return
 
             # 当前执行器 正在执行的任务
@@ -207,8 +207,26 @@ class Manager:
     def done_executer(self, seq: int):
         l = len(self.ths)
         if 0 <= seq <= l - 1:
-            t = self.ths.pop(seq)
+            t = self.ths[seq]
             t.done()
+    
+    def kill(self, seq: int, sig: signal.signal = signal.SIGTERM):
+        l = len(self.ths)
+        if 0 <= seq <= l - 1:
+            th = self.ths.pop(seq)
+            th.kill(sig)
+
+    def pause(self, seq: int):
+        l = len(self.ths)
+        if 0 <= seq <= l - 1:
+            th = self.ths[seq]
+            th.pause()
+
+    def recover(self, seq: int):
+        l = len(self.ths)
+        if 0 <= seq <= l - 1:
+            th = self.ths.pop(seq)
+            th.recover()
 
     def status(self):
         buf = []
@@ -216,9 +234,20 @@ class Manager:
         for i, th in enumerate(self.ths):
             buf.append(f"{SMALL_SPLIT} 执行器编号:{i} {SMALL_SPLIT}")
             if th.running:
+
                 if th.task.env is not None:
                     buf.append(f"ENV: {th.task.env}")
-                buf.append(f"执行中(pid: {th.task.pid})")
+
+                run = f"pid: {th.task.pid} -- 执行中"
+                if th.done_exit:
+                    t = self.ths.pop(i)
+                    run += f" -- 标记: 执行完后退出"
+
+                if th.pause_flag:
+                    run += f" -- 暂停状态(--recover恢复)"
+
+                buf.append(run)
+
                 buf.append(f"CMD: {th.task.cmd}")
             else:
                 buf.append("等待中")
@@ -253,7 +282,11 @@ class CmdType(enum.IntEnum):
     Remove = enum.auto()
     Move = enum.auto()
     Done = enum.auto()
+
     ADD = enum.auto()
+    Kill = enum.auto()
+    Pause = enum.auto()
+    Recover = enum.auto()
 
     # 回复client的type
     ReOK = enum.auto()
@@ -327,6 +360,24 @@ def server(args):
 
             reply = pickle.dumps((CmdType.ReOK,))
 
+        elif proto[0] == CmdType.Kill:
+            i = proto[1]
+            m.kill(i)
+
+            reply = pickle.dumps((CmdType.ReOK,))
+
+        elif proto[0] == CmdType.Pause:
+            i = proto[1]
+            m.pause(i)
+
+            reply = pickle.dumps((CmdType.ReOK,))
+
+        elif proto[0] == CmdType.Recover:
+            i = proto[1]
+            m.recover(i)
+
+            reply = pickle.dumps((CmdType.ReOK,))
+
         elif proto[0] == CmdType.ADD:
             i = proto[1]
             m.add_executer(i)
@@ -373,6 +424,15 @@ def client(args):
     elif args.add:
         cmd = pickle.dumps((CmdType.ADD, args.add))
     
+    elif args.kill:
+        cmd = pickle.dumps((CmdType.Kill, args.kill))
+    
+    elif args.pause:
+        cmd = pickle.dumps((CmdType.Pause, args.pause))
+    
+    elif args.recover:
+        cmd = pickle.dumps((CmdType.Recover, args.recover))
+    
     else:
         cmd = pickle.dumps((CmdType.Task, Task(args.taskcmd, cwd)))
 
@@ -396,12 +456,12 @@ def client(args):
         recode = 1
 
     elif reply[0] == CmdType.Result:
-        # from pprint import pprint
-        # pprint(reply[1])
+        # print(reply[1])
         try:
-            print(reply[1])
+            print(reply[1], flush=True)
         except BrokenPipeError:
             pass
+
         recode = 0
 
     else:
@@ -426,6 +486,9 @@ def main():
     group = c.add_mutually_exclusive_group()
     group.add_argument("--add-executer", dest="add", type=int, help="添加一个并行执行器")
     group.add_argument("--done-executer", dest="done", type=int, help="指定一个执行器，本次执行完后退出。(减少一个并行执行)")
+    group.add_argument("--kill", type=int, help="kill一个执行器(减少一个并行执行)")
+    group.add_argument("--pause", type=int, help="暂停一个正在的执行器")
+    group.add_argument("--recover", type=int, help="恢复一个正在的执行器")
 
     c.add_argument("--task", action="store_true", help="任务(默认选项)")
 
@@ -453,7 +516,12 @@ def main():
         args.host = ENV_HOST if ENV_HOST else "::1"
         args.port = int(ENV_PORT) if ENV_PORT else args.port
 
-        server(args)
+        try:
+            server(args)
+        except KeyboardInterrupt:
+            pass
+
+        sys.exit(0)
     
     if ENV_PORT:
         args.port = int(ENV_PORT)
