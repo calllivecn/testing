@@ -10,8 +10,13 @@ from pprint import pprint
 import ffmpeg
 
 
-
 IN = Path(sys.argv[1])
 
-probe = ffmpeg.probe(IN)
-pprint(probe["streams"])
+# mp4 duration
+if IN.suffix.lower() == ".mp4":
+    probe = ffmpeg.probe(IN)
+    pprint(probe["streams"])
+else:
+    probe = ffmpeg.probe(IN)
+    pprint(probe)
+
