@@ -447,7 +447,7 @@ def client(args):
         cmd = pickle.dumps((CmdType.Remove, args.remove))
 
     elif args.move:
-        cmd = pickle.dumps((CmdType.Move, int(args.taskcmd[0]), int(args.taskcmd[1])))
+        cmd = pickle.dumps((CmdType.Move, int(args.move[0]), int(args.move[1])))
     
     elif args.done is not None:
         cmd = pickle.dumps((CmdType.Done, args.done))
