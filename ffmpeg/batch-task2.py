@@ -40,8 +40,8 @@ def infile(f):
 
     return [ l.rstrip("\n") for l in tmp ]
 
-BIG_SPLIT = "="*10
-SMALL_SPLIT = "-"*10
+BIG_SPLIT = "="*20
+SMALL_SPLIT = "-"*20
 BIG2_SPLIT = BIG_SPLIT*2
 
 class Task:
@@ -74,14 +74,15 @@ class Task:
         if self.env is not None:
             s.append(f"env: {self.env}")
 
-        s.append(f"CWD: {self.cwd}")
-
         if hasattr(self, "pid"):
             s.append(f"PID: {self.pid}")
 
+        s.append(f"CWD: {self.cwd}")
+
         s.append(f"CMD: {self.cmd}")
+
         if hasattr(self, "recode"):
-            s.append(f"recode: {self.recode}")
+            s.append(f"RECODE: {self.recode}")
         
         return "\n".join(s)
 
@@ -122,6 +123,12 @@ class Q(List):
             self.pop(i)
 
 
+class Status(enum.IntEnum):
+    Running =  0x01
+    Wait = enum.auto()
+    Pause = enum.auto()
+
+
 class Executer:
     """
     先只支持一个 执行器吧
@@ -130,8 +137,7 @@ class Executer:
         self.q = queue
         self.done_exit = False
 
-        self.running = False
-        self.pause_flag = False
+        self.status = Status.Wait
 
         self.add()
 
@@ -141,7 +147,6 @@ class Executer:
         """
         th = Thread(target=self.__exec, daemon=True)
         th.start()
-        self.name = th.name
 
     def done(self):
         """
@@ -151,19 +156,31 @@ class Executer:
     
     def kill(self, sig: signal.signal):
         self.done_exit = True
-        os.kill(self.task.pid, sig)
+        if hasattr(self.task, "pid"):
+            if self.status == Status.Running or self.status == Status.Pause:
+                os.kill(self.task.pid, sig)
+        else:
+            print(f"task {self.task} 没有运行")
 
     def pause(self):
-        self.pause_flag = True
-        os.kill(self.task.pid, signal.SIGSTOP)
+        if self.status == Status.Running:
+            os.kill(self.task.pid, signal.SIGSTOP)
+            self.status = Status.Pause
+            return True
+        else:
+            return "没有任务在执行."
 
     def recover(self):
-        os.kill(self.task.pid, signal.SIGCONT)
+        if self.status == Status.Pause:
+            os.kill(self.task.pid, signal.SIGCONT)
+            self.status = Status.Running
+        else:
+            print(f"当前执行器没有暂停")
 
     def __exec(self):
         while True:
             if self.done_exit:
-                print(f"{self.name} 执行完退出")
+                # print(f"{self.th.name} 执行完退出")
                 return
 
             # 当前执行器 正在执行的任务
@@ -174,9 +191,9 @@ class Executer:
             print(self.task)
             print(BIG2_SPLIT)
 
-            self.running = True
+            self.status = Status.Running
             self.task.run()
-            self.running = False
+            self.status = Status.Wait
 
             print(BIG2_SPLIT)
             print(f"开始时间: {self.task.start}, 结束时间: {self.task.end}")
@@ -195,7 +212,7 @@ class Manager:
 
         # 执行器s
         self.ths = []
-        self.ths.append(Executer(self.q))
+        self.add_executer(1)
 
     def add_task(self, task: Task):
         self.q.put(task)
@@ -220,37 +237,47 @@ class Manager:
         l = len(self.ths)
         if 0 <= seq <= l - 1:
             th = self.ths[seq]
-            th.pause()
+            return th.pause()
 
     def recover(self, seq: int):
         l = len(self.ths)
         if 0 <= seq <= l - 1:
-            th = self.ths.pop(seq)
+            th = self.ths[seq]
             th.recover()
 
     def status(self):
         buf = []
         buf.append(f"{BIG_SPLIT} 执行器(总数: {len(self.ths)}) {BIG_SPLIT}")
         for i, th in enumerate(self.ths):
-            buf.append(f"{SMALL_SPLIT} 执行器编号:{i} {SMALL_SPLIT}")
-            if th.running:
 
-                if th.task.env is not None:
-                    buf.append(f"ENV: {th.task.env}")
+            title = f"{SMALL_SPLIT} 编号:{i} "
 
-                run = f"pid: {th.task.pid} -- 执行中"
+            if th.status == Status.Running or th.status == Status.Pause:
+
+                if th.status == Status.Running:
+                    title += f" -- 执行中"
+
+                if th.status == Status.Pause:
+                    title += f" -- 暂停状态(--recover恢复)"
+
                 if th.done_exit:
                     t = self.ths.pop(i)
-                    run += f" -- 标记: 执行完后退出"
+                    title += f" -- 标记: 执行完后退出"
 
-                if th.pause_flag:
-                    run += f" -- 暂停状态(--recover恢复)"
+                title += SMALL_SPLIT
+                buf.append(title)
 
-                buf.append(run)
+                # buf.append(f"CMD: {th.task.cmd}")
+                buf.append(f"{th.task}")
 
-                buf.append(f"CMD: {th.task.cmd}")
-            else:
+            elif th.status == Status.Wait:
+
+                title += SMALL_SPLIT
+                buf.append(title)
                 buf.append("等待中")
+
+            else:
+                print(f"执行器处理未知状态: {th.status}")
 
         return "\n".join(buf)
         
@@ -258,7 +285,7 @@ class Manager:
         buf = []
         buf.append(f"任务队列(总数: {len(self.q)}):")
         for i, task in enumerate(self.q):
-            s = "="*10
+            s = BIG_SPLIT
             buf.append(f"{s} 任务号:{i} {s}\n{str(task)}")
 
         return "\n".join(buf)
@@ -312,12 +339,18 @@ def server(args):
             client.close()
             continue
 
-        proto = pickle.loads(data)
-        # print("type:", proto[0])
+        try:
+            proto = pickle.loads(data)
+            # print("type:", proto[0])
+        except Exception:
+            print(f"接收客户端数据异常")
+            traceback.print_exc()
+            continue
+
 
         if proto[0] == CmdType.Status:
             data = m.status()
-            data = f"{'+'*10} 服务port: {port} {'+'*10}\n" + data
+            data = f"{'+'*20} 服务port: {port} {'+'*20}\n" + data
             reply = pickle.dumps((CmdType.Result, data))
         
         elif proto[0] == CmdType.List:
@@ -368,9 +401,10 @@ def server(args):
 
         elif proto[0] == CmdType.Pause:
             i = proto[1]
-            m.pause(i)
+            result = m.pause(i)
+            # print(f"暂停任务：{i}")
 
-            reply = pickle.dumps((CmdType.ReOK,))
+            reply = pickle.dumps((CmdType.ReOK, result))
 
         elif proto[0] == CmdType.Recover:
             i = proto[1]
@@ -406,9 +440,6 @@ def client(args):
     elif args.list:
         cmd = pickle.dumps((CmdType.List,))
     
-    elif args.task:
-        cmd = pickle.dumps((CmdType.Task, Task(args.taskcmd, cwd)))
-
     elif args.insert is not None:
         cmd = pickle.dumps((CmdType.Insert, args.insert, Task(args.taskcmd, cwd)))
 
@@ -424,15 +455,18 @@ def client(args):
     elif args.add:
         cmd = pickle.dumps((CmdType.ADD, args.add))
     
-    elif args.kill:
+    elif args.kill is not None:
         cmd = pickle.dumps((CmdType.Kill, args.kill))
     
-    elif args.pause:
+    elif args.pause is not None:
         cmd = pickle.dumps((CmdType.Pause, args.pause))
     
-    elif args.recover:
+    elif args.recover is not None:
         cmd = pickle.dumps((CmdType.Recover, args.recover))
     
+    elif args.task:
+        # 默认选项
+        cmd = pickle.dumps((CmdType.Task, Task(args.taskcmd, cwd)))
     else:
         cmd = pickle.dumps((CmdType.Task, Task(args.taskcmd, cwd)))
 
@@ -440,13 +474,16 @@ def client(args):
     sock = socket.create_connection((host, port))
 
     sock.send(cmd)
+    # print(f"指令：{pickle.loads(cmd)}")
 
     buf = io.BytesIO()
     while (data := sock.recv(8192)) != b"":
         buf.write(data)
 
-    reply = pickle.loads(buf.getvalue())
-    # print("reply:", reply)
+    try:
+        reply = pickle.loads(buf.getvalue())
+    except EOFError:
+        reply = (CmdType.ReERR,)
 
     if reply[0] == CmdType.ReOK:
         recode = 0
@@ -484,19 +521,19 @@ def main():
 
     c = parse.add_argument_group(title="client 参数")
     group = c.add_mutually_exclusive_group()
-    group.add_argument("--add-executer", dest="add", type=int, help="添加一个并行执行器")
-    group.add_argument("--done-executer", dest="done", type=int, help="指定一个执行器，本次执行完后退出。(减少一个并行执行)")
-    group.add_argument("--kill", type=int, help="kill一个执行器(减少一个并行执行)")
-    group.add_argument("--pause", type=int, help="暂停一个正在的执行器")
-    group.add_argument("--recover", type=int, help="恢复一个正在的执行器")
+    group.add_argument("--add-executer", dest="add", type=int, metavar="number", help="添加一个并行执行器")
+    group.add_argument("--done-executer", dest="done", type=int, metavar="number", help="指定一个执行器，本次执行完后退出。(减少一个并行执行)")
+    group.add_argument("--kill", type=int, metavar="number", help="kill一个执行器(减少一个并行执行)")
+    group.add_argument("--pause", type=int, metavar="number", help="暂停一个正在的执行器")
+    group.add_argument("--recover", type=int, metavar="number", help="恢复一个正在的执行器")
 
-    c.add_argument("--task", action="store_true", help="任务(默认选项)")
+    c.add_argument("--task", action="store_true", help="添加任务(默认选项)")
 
     group.add_argument("--status", action="store_true", help="查看状态")
     group.add_argument("--list", action="store_true", help="查看队列")
-    group.add_argument("--insert", type=int, help="在队列指定位置插入新任务")
-    group.add_argument("--remove", type=int, help="删除队列指定位置任务")
-    group.add_argument("--move", action="store_true", help="删除队列指定位置任务")
+    group.add_argument("--insert", type=int, metavar="number", help="在队列指定位置插入新任务")
+    group.add_argument("--remove", type=int, metavar="number", help="删除队列指定位置任务")
+    group.add_argument("--move", action="store", nargs=2, metavar="number", help="调整任务顺序")
 
     parse.add_argument("taskcmd", nargs="*", help="需要执行的命令行")
 

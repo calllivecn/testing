@@ -13,4 +13,4 @@
 
 
 # 录屏时录音
-ffmpeg -f x11grab -r 30 -i $DISPLAY -f pulse -ac 2 -i default -vcodec hevc_nvenc -acodec mp3 -y output.mp4
+ffmpeg -f x11grab -r 30 -i $DISPLAY -f pulse -ac 2 -i default -vcodec hevc_nvenc -profile:v main10 -acodec aac -y output.mp4
