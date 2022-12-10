@@ -5,24 +5,19 @@
 
 import sys
 import time 
-from tkinter import Tk 
+import tkinter as tk
 
-tk = Tk()
-tk.title("粘贴板")
-print(tk.resizable(0, 0))
+r=tk.Tk()
+r.withdraw() #隐藏窗口
 
-x = None
-while True:
-    # t = tk.selection_get(selection="CLIPBOARD")
-    t = tk.clipboard_get()
-    print(t)
-    if x != t:
-        x = t 
-        print(t)
+st=r.clipboard_get() #获取剪贴板内容
 
-        #with open("./tmp.txt", 'a') as f:
-        #    timestamp = time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())
-        #    f.write(timestamp + '\n' + x + '\n\n')
-    time.sleep(1)
+print("粘贴板内容: \n", st)
 
-win.mainloop()
+r.clipboard_clear() #清除剪贴板内容
+
+r.clipboard_append("#向剪贴板追加内容")
+
+time.sleep(5)
+r.destroy()
+
