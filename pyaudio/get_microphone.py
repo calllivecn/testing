@@ -6,14 +6,20 @@
 
 import pyaudio
 import pprint
+
 pa = pyaudio.PyAudio()
+
 chosen_device_index = -1
-for x in range(0,pa.get_device_count()):
-	info = pa.get_device_info_by_index(x)
-	pprint.pprint(pa.get_device_info_by_index(x))
-	if info["name"] == "pulse":
-		chosen_device_index = info["index"]
-		pprint.pprint("Chosen index: ", chosen_device_index)
+
+for x in range(0, pa.get_device_count()):
+    info = pa.get_device_info_by_index(x)
+    # pprint.pprint(info)
+    pprint.pprint(pa.get_device_info_by_index(x))
+    if info["name"] == "pulse":
+        chosen_device_index = info["index"]
+        print("="*20, f"Chosen index: {chosen_device_index}")
+
+pa.terminate()
 
 #import pyaudio
 #p = pyaudio.PyAudio()

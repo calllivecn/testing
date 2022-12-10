@@ -4,92 +4,149 @@
 # author calllivecn <c-all@qq.com>
 
 
-"""PyAudio example: Record a few seconds of audio and save to a WAVE file."""
+import io
+import os
 import sys
-import time
+import copy
 import wave
-import array
-import struct
+# import atexit
+import termios
+import argparse
+from pathlib import Path
 
-import libpy
 
 import pyaudio
-CHUNK = 4096
-FORMAT = pyaudio.paInt16
-CHANNELS = 1
-RATE = 16000
-RECORD_SECONDS = 5
 
-def save(wave_output_filename="output.wav"):
-    with wave.open(wave_output_filename, 'wb') as wf:
-        wf.setnchannels(CHANNELS)
-        wf.setsampwidth(p.get_sample_size(FORMAT))
-        wf.setframerate(RATE)
-        wf.writeframes(b''.join(frames))
-
-# 过滤小声音
-# 事实证明没用～～～,这样破坏了完整声音。
-def voice(voice_data):
-    voice = struct.Struct("<h")
-    data = []
-    for v in array.array("h",voice_data):
-        if 5000 <= v:
-            data.append(voice.pack(v))
-    return data
+AV_FLAG = True
+try:
+    import av
+except ModuleNotFoundError:
+    AV_FLAG = False
 
 
+class KeyTouch:
+    def __init__(self):
+        self.fd = sys.stdin.fileno()
+        self.old_settings = termios.tcgetattr(self.fd)
+        new_settings = copy.deepcopy(self.old_settings)
+        new_settings[3] &= ~(termios.ICANON | termios.ECHO) # | termios.ISIG)
+        #new_settings[6][termios.VMIN] = 1
+        #new_settings[6][termios.VTIME] = 0
+        termios.tcsetattr(self.fd, termios.TCSADRAIN, new_settings)
+    
+    def read(self):
+        return os.read(self.fd, 16)
 
-frames = []
-def callback(in_data, frames_count,time_info, status):
-    #print(in_data,frames_count,time_info,status)
-    frames.append(in_data)
-    return (in_data, pyaudio.paContinue)
-
-p = pyaudio.PyAudio()
-stream = p.open(
-    format=FORMAT,
-    channels=CHANNELS,
-    rate=RATE,
-    input=True,
-    #output=True,
-    #input_device_index=6,
-    frames_per_buffer=CHUNK,
-    stream_callback=callback)
+    def close(self):
+        termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
 
 
-print('按空格键暂停...','按s键停止...')
-stream.start_stream()
-
-status = 1
-while True:
-    ch = libpy.getch()
-    if ch == b' ':
-        if status == 1:
-            stream.stop_stream()
-            status = 0
-            print('暂停,按空格键继续...')
-            typ = type(frames[0])
-            print(f"len(): {len(frames[0])} {typ}")
+class AudioContainer:
+    FMT = (".wav", ".mp3", ".aac")
+    def __init__(self, format):
+        if format in self.FMT:
+            self.format = format
         else:
-            stream.start_stream()
-            status = 1
-            print('继续...')
-
-    elif ch == b's':
-        stream.stop_stream()
-        stream.close()
-        p.terminate()
-        print('停止...')
-        break
-    else:
-        print('请按空格键暂停或按s键停止...')
+            raise ValueError("format is chioce: *.wav *.mp3 *.aac")
+    
+        self.file = open()
+    
 
 
-#stream.stop_stream()
-#stream.close()
-#p.terminate()
+class Audio:
 
-#with open('output.pcm','w+b') as wf:
-#    wf.write(b''.join(frames))
+    def __init__(self, output: Path, record_seconds: int = 5):
+        self.output = output
 
-save(sys.argv[1])
+        self.format = pyaudio.paInt16
+        self.chunk = 8192
+        self.channels = 1
+        self.rate = 16000
+        self.record_seconds = record_seconds
+
+        self.wf = wave.open(self.output, "wb")
+        self.wf.setnchannels(self.channels)
+        self.wf.setsampwidth(pyaudio.get_sample_size(self.format))
+        self.wf.setframerate(self.rate)
+
+        self.reset()
+
+        self.p = pyaudio.PyAudio()
+        self.stream = self.p.open(
+            format=self.format,
+            channels=self.channels,
+            rate=self.rate,
+            input=True,
+            #output=True,
+            #input_device_index=6,
+            start=False,
+            frames_per_buffer=self.chunk,
+            stream_callback=self.callback)
+    
+    def start(self):
+        self.stream.start_stream()
+
+    def stop(self):
+        self.stream.stop_stream()
+
+    def reset(self):
+        self.frames = io.BytesIO()
+
+    def callback(self, in_data, frames_count,time_info, status):
+        # print(in_data,frames_count,time_info,status)
+        # self.frames.write(in_data)
+        print(f"{frames_count=} {time_info=} {status=}\r", end="")
+        self.wf.writeframes(in_data)
+        return (in_data, pyaudio.paContinue)
+    
+    def close(self):
+        self.stream.stop_stream()
+        self.stream.close()
+        self.p.terminate()
+
+        self.wf.close()
+
+
+DESCRIPTION="按空格键暂停... 按q键停止..."
+
+def main():
+    parse = argparse.ArgumentParser(usage="%(prog)s <output.wav>",
+    description=DESCRIPTION)
+
+    parse.add_argument("output", action="store", help="指定一个输出文件 *.wav")
+
+    args = parse.parse_args()
+
+
+    getch = KeyTouch()
+    # atexit.register(getch.close)
+
+    pa = Audio(args.output)
+    pa.start()
+
+    print(DESCRIPTION)
+    status = 1
+    while True:
+        ch = getch.read()
+        if ch == b' ':
+            if status == 1:
+                pa.stop()
+                status = 0
+                print('暂停,按空格键继续...')
+            else:
+                pa.start()
+                status = 1
+                print('继续...')
+
+        elif ch == b'q':
+            print('停止...')
+            break
+        else:
+            print(DESCRIPTION)
+    
+    pa.close()
+    getch.close()
+
+
+if __name__ == "__main__":
+    main()
