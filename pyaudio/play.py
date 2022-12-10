@@ -9,7 +9,7 @@ if len(sys.argv) < 1:
     exit(-1)
 
 
-wf = wave.open('output.wav', 'rb')
+wf = wave.open(sys.argv[1], 'rb')
 p = pyaudio.PyAudio()
 stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
                 channels=wf.getnchannels(),
@@ -18,10 +18,11 @@ stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
                 #output_device_index=6)
 #print(data[:16])
 #print(isinstance(data,bytes),'data length:',len(data))
-data = True
-while data != b'':
-    data = wf.readframes(CHUNK)
+
+while (data := wf.readframes(CHUNK)) != b"":
     stream.write(data)
+
+wf.close()
 
 stream.stop_stream()
 stream.close()

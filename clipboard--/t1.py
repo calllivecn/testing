@@ -8,10 +8,14 @@ import time
 from tkinter import Tk 
 
 tk = Tk()
+tk.title("粘贴板")
+print(tk.resizable(0, 0))
 
 x = None
 while True:
-    t = tk.selection_get(selection="CLIPBOARD")
+    # t = tk.selection_get(selection="CLIPBOARD")
+    t = tk.clipboard_get()
+    print(t)
     if x != t:
         x = t 
         print(t)
@@ -20,3 +24,5 @@ while True:
         #    timestamp = time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())
         #    f.write(timestamp + '\n' + x + '\n\n')
     time.sleep(1)
+
+win.mainloop()

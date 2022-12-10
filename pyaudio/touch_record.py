@@ -5,10 +5,11 @@
 
 
 """PyAudio example: Record a few seconds of audio and save to a WAVE file."""
-import struct
-import array
-import wave
+import sys
 import time
+import wave
+import array
+import struct
 
 import libpy
 
@@ -67,6 +68,8 @@ while True:
             stream.stop_stream()
             status = 0
             print('暂停,按空格键继续...')
+            typ = type(frames[0])
+            print(f"len(): {len(frames[0])} {typ}")
         else:
             stream.start_stream()
             status = 1
@@ -89,4 +92,4 @@ while True:
 #with open('output.pcm','w+b') as wf:
 #    wf.write(b''.join(frames))
 
-save('output.wav')
+save(sys.argv[1])
