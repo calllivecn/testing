@@ -17,10 +17,17 @@ import socket
 import struct
 import selectors
 
+from typing import (
+    Union,
+    Optional,
+)
+
 from threading import (
     Thread,
     Lock,
 )
+
+
 
 packet_version = 0x01
 
@@ -50,8 +57,20 @@ class Buffer(bytearray):
 
 
 
+class TranterStatusError(Exception):
+    pass
+
+
 class PacketError(Exception):
     pass
+
+"""
+0. 协议层次包含关系结构(?)
+Package:
+    Frame:
+
+1. 传输层的操作对象是 Package
+"""
 
 class PacketType(enum.IntEnum):
     Reserved = 0 # 保留
@@ -61,7 +80,22 @@ class PacketType(enum.IntEnum):
     Transfer = enum.auto()
 
 
-class Packet:
+class Frame:
+
+    def __init__(self):
+
+        # 这帧是属于那个流的
+        self.stream_id: Union[int, None] = None
+        self.frame_id: Union[int, None] = None
+
+        self.payload_len = 0
+        self.payload: Union[bytes, memoryview] = b""
+
+
+class Package:
+    """
+    一次发送接收，和确认的单位。
+    """
 
     def __init__(self):
         self.version = struct.pack("<H", packet_version) # 2byte
@@ -69,13 +103,15 @@ class Packet:
         self.cid = bytes(8) # 8byte, 文件里就是定的随机的。 ~~服务端需要看看，怎么高效的分配client id; 不需要，直接使用ip+port对的方式, 不过需要在Server, 内部标识。~~
         self.ctl = bytes(2) # type 字段，初始化 packet 时为0
         # ctl： 包类型，如：SYN, ACK, FIN, RESET, DAT(连接后的数据传输类型),  NACK(另端主动要 ACK)
-        self.payload = bytes(2) # 2bytes, UDP的负载大小。(实际还有PMTU有关，需要实测。)
+        self.payload_len = bytes(2) # 2bytes, UDP的负载大小。(实际还有PMTU有关，需要实测。)
+
+        #self.payload
 
         self.proto = struct.Struct("<HQQHH")
 
         self.MAX_PAYLOAD = 65535 - self.proto.size
 
-    def frombuf(self, data: bytes):
+    def frombuf(self, data: Union[bytes, memoryview]):
         ( 
             self.version, 
             self.seq,  
@@ -103,20 +139,51 @@ class Packet:
         return header + data
 
 
+class Send:
+    """
+    发送器
+    基于这样的假设：
+    0. 只需从self._send_queue 里拿数据，切分为package发送。
+    1. 并保证确认，和丢失重传。
+    """
+    def __init__(self, sock: socket.socket, peer: tuple[str, int], queue: queue.Queue):
 
-class TranterStatusError(Exception):
-    pass
+        self.sock = sock
+        self.peer = peer
+        self.queue = queue
+
+        #
+        self.con_id = 0
+        self.sequence = 0
+
+        # 窗口 16k
+        self.win_size = 1<<14
+
+        self.th = Thread(target=self.send, daemon=True)
+        self.th.start()
+
+    def send(self):
+        while True:
+            data = self.queue.get()
+
+            pack = Package(self.con_id, self.seqquence, data)
+            self.sock.sendto(pack, self.peer)
+
+
+
+
 
 class Transfer:
     """
     这个就是对上层提供的服务类？time:2022-05-15 
     """
 
-    def listen(self, size: int):
-        """
-        队列大小, 也可以不调用这步，默认值为128
-        """
-        self._accept_queue = queue.Queue(size)
+    # UDP 好像不有这个
+    # def listen(self, size: int = 128):
+        # """
+        # 队列大小, 也可以不调用这步，默认值为128
+        # """
+        # self._accept_queue = queue.Queue(size)
 
     def bind(self, addr: str, port: int):
         self.addr = addr
@@ -124,7 +191,7 @@ class Transfer:
 
         self.sock.bind((self.addr, self.port))
 
-    
+
     def accept(self):
         """
         这个是需要等client新建连接

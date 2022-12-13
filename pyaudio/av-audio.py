@@ -12,9 +12,12 @@ except ModuleNotFoundError:
 
 fps = 16000
 
+options = {"bit_rate": 24000}
+
 container = av.open('test.aac', mode='w')
 # container = av.open('test.mkv', mode='w')
 audio0 = container.add_stream('aac', rate=fps)
+
 
 # audio0.channel = 1
 
