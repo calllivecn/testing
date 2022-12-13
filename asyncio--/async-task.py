@@ -24,7 +24,7 @@ async def main():
     await task1
     print("task1 end...")
 
-    print("task1 begin...")
+    print("task2 begin...")
     await task2
     print("task2 end...")
 
