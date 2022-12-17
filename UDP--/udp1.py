@@ -12,14 +12,18 @@
 
 import time
 import enum
-import queue
 import socket
 import struct
 import selectors
 
+from queue import Queue
+
 from typing import (
     Union,
-    Optional,
+)
+
+from typing_extensions import (
+    Self,
 )
 
 from threading import (
@@ -72,6 +76,12 @@ Package:
 1. 传输层的操作对象是 Package
 """
 
+class StreamFlag(enum.IntEnum):
+    SYC = 0x01
+    FIN = 0x02
+    TRA = 0x04
+
+
 class PacketType(enum.IntEnum):
     Reserved = 0 # 保留
     Initiator = enum.auto()
@@ -80,25 +90,52 @@ class PacketType(enum.IntEnum):
     Transfer = enum.auto()
 
 
-class Frame:
+class StreamPack:
 
-    def __init__(self):
+    header = struct.Struct("<BQQ")
+
+    def __init__(self, flag: bytes, stream_id: bytes, number: int, data: Buffer):
+
+        self.flag = flag
 
         # 这帧是属于那个流的
-        self.stream_id: Union[int, None] = None
-        self.frame_id: Union[int, None] = None
+        self.stream_id= stream_id
+        self.number = number
 
-        self.payload_len = 0
-        self.payload: Union[bytes, memoryview] = b""
+        self.payload_len = len(data)
+
+        self.payload = data
+    
+    @classmethod
+    def frombuf(cls, data: Buffer) -> Self:
+        self = cls(*cls.header.unpack(data[:cls.header.size]))
+        self.payload = data[cls.header.size:]
+        return self
+    
+    def tobuf(self) -> Buffer:
+        buf = Buffer(self.header.size + len(self.payload))
+        self.header.pack_into(buf, 0,
+            self.flag,
+            self.stream_id,
+            self.number,
+        )
+        return self.payload
+
+    def __len__(self):
+        return self.payload_len
 
 
-class Package:
+
+
+class Package(struct.Struct):
     """
     一次发送接收，和确认的单位。
     """
 
     def __init__(self):
+        super().__init__("<HBQQ")
         self.version = struct.pack("<H", packet_version) # 2byte
+        self.flag = bytes(1)
         self.seq = bytes(8) # 8byte
         self.cid = bytes(8) # 8byte, 文件里就是定的随机的。 ~~服务端需要看看，怎么高效的分配client id; 不需要，直接使用ip+port对的方式, 不过需要在Server, 内部标识。~~
         self.ctl = bytes(2) # type 字段，初始化 packet 时为0
@@ -137,6 +174,48 @@ class Package:
             )
 
         return header + data
+
+
+class UDPRecvSend:
+    """
+    底层接收和发送 UDP 包的工具。
+    """
+
+    def __init__(self, sock: socket.SocketType, recv: Queue, send: Queue, server: bool = False):
+        self.sock = sock
+        self.recv = recv
+        self.send = send
+
+        self._buf = Buffer(8192)
+
+        self.s = selectors.DefaultSelector()
+
+        self.th = Thread(target=self.run)
+        self.th.start()
+
+    def run(self):
+        self.s.register(self.sock, selectors.EVENT_READ | selectors.EVENT_WRITE)
+
+        while True:
+            for sock, event in self.s.select():
+                if event == selectors.EVENT_READ:
+                    self.recv_udp()
+                elif event == selectors.EVENT_WRITE:
+                    self.send_udp()
+
+    def read_udp(self):
+        while True:
+            pack_len = self.sock.recvfrom_into(self.recv, self._buf)
+            frame = Frame(self._buf[:pack_len])
+
+            if frame.flag |= Packet
+
+    
+    def write_udp(self):
+        while True:
+            pack
+
+
 
 
 class Send:

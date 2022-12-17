@@ -192,7 +192,12 @@ class Executer:
             print(BIG2_SPLIT)
 
             self.status = Status.Running
-            self.task.run()
+            try:
+                self.task.run()
+            except Exception as e:
+                traceback.print_exc()
+                continue
+
             self.status = Status.Wait
 
             print(BIG2_SPLIT)
@@ -294,10 +299,16 @@ class Manager:
         self.q.insert(i, task)
 
     def remove(self, i: int):
-        self.q.remove(i)
+        try:
+            self.q.remove(i)
+        except IndexError:
+            print(f"没有任务: {i}")
 
     def move(self, i: int, n: int):
-        self.q.move(i, n)
+        try:
+            self.q.move(i, n)
+        except IndexError:
+            print(f"没有任务: {i} or {n}")
 
 # 两边传输
 class CmdType(enum.IntEnum):
