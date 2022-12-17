@@ -18,11 +18,8 @@ async def loop():
         await asyncio.sleep(1)
 
 
-
-
 def run_asyncio_in_pthread():
     asyncio.run(loop())
-
 
 
 th1 = Thread(target=run_asyncio_in_pthread)
