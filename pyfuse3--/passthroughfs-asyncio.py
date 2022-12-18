@@ -45,14 +45,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import os
 import sys
-
-# If we are running from the pyfuse3 source directory, try
-# to load the module from there first.
-basedir = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), '..'))
-if (os.path.exists(os.path.join(basedir, 'setup.py')) and
-    os.path.exists(os.path.join(basedir, 'src', 'pyfuse3.pyx'))):
-    sys.path.insert(0, os.path.join(basedir, 'src'))
-
 import errno
 import logging
 import asyncio
@@ -68,9 +60,12 @@ faulthandler.enable()
 
 # import trio
 import pyfuse3
+import pyfuse3_asyncio
+pyfuse3_asyncio.enable()
 from pyfuse3 import FUSEError
 
 log = logging.getLogger(__name__)
+
 
 class Operations(pyfuse3.Operations):
 
