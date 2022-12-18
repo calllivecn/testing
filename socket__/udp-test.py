@@ -1,28 +1,21 @@
 #!/usr/bin/env python3
 # coding=utf-8
 
-import socket
-import time
 import sys
+import time
+import socket
 
 buf = 1024
 
-IP_address = ''
 
-PORT = 6789
+def server(addr="", port=6789):
 
-def server():
-
-    try:
-        exec(open(sys.argv[0]+'.cfg').read())
-    except Exception:
-        print('读取配置文件异常')
-
-    BIND = (IP_address, PORT)
+    BIND = (addr, port)
 
     try:
         udp_S = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         udp_S.bind(BIND)
+        # udp_S.settimeout(30)
     except Exception:
         print('有初始化异常')
         raise
@@ -44,18 +37,16 @@ def server():
     finally:
         udp_S.close()
 
-def client():
 
-    addr = sys.argv[1]
-    port = sys.argv[2]
-    
+
+def client(addr, port):
+
     try:
 
         udp_C = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     except:
         print('有初始化异常。')
         raise
-
 
     try:
         while True:
@@ -75,3 +66,12 @@ def client():
 
     finally:
         udp_C.close()
+
+if __name__ == "__main__":
+    if sys.argv[1] == "server":
+        server(sys.argv[2], int(sys.argv[3]))
+    elif sys.argv[1] == "client":
+        client(sys.argv[2], int(sys.argv[3]))
+    
+    else:
+        print("用法查看源码")

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # coding=utf-8
 # date 2022-05-14 08:39:33
+# update 2022-12
 # author calllivecn <c-all@qq.com>
 
 
@@ -22,18 +23,18 @@ from typing import (
     Union,
 )
 
-from typing_extensions import (
-    Self,
-)
-
 from threading import (
     Thread,
     Lock,
 )
 
+from typing_extensions import (
+    Self,
+)
 
 
-packet_version = 0x01
+
+PACKET_VERSION = 0x00000001 # 4byte
 
 # from logs import logger
 
@@ -79,22 +80,27 @@ Package:
 class StreamFlag(enum.IntEnum):
     SYC = 0x01
     FIN = 0x02
-    TRA = 0x04
+    NUM = 0x04
 
 
 class PacketType(enum.IntEnum):
     Reserved = 0 # 保留
+
+    SYC = 0x01
+    FIN = 0x02
+    ACK = 0x04
+
     Initiator = enum.auto()
     Responder = enum.auto()
     Rekey = enum.auto()
     Transfer = enum.auto()
 
 
-class StreamPack:
+class FramePack(struct.Struct):
 
-    header = struct.Struct("<BQQ")
 
     def __init__(self, flag: bytes, stream_id: bytes, number: int, data: Buffer):
+        super().__init__("<BQQ")
 
         self.flag = flag
 
@@ -102,9 +108,9 @@ class StreamPack:
         self.stream_id= stream_id
         self.number = number
 
-        self.payload_len = len(data)
+        # self.payload_len = len(data)
 
-        self.payload = data
+        # self.payload = data
     
     @classmethod
     def frombuf(cls, data: Buffer) -> Self:
@@ -126,57 +132,53 @@ class StreamPack:
 
 
 
-
 class Package(struct.Struct):
     """
     一次发送接收，和确认的单位。
     """
-
     def __init__(self):
-        super().__init__("<HBQQ")
-        self.version = struct.pack("<H", packet_version) # 2byte
-        self.flag = bytes(1)
-        self.seq = bytes(8) # 8byte
+        super().__init__("<IBQQ")
+        self.flag = bytes(2) # flag： 包类型，如：SYN, ACK, FIN, RESET, DAT(连接后的数据传输类型),  NACK(另端主动要 ACK)
+        self.version = PACKET_VERSION # 4byte
+        self.number = bytes(8) # 8byte, 同时也是aead 加密的nonce
         self.cid = bytes(8) # 8byte, 文件里就是定的随机的。 ~~服务端需要看看，怎么高效的分配client id; 不需要，直接使用ip+port对的方式, 不过需要在Server, 内部标识。~~
-        self.ctl = bytes(2) # type 字段，初始化 packet 时为0
-        # ctl： 包类型，如：SYN, ACK, FIN, RESET, DAT(连接后的数据传输类型),  NACK(另端主动要 ACK)
-        self.payload_len = bytes(2) # 2bytes, UDP的负载大小。(实际还有PMTU有关，需要实测。)
+        self.payload_len = bytes(2) # ? 2bytes, UDP的负载大小。(实际还有PMTU有关，需要实测。)
 
-        #self.payload
-
-        self.proto = struct.Struct("<HQQHH")
-
-        self.MAX_PAYLOAD = 65535 - self.proto.size
+        # self.payload
+        # self.proto = struct.Struct("<HQQHH")
 
     def frombuf(self, data: Union[bytes, memoryview]):
         ( 
+            self.flag,
             self.version, 
-            self.seq,  
-            # self.clientid,
-            self.ctl,
-            self.payload,
-        ) = self.proto.unpack(data[:self.proto.size])
-
-    def tobuf(self, data: bytes) -> memoryview:
-
-        self.payload = len(data)
-
-        if self.payload >= self.MAX_PAYLOAD:
-            raise PacketError("payload too long")
-
-        self.seq += 1
-        header = self.pack(
-            self.version,
-            self.seq,
+            self.number,  
             self.cid,
-            self.ctl, 
-            self.payload
+        ) = self.unpack(data[:self.proto.size])
+
+    def tobuf(self, payload: bytes) -> memoryview:
+
+        # self.payload = len(data)
+
+        # if self.payload >= self.MAX_PAYLOAD:
+            # raise PacketError("payload too long")
+
+        header = self.pack(
+            self.flag,
+            self.version,
+            self.number,
+            self.cid,
             )
 
-        return header + data
+        return header + payload
 
 
 class UDPRecvSend:
+    """
+    在服务端需要一个连接传输器和上层每个客户端类似socket的连接器。
+    """
+
+class Transfer:
+
     """
     底层接收和发送 UDP 包的工具。
     """
@@ -204,11 +206,13 @@ class UDPRecvSend:
                     self.send_udp()
 
     def read_udp(self):
-        while True:
-            pack_len = self.sock.recvfrom_into(self.recv, self._buf)
-            frame = Frame(self._buf[:pack_len])
+        pack_len = self.sock.recvfrom_into(self.recv, self._buf)
+        if pack_len == 0:
+            return
 
-            if frame.flag |= Packet
+        package = Package.frombuf(self._buf[:pack_len])
+
+        if package.flag & PacketType.SYC:
 
     
     def write_udp(self):
@@ -252,7 +256,7 @@ class Send:
 
 
 
-class Transfer:
+class UDPhello:
     """
     这个就是对上层提供的服务类？time:2022-05-15 
     """
