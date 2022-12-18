@@ -11,22 +11,23 @@ import threading
 
 async def get_print(q):
     while True:
-        text = await q.get()
+        # text = await q.get()
 
         # 这样执行到这时会阻塞
-        # text = q.get()
+        text = q.get()
 
         print("async get():", text)
         await asyncio.sleep(1)
 
+        q.task_done()
 
 def run_asyncio_in_pthread(q):
     asyncio.run(get_print(q))
 
 
 def pthread():
-    # q = queue.Queue(2)
-    q = asyncio.Queue(2)
+    q = queue.Queue(2)
+    # q = asyncio.Queue(2)
 
     th1 = threading.Thread(target=run_asyncio_in_pthread, args=(q,), daemon=True)
     th1.start()
@@ -35,7 +36,7 @@ def pthread():
         q.put(c)
         print("put():", c)
         c+=1
-        time.sleep(0.2)
+        # time.sleep(0.2)
     
     q.join()
 
