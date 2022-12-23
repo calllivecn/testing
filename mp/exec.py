@@ -6,7 +6,7 @@
 
 import time
 from concurrent.futures import (
-    Executor,
+    ProcessPoolExecutor,
 )
 
 def run():
@@ -14,8 +14,10 @@ def run():
     time.sleep(5)
     print("任务结束")
 
-e = Executor()
+e = ProcessPoolExecutor()
 
 future = e.submit(run)
+
+future.result()
 
 e.shutdown()
