@@ -110,13 +110,16 @@ class TestFs(pyfuse3.Operations):
     async def open(self, inode, flags, ctx):
         if inode != self.hello_inode:
             raise pyfuse3.FUSEError(errno.ENOENT)
+
         if flags & os.O_RDWR or flags & os.O_WRONLY:
             raise pyfuse3.FUSEError(errno.EACCES)
+
         return pyfuse3.FileInfo(fh=inode)
 
     async def read(self, fh, off, size):
         assert fh == self.hello_inode
         return self.hello_data[off:off+size]
+
 
 def init_logging(debug=False):
     formatter = logging.Formatter('%(asctime)s.%(msecs)03d %(threadName)s: '

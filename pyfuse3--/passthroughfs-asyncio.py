@@ -3,45 +3,6 @@
 # date 2022-12-19 03:05:54
 # author calllivecn <c-all@qq.com>
 
-'''
-passthroughfs.py - Example file system for pyfuse3
-
-This file system mirrors the contents of a specified directory tree.
-
-Caveats:
-
- * Inode generation numbers are not passed through but set to zero.
-
- * Block size (st_blksize) and number of allocated blocks (st_blocks) are not
-   passed through.
-
- * Performance for large directories is not good, because the directory
-   is always read completely.
-
- * There may be a way to break-out of the directory tree.
-
- * The readdir implementation is not fully POSIX compliant. If a directory
-   contains hardlinks and is modified during a readdir call, readdir()
-   may return some of the hardlinked files twice or omit them completely.
-
- * If you delete or rename files in the underlying file system, the
-   passthrough file system will get confused.
-
-Copyright ©  Nikolaus Rath <Nikolaus.org>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-'''
 
 import os
 import sys
@@ -53,6 +14,9 @@ import stat as stat_m
 from os import fsencode, fsdecode
 from collections import defaultdict
 
+from typing import (
+    Any,
+)
 
 import faulthandler
 faulthandler.enable()
@@ -67,6 +31,21 @@ from pyfuse3 import FUSEError
 log = logging.getLogger(__name__)
 
 
+def func_name(func):
+    def wrap(*args, **kwargs):
+        log.debug(f"{func.__name__=}: {args=} {kwargs=}")
+        return func(*args, **kwargs)
+
+    return wrap
+
+
+def FuncName(cls):
+    class Inner(cls):
+        def __getattribute__(self, __name: str) -> Any:
+            log.debug(f"func name: {self.__name__=}, {args=} {kwargs=}")
+            return super().__getattribute__(__name)
+
+
 class Operations(pyfuse3.Operations):
 
     enable_writeback_cache = True
@@ -79,6 +58,7 @@ class Operations(pyfuse3.Operations):
         self._inode_fd_map = dict()
         self._fd_open_count = dict()
 
+
     def _inode_to_path(self, inode):
         try:
             val = self._inode_path_map[inode]
@@ -89,6 +69,7 @@ class Operations(pyfuse3.Operations):
             # In case of hardlinks, pick any path
             val = next(iter(val))
         return val
+
 
     def _add_path(self, inode, path):
         log.debug('_add_path for %d, %s', inode, path)
@@ -105,6 +86,7 @@ class Operations(pyfuse3.Operations):
         elif val != path:
             self._inode_path_map[inode] = { path, val }
 
+    @func_name
     async def forget(self, inode_list):
         for (inode, nlookup) in inode_list:
             if self._lookup_cnt[inode] > nlookup:
@@ -118,6 +100,7 @@ class Operations(pyfuse3.Operations):
             except KeyError: # may have been deleted
                 pass
 
+    @func_name
     async def lookup(self, inode_p, name, ctx=None):
         name = fsdecode(name)
         log.debug('lookup for %s in %d', name, inode_p)
@@ -127,11 +110,13 @@ class Operations(pyfuse3.Operations):
             self._add_path(attr.st_ino, path)
         return attr
 
+    @func_name
     async def getattr(self, inode, ctx=None):
         if inode in self._inode_fd_map:
             return self._getattr(fd=self._inode_fd_map[inode])
         else:
             return self._getattr(path=self._inode_to_path(inode))
+
 
     def _getattr(self, path=None, fd=None):
         assert fd is None or path is None
@@ -157,6 +142,7 @@ class Operations(pyfuse3.Operations):
 
         return entry
 
+    @func_name
     async def readlink(self, inode, ctx):
         path = self._inode_to_path(inode)
         try:
@@ -165,12 +151,14 @@ class Operations(pyfuse3.Operations):
             raise FUSEError(exc.errno)
         return fsencode(target)
 
+    @func_name
     async def opendir(self, inode, ctx):
         return inode
 
+    @func_name
     async def readdir(self, inode, off, token):
         path = self._inode_to_path(inode)
-        log.debug('reading %s', path)
+        log.debug(f"readdir(): {inode=}, {path=}, {off=}")
         entries = []
         for name in os.listdir(path):
             if name == '.' or name == '..':
@@ -189,11 +177,13 @@ class Operations(pyfuse3.Operations):
         for (ino, name, attr) in sorted(entries):
             if ino <= off:
                 continue
-            if not pyfuse3.readdir_reply(
-                token, fsencode(name), attr, ino):
+
+            log.debug(f"readir_reply(): {(token, fsencode(name), attr, ino)=}")
+            if not pyfuse3.readdir_reply(token, fsencode(name), attr, ino):
                 break
             self._add_path(attr.st_ino, os.path.join(path, name))
 
+    @func_name
     async def unlink(self, inode_p, name, ctx):
         name = fsdecode(name)
         parent = self._inode_to_path(inode_p)
@@ -206,6 +196,7 @@ class Operations(pyfuse3.Operations):
         if inode in self._lookup_cnt:
             self._forget_path(inode, path)
 
+    @func_name
     async def rmdir(self, inode_p, name, ctx):
         name = fsdecode(name)
         parent = self._inode_to_path(inode_p)
@@ -218,6 +209,7 @@ class Operations(pyfuse3.Operations):
         if inode in self._lookup_cnt:
             self._forget_path(inode, path)
 
+
     def _forget_path(self, inode, path):
         log.debug('forget %s for %d', path, inode)
         val = self._inode_path_map[inode]
@@ -228,6 +220,7 @@ class Operations(pyfuse3.Operations):
         else:
             del self._inode_path_map[inode]
 
+    @func_name
     async def symlink(self, inode_p, name, target, ctx):
         name = fsdecode(name)
         target = fsdecode(target)
@@ -242,6 +235,7 @@ class Operations(pyfuse3.Operations):
         self._add_path(stat.st_ino, path)
         return await self.getattr(stat.st_ino)
 
+    @func_name
     async def rename(self, inode_p_old, name_old, inode_p_new, name_new,
                      flags, ctx):
         if flags != 0:
@@ -270,6 +264,7 @@ class Operations(pyfuse3.Operations):
             assert val == path_old
             self._inode_path_map[inode] = path_new
 
+    @func_name
     async def link(self, inode, new_inode_p, new_name, ctx):
         new_name = fsdecode(new_name)
         parent = self._inode_to_path(new_inode_p)
@@ -281,6 +276,7 @@ class Operations(pyfuse3.Operations):
         self._add_path(inode, path)
         return await self.getattr(inode)
 
+    @func_name
     async def setattr(self, inode, attr, fields, fh, ctx):
         # We use the f* functions if possible so that we can handle
         # a setattr() call for an inode without associated directory
@@ -342,6 +338,7 @@ class Operations(pyfuse3.Operations):
 
         return await self.getattr(inode)
 
+    @func_name
     async def mknod(self, inode_p, name, mode, rdev, ctx):
         path = os.path.join(self._inode_to_path(inode_p), fsdecode(name))
         try:
@@ -353,6 +350,7 @@ class Operations(pyfuse3.Operations):
         self._add_path(attr.st_ino, path)
         return attr
 
+    @func_name
     async def mkdir(self, inode_p, name, mode, ctx):
         path = os.path.join(self._inode_to_path(inode_p), fsdecode(name))
         try:
@@ -364,7 +362,9 @@ class Operations(pyfuse3.Operations):
         self._add_path(attr.st_ino, path)
         return attr
 
+    # @func_name
     async def statfs(self, ctx):
+        # log.debug(f"谁呀？: {ctx.pid}")
         root = self._inode_path_map[pyfuse3.ROOT_INODE]
         stat_ = pyfuse3.StatvfsData()
         try:
@@ -377,6 +377,7 @@ class Operations(pyfuse3.Operations):
         stat_.f_namemax = statfs.f_namemax - (len(root)+1)
         return stat_
 
+    @func_name
     async def open(self, inode, flags, ctx):
         if inode in self._inode_fd_map:
             fd = self._inode_fd_map[inode]
@@ -392,6 +393,7 @@ class Operations(pyfuse3.Operations):
         self._fd_open_count[fd] = 1
         return pyfuse3.FileInfo(fh=fd)
 
+    @func_name
     async def create(self, inode_p, name, mode, flags, ctx):
         path = os.path.join(self._inode_to_path(inode_p), fsdecode(name))
         try:
@@ -405,14 +407,17 @@ class Operations(pyfuse3.Operations):
         self._fd_open_count[fd] = 1
         return (pyfuse3.FileInfo(fh=fd), attr)
 
+    @func_name
     async def read(self, fd, offset, length):
         os.lseek(fd, offset, os.SEEK_SET)
         return os.read(fd, length)
 
+    @func_name
     async def write(self, fd, offset, buf):
         os.lseek(fd, offset, os.SEEK_SET)
         return os.write(fd, buf)
 
+    @func_name
     async def release(self, fd):
         if self._fd_open_count[fd] > 1:
             self._fd_open_count[fd] -= 1
@@ -428,8 +433,11 @@ class Operations(pyfuse3.Operations):
             raise FUSEError(exc.errno)
 
 def init_logging(debug=False):
-    formatter = logging.Formatter('%(asctime)s.%(msecs)03d %(threadName)s: '
-                                  '[%(name)s] %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
+    formatter = logging.Formatter(
+        # '%(asctime)s.%(msecs)03d %(threadName)s: [%(name)s] %(message)s',
+        '%(asctime)s.%(msecs)03d [%(name)s]: %(filename)s:%(lineno)s %(message)s',
+        datefmt="%Y-%m-%d %H:%M:%S")
+
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
     root_logger = logging.getLogger()
@@ -474,7 +482,8 @@ def main():
         log.debug('Entering main loop..')
         asyncio.run(pyfuse3.main())
     except:
-        pyfuse3.close(unmount=False)
+        # pyfuse3.close(unmount=False)
+        pyfuse3.close(unmount=True)
         raise
 
     log.debug('Unmounting..')
