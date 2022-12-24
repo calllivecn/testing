@@ -169,7 +169,6 @@ def init_logging(debug=False):
 
 
 
-
 def parse_args():
     '''Parse command line'''
 
