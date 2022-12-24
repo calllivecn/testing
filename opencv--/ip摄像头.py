@@ -12,7 +12,8 @@ if __name__ == '__main__':
     # 开启ip摄像头
     # admin是账号，admin是密码
     # 
-    video = "http://admin:zxvideo@192.168.8.170:8081/"  # 此处@后的ipv4 地址需要修改为自己的地址
+    # video = "http://admin:zxvideo@192.168.8.170:8081/"  # 此处@后的ipv4 地址需要修改为自己的地址
+    video = "rtsp://admin:zxvideo@192.168.8.170:8554/live"  # 此处@后的ipv4 地址需要修改为自己的地址
     capture = cv2.VideoCapture(video)
 
     num = 0
