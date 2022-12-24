@@ -103,7 +103,7 @@ class Operations(pyfuse3.Operations):
     @func_name
     async def lookup(self, inode_p, name, ctx=None):
         name = fsdecode(name)
-        log.debug('lookup for %s in %d', name, inode_p)
+        log.debug(f'lookup() --> {name} in {inode_p}')
         path = os.path.join(self._inode_to_path(inode_p), name)
         attr = self._getattr(path=path)
         if name != '.' and name != '..':

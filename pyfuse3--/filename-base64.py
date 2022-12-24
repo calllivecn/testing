@@ -45,8 +45,6 @@ def func_name(func):
     return wrap
 
 
-
-
 class Base64FS(pyfuse3.Operations):
 
     # supports_dot_lookup = True
@@ -112,13 +110,15 @@ class Base64FS(pyfuse3.Operations):
             log.debug(f"entries: {(ino, p_name, attr)=}")
             if ino <= start_id:
                 continue
-            r = pyfuse3.readdir_reply(token, os.fsencode(p_name), attr, ino)
+            r = pyfuse3.readdir_reply(token, os.fsencode(p_name), attr, ino+1)
             if r:
                 log.debug(f"readdir_reply() --> {r}")
             else:
                 break
 
             self._add_path(ino, p_name)
+        
+        return False
 
 
     # @lru_cache
@@ -144,6 +144,12 @@ class Base64FS(pyfuse3.Operations):
                      'st_ctime_ns'):
             setattr(entry, attr, getattr(st, attr))
 
+        entry.generation = 0
+        entry.entry_timeout = 0
+        entry.attr_timeout = 0
+        entry.st_blksize = 512
+        entry.st_blocks = ((entry.st_size+entry.st_blksize-1) // entry.st_blksize)
+
         return entry
 
 
@@ -159,6 +165,11 @@ class Base64FS(pyfuse3.Operations):
                      'st_rdev', 'st_size', 'st_atime_ns', 'st_mtime_ns',
                      'st_ctime_ns'):
             setattr(entry, attr, getattr(fstat, attr))
+        entry.generation = 0
+        entry.entry_timeout = 0
+        entry.attr_timeout = 0
+        entry.st_blksize = 512
+        entry.st_blocks = ((entry.st_size+entry.st_blksize-1) // entry.st_blksize)
 
         return entry
 
@@ -172,7 +183,7 @@ class Base64FS(pyfuse3.Operations):
         parent = self._inode_to_path(parent_inode)
 
         p = parent / os.fsdecode(name)
-        log.debug(f"lookup() --> path: {p}")
+        log.debug(f"lookup() --> path: {p} in node:{parent_inode}")
 
         b64 = base64.b64encode(str(p).encode())
             # raise pyfuse3.FUSEError(errno.ENOENT)
@@ -207,6 +218,21 @@ class Base64FS(pyfuse3.Operations):
     """
 
     @func_name
+    async def statfs(self, ctx):
+        root = self._inode_path_map[pyfuse3.ROOT_INODE]
+        stat_ = pyfuse3.StatvfsData()
+        try:
+            statfs = os.statvfs(root)
+        except OSError as exc:
+            raise FUSEError(exc.errno)
+        for attr in ('f_bsize', 'f_frsize', 'f_blocks', 'f_bfree', 'f_bavail',
+                     'f_files', 'f_ffree', 'f_favail'):
+            setattr(stat_, attr, getattr(statfs, attr))
+        stat_.f_namemax = statfs.f_namemax - (len(os.fsencode(root))+1)
+        return stat_
+
+
+    @func_name
     async def open(self, inode, flags, ctx):
         if inode in self._inode_fd_map:
             fd = self._inode_fd_map[inode]
@@ -228,7 +254,7 @@ class Base64FS(pyfuse3.Operations):
 
     @func_name
     async def create(self, inode_p, name, mode, flags, ctx):
-        path = self._inode_to_path(inode_p)
+        path = self._inode_to_path(inode_p) / name
 
         try:
             fd = os.open(path, flags | os.O_CREAT | os.O_TRUNC)
@@ -249,10 +275,12 @@ class Base64FS(pyfuse3.Operations):
         os.lseek(fd, offset, os.SEEK_SET)
         return os.read(fd, length)
 
+
     @func_name
     async def write(self, fd, offset, buf):
         os.lseek(fd, offset, os.SEEK_SET)
         return os.write(fd, buf)
+
 
     async def release(self, fd):
         if self._fd_open_count[fd] > 1:
@@ -267,7 +295,6 @@ class Base64FS(pyfuse3.Operations):
             os.close(fd)
         except OSError as exc:
             raise FUSEError(exc.errno)
-
 
 
 def init_logging(debug=False):
@@ -314,14 +341,15 @@ def main():
     args = parse_args()
     init_logging(args.debug)
 
-    aesfs = Base64FS(args.source)
+    base64fs = Base64FS(args.source)
+    log.debug(f"f{base64fs.supports_dot_lookup=}")
     fuse_options = set(pyfuse3.default_options)
     fuse_options.add('fsname=base64fs')
 
     if args.debug_fuse:
         fuse_options.add('debug')
 
-    pyfuse3.init(aesfs, args.mountpoint, fuse_options)
+    pyfuse3.init(base64fs, args.mountpoint, fuse_options)
     try:
         asyncio.run(pyfuse3.main())
     except BaseException:
