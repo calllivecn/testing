@@ -32,3 +32,10 @@ file '01.mp4'
 file '02.mp4'	
 
 
+#!/bin/bash
+# date 2023-01-06 03:07:19
+# author calllivecn <c-all@qq.com>
+
+
+# 生成1s黑色视频
+ffmpeg -f lavfi -i color=black:s=1280x710 -t 1 empty.mkv

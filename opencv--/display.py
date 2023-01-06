@@ -9,14 +9,11 @@ import cv2
 
 if __name__ == '__main__':
 
-    cv2.namedWindow("camera", 1)
+    cv2.namedWindow("桌面", 1)
     # 开启ip摄像头
     # admin是账号，admin是密码
     # 
-    # video = "http://zx:zxvideo@192.168.8.170:8080/"  # 此处@后的ipv4 地址需要修改为自己的地址
-    # video = "rtsp://admin:zxvideo@192.168.8.170:8554/live"  # 此处@后的ipv4 地址需要修改为自己的地址
-    video = "http://zx:zxvideo@localhost:8080/video"
-    capture = cv2.VideoCapture(video)
+    capture = cv2.VideoCapture(0)
 
     if not capture.isOpened():
         print("Cannot open camera")
@@ -26,15 +23,8 @@ if __name__ == '__main__':
     w_h = (int(capture.get(3)), int(capture.get(4)))
     print(w_h)
     
-    """
-        fourcc_maps = {'.avi': 'I420',
-                       '.m4v': 'mp4v',
-                       '.mp4': 'avc1',
-                       '.ogv': 'THEO',
-                       '.flv': 'FLV1',
-    """
     # 保存为文件
-    fourcc = cv2.VideoWriter_fourcc(*"avc1")
+    fourcc = cv2.VideoWriter_fourcc(*"x265")
     out = cv2.VideoWriter("output.mp4", fourcc, 20, w_h)
 
     num = 0
