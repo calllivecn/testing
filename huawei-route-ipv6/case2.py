@@ -39,6 +39,10 @@ ROUTE_ADDR = os.environ.get("ROUTE_ADDR")
 PASSWORD = os.environ.get("HUAWEI_ROUTE_PW")
 DRIVER = os.environ.get("CHROME_DRVIER")
 
+assert ROUTE_ADDR != None
+assert PASSWORD != None
+assert DRIVER != None
+
 # chrome = webdriver.Chrome(DRIVER)
 
 # windows 才需要 这样？ 不是， 是需要保留记录才需要。
