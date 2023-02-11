@@ -7,9 +7,11 @@
 import os
 import time
 import traceback
+import ipaddress
+import atexit
+
 import subprocess
 import tempfile
-import atexit
 
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
@@ -89,11 +91,17 @@ class HuaweiRoute:
 
         self.wait_element_click(element=(By.ID, "deviceinfoparent_menuId"))
 
-        self.wait_element((By.ID, "deviceinfo_view_data_edit_deviceinfo_ipv6_ipv6prefixlist_label"))
-        ipv6pd = self.chrome.find_element(By.ID, "deviceinfo_view_data_edit_deviceinfo_ipv6_ipv6prefixlist_label")
-        self.ipv6pd = ipv6pd.text
+        # 找错了。
+        # self.wait_element((By.ID, "deviceinfo_view_data_edit_deviceinfo_ipv6_ipv6prefixlist_label"))
+        # ipv6pd = self.chrome.find_element(By.ID, "deviceinfo_view_data_edit_deviceinfo_ipv6_ipv6prefixlist_label")
 
-        self.ipv6_pd, self.ipv6_pd_length = self.ipv6pd.split("/")
+        self.wait_element((By.ID, "deviceinfo_view_data_edit_deviceinfo_ipv6_IPAddress_label"))
+        ipv6 = self.chrome.find_element(By.ID, "deviceinfo_view_data_edit_deviceinfo_ipv6_IPAddress_label")
+        ipv6 = ipaddress.ip_network(ipv6.text, False)
+        self.ipv6pd = ipv6.with_prefixlen
+        print(f"当前ipv6的PD: {self.ipv6pd}")
+
+        self.ipv6_pd, self.ipv6_pd_length = str(ipv6.network_address), str(ipv6.prefixlen)
 
 
     def set_ipv6PD(self):
@@ -106,11 +114,24 @@ class HuaweiRoute:
 
         self.wait_element(element=(By.ID, "ipv6_SLAAC_prefix_ctrl"))
         pd = self.chrome.find_element(By.ID, "ipv6_SLAAC_prefix_ctrl")
+
+        cur_pd = pd.get_attribute("value")
+        print(f"当前设置的PD: {cur_pd}")
+
+        pd_length = self.chrome.find_element(By.ID, "ipv6_SLAAC_prefixlength_ctrl")
+
+        cur_pd_length = pd_length.get_attribute("value")
+
+        if (cur_pd, cur_pd_length) == (self.ipv6_pd, self.ipv6_pd_length):
+            print("ipv6 前缀没有变")
+            return
+        else:
+            print(f"ipv6 前缀变为: {self.ipv6pd}")
+
         pd.click()
         pd.clear()
         pd.send_keys(self.ipv6_pd)
 
-        pd_length = self.chrome.find_element(By.ID, "ipv6_SLAAC_prefixlength_ctrl")
         pd_length.click()
         pd_length.clear()
         pd_length.send_keys(self.ipv6_pd_length)
@@ -134,32 +155,27 @@ def start(route):
 
     route.login()
 
-    cur = []
-
     while True:
         print("运行中...")
         route.get_wan_ipv6PD()
-        print(f"ipv6 PD: {route.ipv6pd}")
-
-        if cur == [route.ipv6_pd, route.ipv6_pd_length]:
-            print("ipv6 前缀没有变，sleep(120)")
-        else:
-            route.set_ipv6PD()
-            cur = [route.ipv6_pd, route.ipv6_pd_length]
-            print(f"ipv6 前缀变为: {cur}")
-
-        time.sleep(120)
+        route.set_ipv6PD()
+        t = 180
+        print(f"sleep({t})")
+        time.sleep(t)
         route.chrome.refresh()
 
 
 def main():
     route = HuaweiRoute()
+    atexit.register(route.chrome.quit)
+
     while True:
         try:
             start(route)
         except WebDriverException as e:
-            traceback.print_exc(e)
+            traceback.print_exc()
             print("WebDriver 有异常重启服务。")
+            time.sleep(5)
 
 if __name__ == "__main__":
     main()
