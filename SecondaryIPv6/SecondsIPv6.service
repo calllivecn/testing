@@ -1,0 +1,10 @@
+[Unit]
+Description=Huawei route 二级ipv6 PD 设置
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.ddns/SecondaryIPv6.conf
+ExecStart=%h/.venv/selenium/bin/python -u %h/.ddns/SecondaryIPv6.py --headless
+
+[Install]
+WantedBy=default.target

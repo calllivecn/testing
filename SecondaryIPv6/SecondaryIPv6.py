@@ -5,24 +5,27 @@
 
 
 import os
+import sys
 import time
 import traceback
 import ipaddress
+import argparse
 import atexit
 
 import subprocess
 import tempfile
 
 from selenium import webdriver
-from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.keys import Keys
 
-
-
+from selenium.common.exceptions import (
+    WebDriverException,
+    NoSuchWindowException
+)
 
 
 def chrome_start_debug(port=9527):
@@ -61,10 +64,14 @@ assert DRIVER != None
 
 class HuaweiRoute:
 
-    def __init__(self):
+    def __init__(self, args):
+        
         service = Service(DRIVER)
         options = Options()
-        options.add_argument("--headless")
+
+        if args.headless:
+            options.add_argument("--headless")
+
         self.chrome = webdriver.Chrome(options=options, service=service)
 
 
@@ -92,11 +99,9 @@ class HuaweiRoute:
         self.wait_element_click(element=(By.ID, "deviceinfoparent_menuId"))
 
         # 找错了。
-        # self.wait_element((By.ID, "deviceinfo_view_data_edit_deviceinfo_ipv6_ipv6prefixlist_label"))
-        # ipv6pd = self.chrome.find_element(By.ID, "deviceinfo_view_data_edit_deviceinfo_ipv6_ipv6prefixlist_label")
+        # ipv6pd = self.wait_element((By.ID, "deviceinfo_view_data_edit_deviceinfo_ipv6_ipv6prefixlist_label"))
 
-        self.wait_element((By.ID, "deviceinfo_view_data_edit_deviceinfo_ipv6_IPAddress_label"))
-        ipv6 = self.chrome.find_element(By.ID, "deviceinfo_view_data_edit_deviceinfo_ipv6_IPAddress_label")
+        ipv6 = self.wait_element((By.ID, "deviceinfo_view_data_edit_deviceinfo_ipv6_IPAddress_label"))
         ipv6 = ipaddress.ip_network(ipv6.text, False)
         self.ipv6pd = ipv6.with_prefixlen
         print(f"当前ipv6的PD: {self.ipv6pd}")
@@ -112,8 +117,7 @@ class HuaweiRoute:
         self.wait_element_click(element=(By.ID, "ipv6_menuId"))
         time.sleep(1)
 
-        self.wait_element(element=(By.ID, "ipv6_SLAAC_prefix_ctrl"))
-        pd = self.chrome.find_element(By.ID, "ipv6_SLAAC_prefix_ctrl")
+        pd = self.wait_element(element=(By.ID, "ipv6_SLAAC_prefix_ctrl"))
 
         cur_pd = pd.get_attribute("value")
         print(f"当前设置的PD: {cur_pd}")
@@ -143,15 +147,14 @@ class HuaweiRoute:
     # 等待元素加载完成
     def wait_element(self, element, timeout=10):
         wait = WebDriverWait(self.chrome, timeout)
-        wait.until(lambda x: x.find_element(*element))
+        return wait.until(lambda x: x.find_element(*element))
 
     def wait_element_click(self, element, timeout=10):
-        self.wait_element(element)
-        click = self.chrome.find_element(*element)
+        click = self.wait_element(element)
         click.click()
 
 
-def start(route):
+def start(route, interval=180):
 
     route.login()
 
@@ -159,23 +162,46 @@ def start(route):
         print("运行中...")
         route.get_wan_ipv6PD()
         route.set_ipv6PD()
-        t = 180
-        print(f"sleep({t})")
-        time.sleep(t)
+        print(f"sleep({interval})")
+        time.sleep(interval)
         route.chrome.refresh()
 
 
 def main():
-    route = HuaweiRoute()
-    atexit.register(route.chrome.quit)
+
+    parse = argparse.ArgumentParser(usage="%(prog)s [option]",
+        description="给二级路由器，设置ipv6PD的工具。")
+    
+    parse.add_argument("--headless", action="store_true", help="使用无头模式")
+
+    parse.add_argument("--interval", action="store", type=int, default=180, help="检测间隔时间单位：s (180)")
+
+    parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
+
+    args = parse.parse_args()
+
+    if args.parse:
+        print(args)
+        sys.exit(0)
+
 
     while True:
+
+        route = HuaweiRoute(args)
+
         try:
-            start(route)
+            start(route, args.interval)
+
+        # except NoSuchWindowException as e:
+            # traceback.print_exc()
+            # time.sleep(5)
+
         except WebDriverException as e:
             traceback.print_exc()
             print("WebDriver 有异常重启服务。")
+            route.chrome.quit()
             time.sleep(5)
+
 
 if __name__ == "__main__":
     main()
