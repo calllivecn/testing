@@ -202,6 +202,11 @@ def main():
             route.chrome.quit()
             time.sleep(5)
 
+        except Exception as e:
+            traceback.print_exc()
+            print("有异常尝试重启服务。")
+            route.chrome.quit()
+            time.sleep(5)
 
 if __name__ == "__main__":
     main()
