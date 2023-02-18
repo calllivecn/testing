@@ -90,6 +90,11 @@ class HuaweiRoute:
 
         login_btn = self.chrome.find_element(By.ID, "loginbtn")
         login_btn.click()
+    
+
+    def logout(self):
+        print("logout()")
+        self.wait_element_click(element=(By.ID, "logout_btn"))
 
 
     def get_wan_ipv6PD(self):
@@ -199,6 +204,9 @@ def main():
         except WebDriverException as e:
             traceback.print_exc()
             print("WebDriver 有异常重启服务。")
+
+            # 需要退出登录用户后在试。不然路由器，用提示，登录用记过多。。。
+            route.logout()
             route.chrome.quit()
             time.sleep(5)
 
