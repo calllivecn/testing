@@ -206,8 +206,14 @@ def main():
             print("WebDriver 有异常重启服务。")
 
             # 需要退出登录用户后在试。不然路由器，用提示，登录用记过多。。。
-            route.logout()
-            route.chrome.quit()
+            try:
+                route.logout()
+            except WebDriverException:
+                traceback.print_exc()
+                print("login() 异常")
+            finally:
+                route.chrome.quit()
+
             time.sleep(5)
 
         except Exception as e:
