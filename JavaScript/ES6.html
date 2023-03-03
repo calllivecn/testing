@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta name="vireport" content="width=device-width">
+		<title>学习ES6</title>
+	</head>
+	<body>
+		<h1 id="bigh">这是1号标题</h1>
+		<u id="li">
+			<li>这是什么1</li>
+			<li>这是什么2</li>
+			<li>这是什么3</li>
+		</u>
+		<script>
+			function rewrite(){
+				let a = `这是什么呢？`;
+				console.log(a);
+				// 找到
+				let h1 = document.getElementById("bigh");
+				
+				h1.textContent = a;
+			}
+
+			console.log("修改 h1 的text");
+			setTimeout(()=>{rewrite()}, 2000);
+
+		</script>
+	</body>
+</html>
