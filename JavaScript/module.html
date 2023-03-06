@@ -16,13 +16,15 @@
 			// 1. 通用的引入方式。
 			// 引入 js1.js 模块内容
 			import * as m1 from "./js/js1.js";
-			console.log("m1:", m1);
+			m1.touch();
+			console.log("m1:", m1.mod1);
 			let lm1 = m1;
 			console.log("lm1:", lm1);
 
 			import * as m2 from "./js/js2.js";
 			console.log("m2:", m2);
-			console.log("m2.mod1:", m2.mod1);
+			console.log("m2.name:", m2.name);
+			m2.func1();
 
 			// 2. 解构赋值形式
 
@@ -32,8 +34,8 @@
 			// 3. 简化形式， 只能针对，export default {} 
 
 			import m3 from "./js/js3.js";
-			console.log(m3);
-
+			console.log("m3:");
+			m3.func3();
 		</script>
 	</body>
 </html>
