@@ -5,20 +5,33 @@ import time
 
 def accept(sock, mask, sel):
     conn, addr = sock.accept()
+    print("accept:", addr)
     #conn.setblocking(False)
     sel.register(conn, selectors.EVENT_READ, read)
 
 def read(conn, mask, sel):
-    data = conn.recv(128)  # Should be ready
+    try:
+        data = conn.recv(128)  # Should be ready
+    except ConnectionResetError as e:
+        print(e)
+        sel.unregister(conn)
+        conn.close()
+        return
+
     if data:
         conn.send(b"Got: " + data)
+    # data = b"" peer 关闭sock
     else:
         sel.unregister(conn)
         conn.close()
+        print("close()")
+
+listen = ('0.0.0.0', 6789)
 
 sock = socket.socket()
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-sock.bind(('0.0.0.0', 6789))
+sock.bind(listen)
+print("listen:", listen) 
 sock.listen(128)
 #sock.setblocking(False)
 
