@@ -27,7 +27,7 @@ def main():
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(listen)
     sock.listen(128)
-    sock.setblocking(False)
+    #sock.setblocking(False) # 在在异步里没影响
 
     #sel = selectors.DefaultSelector()
     #sel.register(sock, selectors.EVENT_READ, accept)
@@ -49,19 +49,25 @@ def main():
         """
 
         for fd, event in epoll.poll():
-            print(type(fd), type(event)) # 都是 class int:
+            #print(type(fd), type(event)) # 都是 class int:
 
             key = fd2sock[fd]
 
-            if key == sock and event == select.EPOLLIN:
+            if event & select.EPOLLERR or event & select.EPOLLHUP:
+                key.close()
+                fd2sock.pop(fd)
+                print("close()")
+
+            elif key == sock:
                 client, addr = sock.accept()
                 print("accept:", addr)
-                client.setblocking(False)
+                #client.setblocking(False)
 
-                epoll.register(client.fileno(), select.EPOLLIN)
+                epoll.register(client.fileno(), select.EPOLLIN | select.EPOLLET)
                 fd2sock[client.fileno()] = client
 
             elif event == select.EPOLLIN:
+                time.sleep(1)
                 data = key.recv(1024)
                 if data:
                     print("读数据：", data)
@@ -83,7 +89,7 @@ def main():
             #    count = 0
 
 
-    sel.close()
+    sock.close()
 
 
 if __name__ == "__main__":
