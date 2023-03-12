@@ -78,13 +78,9 @@ def main():
 
             key = fd2sock[fd]
 
-            # if event & select.EPOLLERR or event & select.EPOLLHUP:
-                # key.close()
-                # fd2sock.pop(fd)
-                # print("close()")
-
             if key == sock:
                 epoll_accept(sock, epoll, fd2sock)
+
                 # client, addr = sock.accept()
                 # epoll.register(client, select.EPOLLIN | select.EPOLLET)
                 # fd2sock[client.fileno()] = client
@@ -99,8 +95,9 @@ def main():
                 if data:
                     # print("读数据：", data)
                     epoll.modify(fd, select.EPOLLOUT | select.EPOLLET)
+
                     """
-                    # 这样不速度会慢一半!(why?)（使用 apache ab 工具测试的）
+                    # 这样速度会慢一半!(why?)（使用 apache ab 工具测试的）
                     key.send(b"ok")
                     epoll.unregister(fd)
                     key.close()
