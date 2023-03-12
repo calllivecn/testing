@@ -9,10 +9,9 @@ import socket
 # create a bluetooth socket
 server_sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
 
-# bind the socket to a port
-#server_sock.bind(("", 1))
-
-server_sock.bind(("8C:C6:81:15:83:BB", 1))
+# bind the socket to a port, port: 1~30
+port = 1
+server_sock.bind((socket.BDADDR_ANY, port))
 
 # listen for incoming connections
 server_sock.listen(1)

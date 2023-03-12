@@ -19,3 +19,4 @@ for addr, name in nearby_devices:
         print("   {} - {}".format(addr, name))
     except UnicodeEncodeError:
         print("   {} - {}".format(addr, name.encode("utf-8", "replace")))
+
