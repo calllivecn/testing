@@ -89,6 +89,7 @@ class PacketType(enum.IntEnum):
     SYC = 0x01
     FIN = 0x02
     ACK = 0x04
+    RST = 0x08
 
     Initiator = enum.auto()
     Responder = enum.auto()

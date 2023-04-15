@@ -39,7 +39,7 @@ libc = ctypes.CDLL(ctypes.util.find_library('c'))
 buf =ctypes_alloc_aligned(1024*1024, 4096)
 
 #direct io的方式打开块设备文件
-fd = os.open('test.dd', os.O_RDWR|os.O_DIRECT)
+fd = os.open('test.dd', os.O_RDWR|os.O_CREAT|os.O_DIRECT)
 err_code = libc.read(ctypes.c_int(fd), buf, ctypes.c_int(1024*1024))
 #把directIO读出的数据放到python的一个字符串变量中：
 data = buf.raw[0:err_code]

@@ -52,7 +52,8 @@ class ThreadPool:
 
     def __init__(self, func, threads=10):
         self.pools = []
-        self.q = queue.Queue(512)
+        # self.q = queue.Queue(512)
+        self.q = queue.Queue(5120)
 
         for th in range(threads):
             th = Thread(target=self.__proc, daemon=True)
@@ -72,8 +73,11 @@ class ThreadPool:
             # 这里不需要 result
             result = func(*args, **kwargs)
 
+    def close(self):
+        self.q.close()
 
-def thread2(pool=10):
+
+def thread2(poolsize=10):
     sock = socket.socket()
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
     sock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, True)
@@ -81,7 +85,7 @@ def thread2(pool=10):
     sock.bind(ADDR)
     sock.listen(1024)
 
-    pool = ThreadPool(10)
+    pool = ThreadPool(poolsize)
 
     while True:
         client, addr = sock.accept()
