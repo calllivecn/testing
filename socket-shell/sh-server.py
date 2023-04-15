@@ -10,9 +10,12 @@ import tty
 import pty
 import fcntl
 import struct
+import socket
 import termios
 import asyncio
+import logging
 import argparse
+import multiprocessing as mprocess
 
 from asyncio import (
     subprocess,
@@ -30,6 +33,20 @@ from typing import (
 SHELL="bash"
 
 BUFSIZE = 1<<12 # 4K
+
+
+def getlogger(level=logging.INFO):
+    fmt = logging.Formatter("%(asctime)s %(filename)s:%(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
+    stream = logging.StreamHandler(sys.stdout)
+    stream.setFormatter(fmt)
+    logger = logging.getLogger("sh-server")
+    logger.setLevel(level)
+    logger.addHandler(stream)
+    return logger
+
+
+logger = getlogger()
+
 
 
 def get_pty_size(fd):
@@ -59,7 +76,7 @@ def signal_SIGWINCH_handle(sock, sigNum, frame):
 async def waitproc(shell: str, pty_slave: int) -> int:
     p = await subprocess.create_subprocess_exec(shell, stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid)
     recode = await p.wait()
-    print(f"shell wait() done, recode: {recode}")
+    logger.debug(f"shell wait() done, recode: {recode}")
     os.close(pty_slave)
     return recode
 
@@ -79,17 +96,17 @@ async def connect_read_write(pty_master) -> Tuple[StreamReader, StreamWriter]:
 
 
 async def relay(reader: StreamReader, writer: StreamWriter):
-    print(f"relay: {reader} --> {writer}")
+    logger.debug(f"relay: {reader} --> {writer}")
     while (data := await reader.read(BUFSIZE)) != b"":
         writer.write(data)
         await writer.drain()
-    print(f"stream close()")
+    logger.debug(f"stream close()")
 
 
 async def socketshell(shell: str, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     env =  os.environ.copy()
     addr = writer.get_extra_info("peername")
-    print(f"client {addr} connected.")
+    logger.info(f"client {addr} connected.")
 
     pty_master, pty_slave = pty.openpty()
     pty_reader, pty_writer = await connect_read_write(pty_master)
@@ -100,9 +117,9 @@ async def socketshell(shell: str, reader: asyncio.StreamReader, writer: asyncio.
     sock2pty = asyncio.create_task(relay(reader, pty_writer))
 
 
-    print("shell start")
+    logger.debug("shell start")
     await p_task
-    print("shell exit")
+    logger.debug("shell exit")
 
     writer.close()
     await writer.wait_closed()
@@ -112,26 +129,48 @@ async def socketshell(shell: str, reader: asyncio.StreamReader, writer: asyncio.
     # pty_writer.close()
     # await pty_writer.wait_closed()
 
-    print("pty2sock start")
+    logger.debug("pty2sock start")
     pty2sock.cancel()
-    print("pty2sock end")
+    logger.debug("pty2sock end")
 
-    print("sock2pty start")
+    logger.debug("sock2pty start")
     sock2pty.cancel()
-    print("sockpty end")
+    logger.debug("sockpty end")
 
     results = await asyncio.gather(pty2sock, sock2pty, p_task, return_exceptions=True)
-    print(f"gather() --> {results}")
+    logger.debug(f"gather() --> {results}")
 
     recode = p_task.result()
-    print(f"client {addr} disconnect, recode: {recode}")
+    logger.info(f"client {addr} disconnect, recode: {recode}")
+
+
+# 为登录的shell开一个子进程，这样不行。不能直接启动协程
+"""
+def start_shell(shell, r, w):
+    p = mprocess.Process(target=lambda: asyncio.run(socketshell(shell, r, w)))
+    p.start()
+"""
 
 
 async def server(args):
     sock = await asyncio.start_server(lambda r, w: socketshell(args.cmd, r, w), args.addr, args.port, reuse_address=True)
-    print(f"listent: {args.addr}, {args.port}")
+    logger.info(f"listent: {args.addr}, {args.port}")
     async with sock:
         await sock.serve_forever()
+
+
+# 2023-04-16 使用多进程开启子进程
+"""
+def server_process(args):
+    sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind((args.addr, args.port))
+    sock.listen(128)
+
+    while True:
+        client, addr = sock.accept()
+        start_shell(args.cmd, )
+"""
 
 
 async def client(args):
@@ -163,7 +202,7 @@ async def client(args):
     writer.close()
     await writer.wait_closed()
 
-    print("restore termios")
+    logger.debug("restore termios")
     termios.tcsetattr(STDIN, termios.TCSADRAIN, tty_bak)
 
 
