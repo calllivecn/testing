@@ -21,9 +21,20 @@ def httpResponse(msg):
 
 
 def accept(sock, mask, sel):
-    conn, addr = sock.accept()
-    conn.setblocking(False)
-    sel.register(conn, selectors.EVENT_READ, read)
+    for i in range(100):
+        try:
+            conn, addr = sock.accept()
+        except BlockingIOError:
+            # print("count:", i)
+            break
+        except Exception as e:
+            print("异常：", type(e), e)
+            break
+
+        conn.setblocking(False)
+        sel.register(conn, selectors.EVENT_READ, read)
+    
+    # print("count:", i)
 
 
 def close(sock, mask, sel):
@@ -49,14 +60,14 @@ def read(sock, mask, sel):
 
 
 
-ADDR = ('0.0.0.0', 6784)
+ADDR = ('0.0.0.0', 6789)
 def process():
     sock = socket.socket()
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
     # sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, True)
     sock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, True)
     sock.bind(ADDR)
-    sock.listen(128)
+    sock.listen(1024)
     sock.setblocking(False)
 
     sel = selectors.DefaultSelector()

@@ -20,4 +20,4 @@ class HttpEcho(FastHttpUser):
     @task
     def calllivecn(self):
         self.client.get("/calllivecn", timeout=60)
-        self.client.post("/post", data=self.data, timeout=60)
+        # self.client.post("/post", data=self.data, timeout=60)

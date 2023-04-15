@@ -82,7 +82,8 @@ def main():
 
 
     async def server():
-        server = await asyncio.start_server(handle, args.addr, args.port, reuse_address=True, reuse_port=True)
+        # server = await asyncio.start_server(handle, args.addr, args.port, reuse_address=True, reuse_port=True)
+        server = await asyncio.start_server(handle, args.addr, args.port, reuse_address=True, backlog=4096)
 
         async with server:
             await server.serve_forever()
