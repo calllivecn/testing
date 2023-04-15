@@ -4,6 +4,7 @@
 # author calllivecn <c-all@qq.com>
 
 import os
+import sys
 import time
 import logging
 import multiprocessing as mp
@@ -52,6 +53,7 @@ for _ in range(4):
 
 
 
+print("当前日志等级：", logger.level)
 print("sleep(10)")
 time.sleep(10)
 

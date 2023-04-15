@@ -19,26 +19,41 @@ def httpResponse(msg):
     return "\r\n".join(response).encode("utf8") + msg
 
 
+
 def accept(sock, mask, sel):
     conn, addr = sock.accept()
     conn.setblocking(False)
     sel.register(conn, selectors.EVENT_READ, read)
 
-def read(conn, mask, sel):
-    data = conn.recv(1024)
+
+def close(sock, mask, sel):
+    sel.unregister(sock)
+    sock.close()
+
+def write(sock, mask, sel):
+    sock.send(httpResponse(b"hello world!\n"))
+    sel.modify(sock, selectors.EVENT_WRITE, close)
+
+
+def read(sock, mask, sel):
+    try:
+        data = sock.recv(1024)
+    except ConnectionResetError:
+        sock.close()
+        sel.unregister(sock)
+        return
+
     #print("read():", data)
     # send http response
-    conn.send(httpResponse(b"hello world!\n"))
-    sel.unregister(conn)
-    #conn.shutdown(socket.SHUT_RDWR)
-    conn.close()
+    sel.modify(sock, selectors.EVENT_WRITE, write)
+
 
 
 ADDR = ('0.0.0.0', 6784)
 def process():
     sock = socket.socket()
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, True)
+    # sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, True)
     sock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, True)
     sock.bind(ADDR)
     sock.listen(128)

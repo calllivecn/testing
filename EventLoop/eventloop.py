@@ -4,7 +4,11 @@
 # author calllivecn <c-all@qq.com>
 
 
-import queue, time, select, os, socket
+import os
+import time
+import queue
+import select
+import socket
 
 
 class EventLoop:
