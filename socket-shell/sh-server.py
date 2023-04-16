@@ -15,10 +15,10 @@ import termios
 import asyncio
 import logging
 import argparse
+import threading
 import multiprocessing as mprocess
 
 from asyncio import (
-    subprocess,
     streams,
     StreamReader,
     StreamWriter,
@@ -36,7 +36,7 @@ BUFSIZE = 1<<12 # 4K
 
 
 def getlogger(level=logging.INFO):
-    fmt = logging.Formatter("%(asctime)s %(filename)s:%(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
+    fmt = logging.Formatter("%(asctime)s %(filename)s:%(lineno)d %(levelname)s %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
     stream = logging.StreamHandler(sys.stdout)
     stream.setFormatter(fmt)
     logger = logging.getLogger("sh-server")
@@ -72,9 +72,9 @@ def signal_SIGWINCH_handle(sock, sigNum, frame):
     sock.write(PacketType.TTY_RESIZE, struct.pack("!HH", *size))
 
 
-# async def waitproc(p: subprocess.Process) -> int:
 async def waitproc(shell: str, pty_slave: int) -> int:
-    p = await subprocess.create_subprocess_exec(shell, stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid)
+    # p = await subprocess.create_subprocess_exec(shell, stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid)
+    p = await asyncio.create_subprocess_exec(shell, stdin=pty_slave, stdout=pty_slave, stderr=pty_slave, preexec_fn=os.setsid)
     recode = await p.wait()
     logger.debug(f"shell wait() done, recode: {recode}")
     os.close(pty_slave)
@@ -103,8 +103,16 @@ async def relay(reader: StreamReader, writer: StreamWriter):
     logger.debug(f"stream close()")
 
 
-async def socketshell(shell: str, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
-    env =  os.environ.copy()
+async def connect_to_socket(socket):
+    reader, writer = await asyncio.open_connection(sock=socket)
+    return reader, writer
+
+
+# async def socketshell(shell: str, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+async def socketshell(shell: str, client: socket.SocketType):
+
+    reader, writer = await connect_to_socket(client)
+
     addr = writer.get_extra_info("peername")
     logger.info(f"client {addr} connected.")
 
@@ -145,11 +153,16 @@ async def socketshell(shell: str, reader: asyncio.StreamReader, writer: asyncio.
 
 
 # 为登录的shell开一个子进程，这样不行。不能直接启动协程
-"""
-def start_shell(shell, r, w):
-    p = mprocess.Process(target=lambda: asyncio.run(socketshell(shell, r, w)))
+def start_shell(shell, client):
+    p = mprocess.Process(target=lambda: asyncio.run(socketshell(shell, client)))
     p.start()
-"""
+
+    # 传给子进程后，在父进程需要关闭。
+    client.close()
+    
+    p.join()
+    logger.debug(f"子进程 {p.pid} shell退出.")
+
 
 
 async def server(args):
@@ -159,18 +172,24 @@ async def server(args):
         await sock.serve_forever()
 
 
+
 # 2023-04-16 使用多进程开启子进程
-"""
 def server_process(args):
     sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind((args.addr, args.port))
     sock.listen(128)
 
-    while True:
-        client, addr = sock.accept()
-        start_shell(args.cmd, )
-"""
+    logger.info(f"listen: {args.addr} port:{args.port}")
+
+    try:
+        while True:
+            client, addr = sock.accept()
+            th = threading.Thread(target=start_shell, args=(args.cmd, client))
+            th.start()
+
+    except KeyboardInterrupt:
+        pass
 
 
 async def client(args):
@@ -197,13 +216,15 @@ async def client(args):
     sock2stdout = asyncio.create_task(relay(reader, stdouter))
 
     await sock2stdout
+    await sock2stdout
     stdin2sock.cancel()
+    sock2stdout.cancel()
 
     writer.close()
     await writer.wait_closed()
 
-    logger.debug("restore termios")
     termios.tcsetattr(STDIN, termios.TCSADRAIN, tty_bak)
+    logger.debug("restore termios")
 
 
 
@@ -217,7 +238,7 @@ def main():
     parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
     parse.add_argument("--debug", action="store_true", help=argparse.SUPPRESS)
 
-    parse.add_argument("--addr", default="*", help="需要连接的IP或域名")
+    parse.add_argument("--addr", default="::", help="需要连接的IP或域名")
     parse.add_argument("--port", default=6789, type=int, help="端口(default: 6789")
 
     # parse.add_argument("--Spub", action="store", nargs="+", required=True, help="使用加密通信的对方公钥，server端可能有多个。")
@@ -228,7 +249,8 @@ def main():
     client_func = subparsers.add_parser("client", help="使用client端")
     server_func.add_argument("--cmd", default=SHELL, help=f"需要使用的交互程序(default: {SHELL})")
 
-    server_func.set_defaults(func=server)
+    # server_func.set_defaults(func=server)
+    server_func.set_defaults(func=server_process)
     
     client_func.set_defaults(func=client)
 
@@ -237,12 +259,20 @@ def main():
         print(args)
         sys.exit(0)
     
-    # if args.debug:
-        # logger.setLevel(logging.DEBUG)
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
     
+    
+    if args.func is server_process:
+        args.func(args)
 
-    # asyncio.run(args.func(args.addr, args.port), debug=True)
-    asyncio.run(args.func(args))
+    elif args.func is client:
+        # asyncio.run(args.func(args.addr, args.port), debug=True)
+        asyncio.run(args.func(args))
+
+    else:
+        logger.critical(f"？？？")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
