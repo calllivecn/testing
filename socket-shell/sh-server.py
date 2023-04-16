@@ -185,9 +185,11 @@ def server_process(args):
     try:
         while True:
             client, addr = sock.accept()
+            # start_shell(args.cmd, client)
             th = threading.Thread(target=start_shell, args=(args.cmd, client))
             th.start()
 
+    # 不能使用CTRL+C这样已经登录的子进程也会被干掉。
     except KeyboardInterrupt:
         pass
 
