@@ -43,7 +43,7 @@ async def main():
     print("task1 end...")
 
     print("task2 begin...")
-    print(await task2)
+    # print(await task2)
     print("task2 end...")
 
 
