@@ -514,7 +514,7 @@ def main():
     # parse.add_argument("--Spub", action="store", nargs="+", required=True, help="使用加密通信的对方公钥，server端可能有多个。")
     # parse.add_argument("--Spriv", action="store", required=True, help="使用加密通信的私钥。")
 
-    subparsers = parse.add_subparsers(title="指令", metavar="")
+    subparsers = parse.add_subparsers(title="指令", metavar="", required=True)
     server_func =  subparsers.add_parser("server", help="启动服务端")
     client_func = subparsers.add_parser("client", help="使用client端")
     server_func.add_argument("--cmd", default=SHELL, help=f"需要使用的交互程序(default: {SHELL})")

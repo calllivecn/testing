@@ -47,7 +47,7 @@ class ChatGPT:
             with open(self.context_json) as f:
                 self.messages = json.load(f)
         else:
-            self.messages = []
+            self.messages = [{"role": "system", "content": "你是一个乐于助人的助手"}]
 
 
     def chatgpt35(self, prompt):
@@ -59,6 +59,15 @@ class ChatGPT:
         # print("completion:", type(completion), dir(completion))
 
         msg = completion.choices[0].message
+
+        """
+        finish_reason的可能值为：
+
+        stop：API返回完整模型输出
+        length：由于以下原因导致模型输出不完整 max_tokens 参数或令牌限制
+        content_filter：由于我们的内容过滤器中的标志而忽略了内容
+        null：API响应仍在进行中或未完成
+        """
 
         self.messages.append(dict(copy.copy(msg)))
 
