@@ -50,16 +50,14 @@ def save(wave_output_filename, wav):
 
 
 DEV = "cuda" if torch.cuda.is_available() else "cpu"
-dev = "cpu"
-dev = DEV
 
 # model = whisper.load_model("base")
 # model = whisper.load_model("small")
 # model = whisper.load_model("medium")
 
 # 使用CPU太慢了。。。
-# model = whisper.load_model("medium", device="cpu")
-model = whisper.load_model("small", device=dev)
+model = whisper.load_model("medium", device=DEV)
+# model = whisper.load_model("small", device=DEV)
 
 class Callback:
 
@@ -105,12 +103,12 @@ while True:
             print('按空格键开始 或 暂停并转录(结束时按 e 转录为英语)...','按s键停止...')
 
             # 转换成 np.ndarry
-            if dev == "cpu":
+            if DEV == "cpu":
                 data = np.frombuffer(cb.getbuffer(), np.int16).flatten().astype(np.float32)
                 frames_tensor = torch.Tensor(data)
             else:
                 data = np.frombuffer(cb.getbuffer(), np.int16).flatten().astype(np.float32) / 32768.0
-                frames_tensor = torch.Tensor(data).to(device=dev)
+                frames_tensor = torch.Tensor(data).to(device=DEV)
             
 
             # 保留下音频
@@ -119,7 +117,7 @@ while True:
             cb.reset()
             start = time.time()
             # 让它自己选择简体或繁体
-            # result = model.transcribe(frames_tensor, language="zh")
+            result = model.transcribe(frames_tensor, language="zh")
 
             # 按e 转录为英语
             if ch == b"e":
