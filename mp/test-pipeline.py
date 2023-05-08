@@ -22,7 +22,7 @@ class PipeLine:
 
 
 # 后处理在单核性能不行， 使用 多进程处理。
-class ModelPostPorcess:
+class StreamingPorcessPool:
 
     EOF = "EOF"
 
@@ -32,25 +32,20 @@ class ModelPostPorcess:
         """
 
         self._done = False
-        # self._done_lock = threading.Lock()
-        # self._done_lock.acquire()
         self._done_event = threading.Event()
         self._proc_done = False
 
         self.func = func
 
-        cpu_count = os.cpu_count()
-        if pool > cpu_count:
-            pool = cpu_count
-        else:
-            self.pool = pool
+        self.pool = pool
 
         self.pools = []
 
         self.queue_size = queue_size
-        self.in_queue = mp.JoinableQueue(pool)
-        self.out_queue = mp.JoinableQueue(pool)
-        self.pull_queue = queue.Queue()
+        # self.in_queue = mp.JoinableQueue(pool)
+        # self.out_queue = mp.JoinableQueue(pool)
+        self.in_queue = mp.Queue(pool)
+        self.out_queue = mp.Queue(pool)
 
         self.in_seq = 0
         self.out_seq = 0
@@ -83,12 +78,7 @@ class ModelPostPorcess:
         for p in self.pools:
             p.join()
 
-        # EOF
-        self.in_queue.get()
-        self.in_queue.task_done()
-
         self.out_queue.put(self.EOF)
-        self.out_queue.join()
         self._proc_done = True
 
     def push(self, task):
@@ -114,12 +104,11 @@ class ModelPostPorcess:
                 return self.EOF
 
             seq_frame = self.out_queue.get()
-            print(f"pull() 拿到 {seq_frame=}")
-            self.out_queue.task_done()
+            # print(f"pull() 拿到 {seq_frame=}")
 
             if seq_frame == self.EOF:
                 # 这时说明这是最后一次 pull() 了, 需要清空self.stash
-                print("pull() 已经拿到 EOF了")
+                # print("pull() 已经拿到 EOF了")
 
                 while len(self.stash):
                     self.out_queue.put(heapq.heappop(self.stash))
@@ -152,23 +141,19 @@ class ModelPostPorcess:
 
 
     def __proc(self):
-        pid = mp.current_process().pid
+        # pid = mp.current_process().pid
         while (seq_frame := self.in_queue.get()) != self.EOF:
             # print(f"Porcess PID:{pid} task: {seq_frame}")
-            self.in_queue.task_done()
             seq, task = seq_frame
 
             result = self.func(task)
 
             self.out_queue.put((seq, result))
         
-        self.in_queue.task_done()
 
         # 在put 回去， 让其他进程退出。
         self.in_queue.put(self.EOF)
 
-        print("Porcess pool 退出 PID:", pid)
-        
 
     def done(self):
         self.in_queue.put(self.EOF)
@@ -178,7 +163,7 @@ class ModelPostPorcess:
     
     def is_done(self):
         _is_done = self._done and self._proc_done
-        print(f"{_is_done=}")
+        # print(f"{_is_done=}")
         return _is_done
 
 
@@ -194,23 +179,24 @@ def task_oreder(task):
 def pull_task(M_P, count=20):
     for i in range(count):
         M_P.push(i)
+        # print("推送的任务：", i)
 
     for i in range(count):
         M_P.push(i)
+        # print("推送的任务：", i)
     
     M_P.done()
 
 
-multi_process = ModelPostPorcess()
+spp = StreamingPorcessPool()
 
-th = threading.Thread(target=pull_task, args=(multi_process,10))
+th = threading.Thread(target=pull_task, args=(spp,10))
 th.start()
 
-multi_process.submit_func(task_oreder)
-
+spp.submit_func(task_oreder)
 
 results = []
-while (result := multi_process.pull()) != multi_process.EOF:
+while (result := spp.pull()) != spp.EOF:
     print(f"收到的: {result}")
     results.append(result)
 
