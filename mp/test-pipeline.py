@@ -81,11 +81,11 @@ class StreamingPorcessPool:
         self.out_queue.put(self.EOF)
         self._proc_done = True
 
-    def push(self, task):
+    def push(self, *args, **kwargs):
         if self._done:
             raise ValueError("当前pipeline入口已关闭")
 
-        frame = (self.in_seq, task)
+        frame = (self.in_seq, (args, kwargs))
         # print(f"push(): {self.in_seq=} {frame=}")
 
         self.in_queue.put(frame)
@@ -145,8 +145,8 @@ class StreamingPorcessPool:
         while (seq_frame := self.in_queue.get()) != self.EOF:
             # print(f"Porcess PID:{pid} task: {seq_frame}")
             seq, task = seq_frame
-
-            result = self.func(task)
+            args, kwargs = task
+            result = self.func(*args, **kwargs)
 
             self.out_queue.put((seq, result))
         
@@ -178,11 +178,11 @@ def task_oreder(task):
 
 def pull_task(M_P, count=20):
     for i in range(count):
-        M_P.push(i)
+        M_P.push((f"args {i}", "kwargs"))
         # print("推送的任务：", i)
 
     for i in range(count):
-        M_P.push(i)
+        M_P.push((f"args {i}", "kwargs"))
         # print("推送的任务：", i)
     
     M_P.done()
