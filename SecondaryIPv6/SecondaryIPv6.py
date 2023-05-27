@@ -85,7 +85,8 @@ class HuaweiRoute:
         self.wait_element_click(element=(By.ID, "userpassword_ctrl"))
 
         login_ctrl = self.chrome.find_element(By.ID, "userpassword_ctrl")
-        login_ctrl.send_keys(PASSWORD +  Keys.RETURN)
+        # login_ctrl.send_keys(PASSWORD +  Keys.RETURN) # 这里使用回车后就登录了，就没有loginbtn元素了。
+        login_ctrl.send_keys(PASSWORD)
         # time.sleep(1)
 
         login_btn = self.chrome.find_element(By.ID, "loginbtn")
@@ -156,6 +157,7 @@ class HuaweiRoute:
 
     def wait_element_click(self, element, timeout=10):
         click = self.wait_element(element)
+        time.sleep(1)
         click.click()
 
 
