@@ -76,4 +76,7 @@ def mandelbrot(n):
             write(row[1])
 
 if __name__ == '__main__':
+    """
+    python $0 1000x1000 > 1000.pbm
+    """
     mandelbrot(int(argv[1]))
