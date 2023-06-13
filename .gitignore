@@ -46,3 +46,4 @@ hdfs--/input/
 
 *.class
 *.jar
+*.pbm
