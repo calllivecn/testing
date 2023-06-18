@@ -22,7 +22,7 @@ root = Tk()
 # 禁止改变窗口大小
 root.resizable(width=False, height=False)
 # 修改图标
-root.iconbitmap('images/fklogo.ico')
+#root.iconbitmap('images/fklogo.ico')
 # 设置窗口标题
 root.title('五子棋')
 # 创建并添加Canvas
