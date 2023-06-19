@@ -116,6 +116,9 @@ class Canvas_Rectangle:
 
         x0, y0, x1, y1 = self.canvas.coords(self.rect)
 
+        self.left_up_id = self.canvas.create_oval(x0 - self.pos_range, y0 - self.pos_range, x0 + self.pos_range, y0 + self.pos_range, fill='white', state="disabled")
+        self.right_down_id = self.canvas.create_oval(x1 - self.pos_range, y1 - self.pos_range, x1 + self.pos_range, y1 + self.pos_range, fill='white', state="disabled")
+
         # 检测鼠标是否在左上+右下
         left_up = abs(e.x - x0) <= self.pos_range and abs(e.y - y0) <= self.pos_range
         right_down = abs(e.x - x1) <= self.pos_range and abs(e.y - y1) <= self.pos_range
@@ -123,8 +126,6 @@ class Canvas_Rectangle:
         # 只在左上+右下生成提示圆
         if left_up or right_down:
             print(f"到正确位置: {left_up=} {right_down=}")
-            self.left_up_id = self.canvas.create_oval(x0 - self.pos_range, y0 - self.pos_range, x0 + self.pos_range, y0 + self.pos_range, fill='white', state="disabled")
-            self.right_down_id = self.canvas.create_oval(x1 - self.pos_range, y1 - self.pos_range, x1 + self.pos_range, y1 + self.pos_range, fill='white', state="disabled")
 
             self.canvas.config(cursor='target')
             self.resize_rect_flag = True
@@ -174,7 +175,8 @@ class Canvas_Rectangle:
         if x0 + self.outline_width < e.x < x1 + self.outline_width and y0 - self.outline_width < e.y < y1 - self.outline_width:
             print("鼠标在矩形内部.")
             self.move_rect_funcid = self.canvas.bind("<B1-Motion>", self.move_rect)
-        
+            # self.canvas.config(cursor="fleur")
+                        
         elif not self.rect in self.canvas.find_overlapping(x0 - self.pos_range, y0 - self.pos_range, x0 + self.pos_range, y0 + self.pos_range):
         # else:
             print("bind: <B1-Motion> self.resize_rect")
@@ -182,14 +184,19 @@ class Canvas_Rectangle:
     
 
     def mouseUp(self, e):
+
         x0, y0, x1, y1 = self.canvas.coords(self.rect)
-        if x0 + self.outline_width < e.x < x1 + self.outline_width and y0 - self.outline_width < e.y < y1 - self.outline_width:
-            if hasattr(self, "resize_rect_fundic"):
-                self.canvas.unbind("<B1-Motion>", self.resize_rect_funcid)
+
+        # if x0 + self.outline_width < e.x < x1 + self.outline_width and y0 - self.outline_width < e.y < y1 - self.outline_width:
+        if hasattr(self, "resize_rect_fundic"):
+            self.canvas.unbind("<B1-Motion>", self.resize_rect_funcid)
+            self.resize_rect_funcid =None
 
         # 只要不是在矩形内就是外面
-        elif not self.rect in self.canvas.find_overlapping(x0 - self.pos_range, y0 - self.pos_range, x0 + self.pos_range, y0 + self.pos_range):
+        # if not self.rect in self.canvas.find_overlapping(x0 - self.pos_range, y0 - self.pos_range, x0 + self.pos_range, y0 + self.pos_range):
+        if hasattr(self, "move_rect_funcid"):
             self.canvas.unbind("<B1-Motion>", self.move_rect_funcid)
+            self.move_rect_funcid = None
         
 
     def resize_rect(self, event):
@@ -199,10 +206,12 @@ class Canvas_Rectangle:
         # 左上
         if self.rect in self.canvas.find_overlapping(x0 - self.pos_range, y0 - self.pos_range, x0 + self.pos_range, y0 + self.pos_range):
             self.canvas.coords(self.rect, event.x, event.y, x1, y1)
+            print("左上")
 
         # 右下
         elif self.rect in self.canvas.find_overlapping(x1 - self.pos_range, y1 - self.pos_range, x1 + self.pos_range, y1 + self.pos_range):
             self.canvas.coords(self.rect, x0, y0, event.x, event.y)
+            print("右下")
         
 
     def move_rect(self, event):
