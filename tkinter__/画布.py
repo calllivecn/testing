@@ -90,8 +90,6 @@ class Canvas_Rectangle:
         self.mouseDown_funcid = self.canvas.bind("<Button-1>", self.mouseDown)
         self.mouseUp_funcid = self.canvas.bind("<ButtonRelease-1>", self.mouseUp)
 
-        # self.canvas.tag_bind(self.rect, "<Button-1>", self.mouseDown)
-        # self.canvas.tag_bind(self.rect, "<B1-Motion>", self.move_rect)
         self.mouse_enter_id = self.canvas.tag_bind(self.rect, "<Enter>", self.mouse_enter)
         self.mouse_restore_id =  self.canvas.tag_bind(self.rect, "<Leave>", self.mouse_restore)
 
@@ -112,16 +110,10 @@ class Canvas_Rectangle:
         # 检测鼠标是否在左上+右下
         self.left_up = abs(e.x - x0) <= self.pos_range and abs(e.y - y0) <= self.pos_range
         self.right_down = abs(e.x - x1) <= self.pos_range and abs(e.y - y1) <= self.pos_range
-        print(f"{self.left_up=} {self.right_down=}")
 
         # 只在左上+右下生成提示圆
         if self.left_up or self.right_down:
-
             self.canvas.config(cursor='target')
-
-            # self.canvas.unbind("<Button-1>", self.mouseDown_funcid)
-            # self.canvas.unbind("<ButtonRelease-1>", self.mouseUp_funcid)
-
             self.resize_rect_fundis = self.canvas.bind("<B1-Motion>", self.resize_rect)
         
         else:
@@ -135,10 +127,6 @@ class Canvas_Rectangle:
 
         self.canvas.tag_unbind(self.rect, "<B1-Motion>")
         
-
-        # self.mouseDown_funcid = self.canvas.bind("<Button-1>", self.mouseDown)
-        # self.mouseUp_funcid = self.canvas.bind("<ButtonRelease-1>", self.mouseUp)
-
         if hasattr(self, "left_up_id"):
             self.canvas.delete(self.left_up_id)
             self.canvas.delete(self.right_down_id)
@@ -147,8 +135,6 @@ class Canvas_Rectangle:
     def mouseDown(self, e):
         # 矩形上次的位置
         self.x0, self.y0 = e.x, e.y
-
-        print(f"鼠标 按下：{e=}")
 
         # 左上+右下检测
         # 检测某个组件是否绑定了指定事件
@@ -173,21 +159,16 @@ class Canvas_Rectangle:
 
     def mouseUp(self, e):
 
-        # if self.left_up or self.right_down:
         # 检测某个组件是否绑定了指定事件
         if not self.canvas.tag_bind(self.rect, '<Enter>'):
             self.mouse_enter_id = self.canvas.tag_bind(self.rect, "<Enter>", self.mouse_enter)
             self.mouse_restore_id = self.canvas.tag_bind(self.rect, "<Leave>", self.mouse_restore)
 
-        x0, y0, x1, y1 = self.canvas.coords(self.rect)
-
-        # if x0 + self.outline_width < e.x < x1 + self.outline_width and y0 - self.outline_width < e.y < y1 - self.outline_width:
         if hasattr(self, "resize_rect_fundic"):
             self.canvas.unbind("<B1-Motion>", self.resize_rect_funcid)
             self.resize_rect_funcid =None
 
         # 只要不是在矩形内就是外面
-        # if not self.rect in self.canvas.find_overlapping(x0 - self.pos_range, y0 - self.pos_range, x0 + self.pos_range, y0 + self.pos_range):
         if hasattr(self, "move_rect_funcid"):
             self.canvas.unbind("<B1-Motion>", self.move_rect_funcid)
             self.move_rect_funcid = None
@@ -197,11 +178,7 @@ class Canvas_Rectangle:
         x, y = self.canvas.canvasx(event.x), self.canvas.canvasy(event.y)
         x0, y0, x1, y1 = self.canvas.coords(self.rect)
 
-        print("resize_rect:", x0, y0, x1, y1, event.x, event.y)
-
         # 左上
-        # if self.rect in self.canvas.find_overlapping(x0 - self.pos_range, y0 - self.pos_range, x0 + self.pos_range, y0 + self.pos_range):
-        # if x0 - self.pos_range < event.x < x0 + self.pos_range and y0 - self.pos_range < event.y < y0 + self.pos_range:
         if self.left_up:
             if x < 0:
                 x = 0
@@ -210,8 +187,6 @@ class Canvas_Rectangle:
             self.canvas.coords(self.rect, x, y, x1, y1)
 
         # 右下
-        # elif self.rect in self.canvas.find_overlapping(x1 - self.pos_range, y1 - self.pos_range, x1 + self.pos_range, y1 + self.pos_range):
-        # if x1 - self.pos_range < event.x < x1 + self.pos_range and y1 - self.pos_range < event.y < y1 + self.pos_range:
         elif self.right_down:
             if x > self.w:
                 x = self.w
@@ -250,7 +225,6 @@ class Canvas_Rectangle:
             move_y = 0
 
         # 这里的 x y 是相对移动的像素。
-        # self.canvas.move(self.rect, event.x - self.x0, event.y - self.y0)
         self.canvas.move(self.rect, move_x, move_y)
 
         # 最后需要保存本次鼠标位置，供下次移动事件使用
