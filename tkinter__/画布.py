@@ -75,9 +75,10 @@ class Canvas_Rectangle:
         self.x0 =0
         self.y0 =0
 
-        self.entry_rect = False
 
         self.resize_rect_flag = True
+
+        self.pos_range = 10
 
         # 画布一个20像素的矩形看看有多宽
         tmp = self.canvas.create_rectangle(100, 100, 120, 200, width=10, outline='green')
@@ -112,13 +113,29 @@ class Canvas_Rectangle:
         self.rect_x0, self.rect_y0 = e.x, e.y
 
         print(f"鼠标进入, {e=}")
-        self.canvas.config(cursor='target')
-        self.resize_rect_flag = True
 
-        self.canvas.unbind("<Button-1>", self.mouseDown_funcid)
-        self.canvas.unbind("<ButtonRelease-1>", self.mouseUp_funcid)
+        x0, y0, x1, y1 = self.canvas.coords(self.rect)
 
-        slef.resize_rect_fundis = self.canvas.tag_bind(self.rect, "<B1-Motion>", self.resize_rect)
+        # 检测鼠标是否在左上+右下
+        left_up = abs(e.x - x0) <= self.pos_range and abs(e.y - y0) <= self.pos_range
+        right_down = abs(e.x - x1) <= self.pos_range and abs(e.y - y1) <= self.pos_range
+
+        # 只在左上+右下生成提示圆
+        if left_up or right_down:
+            print(f"到正确位置: {left_up=} {right_down=}")
+            self.left_up_id = self.canvas.create_oval(x0 - self.pos_range, y0 - self.pos_range, x0 + self.pos_range, y0 + self.pos_range, fill='white', state="disabled")
+            self.right_down_id = self.canvas.create_oval(x1 - self.pos_range, y1 - self.pos_range, x1 + self.pos_range, y1 + self.pos_range, fill='white', state="disabled")
+
+            self.canvas.config(cursor='target')
+            self.resize_rect_flag = True
+
+            self.canvas.unbind("<Button-1>", self.mouseDown_funcid)
+            self.canvas.unbind("<ButtonRelease-1>", self.mouseUp_funcid)
+
+            self.resize_rect_fundis = self.canvas.bind("<B1-Motion>", self.resize_rect)
+        
+        else:
+            print("没有到正确位置")
         
         # 叉叉
         # self.canvas.config(cursor='pirate')
@@ -142,50 +159,49 @@ class Canvas_Rectangle:
         self.mouseDown_funcid = self.canvas.bind("<Button-1>", self.mouseDown)
         self.mouseUp_funcid = self.canvas.bind("<ButtonRelease-1>", self.mouseUp)
 
-    
+        if hasattr(self, "left_up_id"):
+            self.canvas.delete(self.left_up_id)
+            self.canvas.delete(self.right_down_id)
+        
+
     def mouseDown(self, e):
         # 矩形上次的位置
         self.x0, self.y0 = e.x, e.y
         print(f"鼠标按下，拿到矩形位置", self.x0, self.y0)
 
-        # 检测鼠标是否移动了到矩形上(就是边上)
-        # if self.rect in self.canvas.find_overlapping(e.x, e.y, e.x+1, e.y+1):
-            # print("鼠标移动到了矩形内部.")
-
         x0, y0, x1, y1 = self.canvas.coords(self.rect)
-        # 使用坐标自己判断
+        # 使用坐标自己判断,鼠标是否在矩形内部
         if x0 + self.outline_width < e.x < x1 + self.outline_width and y0 - self.outline_width < e.y < y1 - self.outline_width:
             print("鼠标在矩形内部.")
-            self.entry_rect = True
             self.move_rect_funcid = self.canvas.bind("<B1-Motion>", self.move_rect)
         
-        elif not self.rect in self.canvas.find_overlapping(x0 - pos_range, y0 - pos_range, x0 + pos_range, y0 + pos_range):
+        elif not self.rect in self.canvas.find_overlapping(x0 - self.pos_range, y0 - self.pos_range, x0 + self.pos_range, y0 + self.pos_range):
+        # else:
+            print("bind: <B1-Motion> self.resize_rect")
             self.resize_rect_funcid = self.canvas.bind("<B1-Motion>", self.resize_rect)
-
     
 
     def mouseUp(self, e):
         x0, y0, x1, y1 = self.canvas.coords(self.rect)
         if x0 + self.outline_width < e.x < x1 + self.outline_width and y0 - self.outline_width < e.y < y1 - self.outline_width:
-            self.canvas.unbind("<B1-Motion>", self.resize_rect_funcid)
-            self.entry_rect = False
+            if hasattr(self, "resize_rect_fundic"):
+                self.canvas.unbind("<B1-Motion>", self.resize_rect_funcid)
 
         # 只要不是在矩形内就是外面
-        elif not self.rect in self.canvas.find_overlapping(x0 - pos_range, y0 - pos_range, x0 + pos_range, y0 + pos_range):
+        elif not self.rect in self.canvas.find_overlapping(x0 - self.pos_range, y0 - self.pos_range, x0 + self.pos_range, y0 + self.pos_range):
             self.canvas.unbind("<B1-Motion>", self.move_rect_funcid)
         
 
     def resize_rect(self, event):
         x0, y0, x1, y1 = self.canvas.coords(self.rect)
-
-        pos_range = 10
+        print("resize_rect:", x0, y0, x1, y1, event.x, event.y)
 
         # 左上
-        if self.rect in self.canvas.find_overlapping(x0 - pos_range, y0 - pos_range, x0 + pos_range, y0 + pos_range):
+        if self.rect in self.canvas.find_overlapping(x0 - self.pos_range, y0 - self.pos_range, x0 + self.pos_range, y0 + self.pos_range):
             self.canvas.coords(self.rect, event.x, event.y, x1, y1)
 
         # 右下
-        elif self.rect in self.canvas.find_overlapping(x1 - pos_range, y1 - pos_range, x1 + pos_range, y1 + pos_range):
+        elif self.rect in self.canvas.find_overlapping(x1 - self.pos_range, y1 - self.pos_range, x1 + self.pos_range, y1 + self.pos_range):
             self.canvas.coords(self.rect, x0, y0, event.x, event.y)
         
 
