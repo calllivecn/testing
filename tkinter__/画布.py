@@ -53,7 +53,7 @@ class Canvas_Rectangle:
 
         self.root = tk.Tk()
 
-        self.canvas = tk.Canvas(self.root, bg='white', width=1920, height=1080)
+        self.canvas = tk.Canvas(self.root, bg='white', width=1620, height=980)
         self.canvas.pack()
 
         self.canvas.update()
@@ -92,8 +92,8 @@ class Canvas_Rectangle:
 
         # self.canvas.tag_bind(self.rect, "<Button-1>", self.mouseDown)
         # self.canvas.tag_bind(self.rect, "<B1-Motion>", self.move_rect)
-        self.canvas.tag_bind(self.rect, "<Enter>", self.change_mouse)
-        self.canvas.tag_bind(self.rect, "<Leave>", self.restoe_mouse)
+        self.canvas.tag_bind(self.rect, "<Enter>", self.mouse_enter)
+        self.canvas.tag_bind(self.rect, "<Leave>", self.mouse_restore)
 
 
         # self.canvas.tag_bind(self.rect, "<Button-1>", self.on_button_press)
@@ -108,7 +108,7 @@ class Canvas_Rectangle:
         self.canvas.scan_dragto(e.x, e.y, gain=1)
     """
     
-    def change_mouse(self, e):
+    def mouse_enter(self, e):
         self.rect_x0, self.rect_y0 = e.x, e.y
 
         print(f"鼠标进入, {e=}")
@@ -118,7 +118,7 @@ class Canvas_Rectangle:
         self.canvas.unbind("<Button-1>", self.mouseDown_funcid)
         self.canvas.unbind("<ButtonRelease-1>", self.mouseUp_funcid)
 
-        self.canvas.tag_bind(self.rect, "<B1-Motion>", self.resize_rect)
+        slef.resize_rect_fundis = self.canvas.tag_bind(self.rect, "<B1-Motion>", self.resize_rect)
         
         # 叉叉
         # self.canvas.config(cursor='pirate')
@@ -130,7 +130,7 @@ class Canvas_Rectangle:
         # self.canvas.config(cursor='dotbox')
 
     
-    def restoe_mouse(self, e):
+    def mouse_restore(self, e):
         print(f"鼠标离开, {e=}")
         self.canvas.config(cursor='arrow')
 
@@ -141,7 +141,6 @@ class Canvas_Rectangle:
 
         self.mouseDown_funcid = self.canvas.bind("<Button-1>", self.mouseDown)
         self.mouseUp_funcid = self.canvas.bind("<ButtonRelease-1>", self.mouseUp)
-
 
     
     def mouseDown(self, e):
@@ -157,20 +156,26 @@ class Canvas_Rectangle:
         # 使用坐标自己判断
         if x0 + self.outline_width < e.x < x1 + self.outline_width and y0 - self.outline_width < e.y < y1 - self.outline_width:
             print("鼠标在矩形内部.")
-            self.mouse_move_funcid = self.canvas.bind("<B1-Motion>", self.mouse_move)
             self.entry_rect = True
+            self.move_rect_funcid = self.canvas.bind("<B1-Motion>", self.move_rect)
+        
+        elif not self.rect in self.canvas.find_overlapping(x0 - pos_range, y0 - pos_range, x0 + pos_range, y0 + pos_range):
+            self.resize_rect_funcid = self.canvas.bind("<B1-Motion>", self.resize_rect)
+
     
 
     def mouseUp(self, e):
-        if self.entry_rect:
-            self.canvas.unbind("<B1-Motion>", self.mouse_move_funcid)
+        x0, y0, x1, y1 = self.canvas.coords(self.rect)
+        if x0 + self.outline_width < e.x < x1 + self.outline_width and y0 - self.outline_width < e.y < y1 - self.outline_width:
+            self.canvas.unbind("<B1-Motion>", self.resize_rect_funcid)
             self.entry_rect = False
+
+        # 只要不是在矩形内就是外面
+        elif not self.rect in self.canvas.find_overlapping(x0 - pos_range, y0 - pos_range, x0 + pos_range, y0 + pos_range):
+            self.canvas.unbind("<B1-Motion>", self.move_rect_funcid)
         
 
     def resize_rect(self, event):
-        # if not self.resize_rect_flag:
-            # return
-
         x0, y0, x1, y1 = self.canvas.coords(self.rect)
 
         pos_range = 10
@@ -184,18 +189,14 @@ class Canvas_Rectangle:
             self.canvas.coords(self.rect, x0, y0, event.x, event.y)
         
 
-    def mouse_move(self, event):
-        if self.entry_rect:
-            self.move_component(self.rect, event)
-
-    def move_component(self, component_id, event):
+    def move_rect(self, event):
 
         print(f"{event.x=}, {event.y=}")
         x, y = self.canvas.canvasx(event.x), self.canvas.canvasy(event.y)
         print(f"鼠标在画布上的坐标：{x=} {y=}")
 
         # 矩形上次的位置
-        x0, y0, x1, y1 = self.canvas.coords(component_id)
+        x0, y0, x1, y1 = self.canvas.coords(self.rect)
         print(f"当前矩形位置：", x0, y0, x1, y1)
 
         # 矩形本身的大小
@@ -218,7 +219,7 @@ class Canvas_Rectangle:
 
         # 这里的 x y 是相对移动的像素。
         # self.canvas.move(self.rect, event.x - self.x0, event.y - self.y0)
-        self.canvas.move(component_id, move_x, move_y)
+        self.canvas.move(self.rect, move_x, move_y)
 
         # 最后需要保存本次鼠标位置，供下次移动事件使用
         self.x0, self.y0 = event.x, event.y
