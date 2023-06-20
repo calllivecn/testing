@@ -79,9 +79,6 @@ class Canvas_Rectangle:
 
         self.left_up = self.right_down = False
 
-        # 画布一个20像素的矩形看看有多宽
-        tmp = self.canvas.create_rectangle(100, 100, 120, 200, width=10, outline='green')
-
         # 画线宽度
         self.outline_width = 5
         # 这里坐标是矩形的左上角和右下角坐标
@@ -235,5 +232,33 @@ class Canvas_Rectangle:
         self.root.mainloop()
 
 
-root = Canvas_Rectangle()
-root.loop()
+# 测试，画布跟着窗口大小自动改变
+class ResizeCanvas(Canvas_Rectangle):
+
+    def __init__(self):
+        super().__init__()
+
+        # 画布一个20像素的矩形看看有多宽
+        tmp = self.canvas.create_rectangle(100, 100, 120, 200, width=10, outline='green')
+
+        tmp2 = self.canvas.create_oval(200, 200, 300, 300, width=10, outline='blue')
+
+        self.root.bind("<Configure>", self.resize_canvas)
+
+    
+    def resize_canvas(self, e):
+        print(f"{__name__=} {e=}")
+        self.w = e.width
+        self.h = e.height
+
+        # w2 = self.root.winfo_reqheight()
+        # h2 = self.root.winfo_reqheight()
+
+        self.canvas.config(width=e.width, height=e.height)
+        # self.canvas.config(width=w2, height=h2)
+
+
+if __name__ == "__main__":
+    # root = Canvas_Rectangle()
+    root = ResizeCanvas()
+    root.loop()
