@@ -50,11 +50,11 @@ class ChatGPT:
             self.messages = [{"role": "system", "content": "你是一个乐于助人的助手"}]
 
 
-    def chatgpt35(self, prompt):
+    def chatgpt35(self, prompt, model="gpt-3.5-turbo-0613"):
 
         self.messages.append({"role": "user", "content": prompt})
 
-        completion = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=self.messages)
+        completion = openai.ChatCompletion.create(model=model, messages=self.messages)
 
         # print("completion:", type(completion), dir(completion))
 
