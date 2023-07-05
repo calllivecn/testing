@@ -17,6 +17,9 @@ import argparse
 import subprocess
 from datetime import datetime
 
+import logging
+from logging.handlers import TimedRotatingFileHandler
+
 from threading import (
     Thread,
     Lock,
@@ -27,6 +30,26 @@ from typing import (
     Union,
     List,
 )
+
+PROG, _ = os.path.splitext(os.path.basename(sys.argv[0]))
+
+FMT = logging.Formatter("%(asctime)s.%(msecs)d %(lineno)d %(levelname)s %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
+
+def getlogger(level=logging.INFO):
+    logger = logging.getLogger(f"{PROG}")
+
+    # fmt = logging.Formatter("%(asctime)s.%(msecs)d %(filename)s:%(funcName)s:%(lineno)d %(levelname)s %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
+
+    fp = logging.FileHandler(f"{PROG}.logs")
+    # fp = TimedRotatingFileHandler(f"{prog}.logs", when="D", interval=1, backupCount=7)
+    fp.setFormatter(FMT)
+
+    logger.setLevel(level)
+    logger.addHandler(fp)
+    return logger
+
+
+logger = getlogger()
 
 
 def timestamp():
@@ -160,7 +183,7 @@ class Executer:
             if self.status == Status.Running or self.status == Status.Pause:
                 os.kill(self.task.pid, sig)
         else:
-            print(f"task {self.task} 没有运行")
+            logger.info(f"task {self.task} 没有运行")
 
     def pause(self):
         if self.status == Status.Running:
@@ -175,7 +198,7 @@ class Executer:
             os.kill(self.task.pid, signal.SIGCONT)
             self.status = Status.Running
         else:
-            print(f"当前执行器没有暂停")
+            logger.info(f"当前执行器没有暂停")
 
     def __exec(self):
         while True:
@@ -186,10 +209,9 @@ class Executer:
             # 当前执行器 正在执行的任务
             self.task = self.q.get()
 
-            print(BIG2_SPLIT)
-            print(f"开始时间: {timestamp()}")
-            print(self.task)
-            print(BIG2_SPLIT)
+            logger.info(f"{BIG2_SPLIT}")
+            logger.info(f"↓\n开始时间: {timestamp()}\n{self.task}")
+            logger.info(f"{BIG2_SPLIT}")
 
             self.status = Status.Running
             try:
@@ -200,10 +222,9 @@ class Executer:
 
             self.status = Status.Wait
 
-            print(BIG2_SPLIT)
-            print(f"开始时间: {self.task.start}, 结束时间: {self.task.end}")
-            print(self.task)
-            print(BIG2_SPLIT)
+            logger.info(f"{BIG2_SPLIT}")
+            logger.info(f"↓\n开始时间: {self.task.start}, 结束时间: {self.task.end}\n{self.task}")
+            logger.info(BIG2_SPLIT)
 
 
 class Manager:
@@ -336,7 +357,7 @@ def server(args):
     host = args.host
     port = args.port
 
-    print(f"启动执行管理器: {host}:{port}")
+    logger.info(f"启动执行管理器: {host}:{port}")
 
     m = Manager()
 
@@ -346,7 +367,7 @@ def server(args):
         client, addr = sock.accept()
         data =  client.recv(8192)
         if not data:
-            print("peer close()")
+            logger.info("peer close()")
             client.close()
             continue
 
@@ -354,7 +375,7 @@ def server(args):
             proto = pickle.loads(data)
             # print("type:", proto[0])
         except Exception:
-            print(f"接收客户端数据异常")
+            logger.deubg(f"接收客户端数据异常")
             traceback.print_exc()
             continue
 
@@ -545,12 +566,18 @@ def main():
     group.add_argument("--insert", type=int, metavar="number", help="在队列指定位置插入新任务")
     group.add_argument("--remove", type=int, metavar="number", help="删除队列指定位置任务")
     group.add_argument("--move", action="store", nargs=2, metavar="number", help="调整任务顺序")
+    group.add_argument("--not-stdout", dest="not_stdout", action="store_true", help="只输出到日志文件")
 
     parse.add_argument("taskcmd", nargs="*", help="需要执行的命令行")
 
     parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
 
     args = parse.parse_args()
+
+    if not args.not_stdout:
+        stream = logging.StreamHandler(sys.stdout)
+        stream.setFormatter(FMT)
+        logger.addHandler(stream)
 
     if args.parse:
         print(args)
