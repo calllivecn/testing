@@ -10,5 +10,5 @@
 
 
 # 当做服务器等连接拉流
-ffmpeg -hide_banner -listen 1 -i rtmp://[::]:8554/live -codec copy rtmp-listen.mkv
+ffmpeg -hide_banner -listen 2 -i rtmp://[::]:8554/live -codec copy rtmp-listen.mkv
 
