@@ -17,3 +17,5 @@ for section in cfg.sections():
     print("section",section)
     pprint(cfg.items(section))
 
+
+cfg.get("bnq.in", "key", vars=None)
