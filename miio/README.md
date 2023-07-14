@@ -14,3 +14,20 @@ miiocli cloud
 ```
 
 - 然后按照提示输入您的用户名和密码。这将显示您帐户中所有设备的名称、型号、token 和 IP 地址。
+
+
+
+# 状态图
+
+|         | 开   | 关   |
+| ------- | ---- | ---- |
+| 电量<=70 | 不动 | 打开 |
+| 电量>=80 | 关闭 | 不动 |
+
+
+<style>
+table, th, td {
+  border: 1px solid black;
+  border-collapse: collapse;
+}
+</style>
