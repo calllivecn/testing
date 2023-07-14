@@ -68,6 +68,8 @@ class HuaweiRoute:
         
         service = Service(DRIVER)
         options = Options()
+        #options.add_argument("--no-sandbox")
+        #options.add_argument("--disable-gpu")
 
         if args.headless:
             options.add_argument("--headless")
@@ -207,22 +209,19 @@ def main():
             traceback.print_exc()
             print("WebDriver 有异常重启服务。")
 
+        except Exception as e:
+            traceback.print_exc()
+            print("有异常尝试重启服务。")
+
             # 需要退出登录用户后在试。不然路由器，用提示，登录用记过多。。。
             try:
                 route.logout()
             except WebDriverException:
                 traceback.print_exc()
                 print("login() 异常")
-            finally:
-                route.chrome.quit()
 
-            time.sleep(5)
-
-        except Exception as e:
-            traceback.print_exc()
-            print("有异常尝试重启服务。")
-            route.chrome.quit()
-            time.sleep(5)
+        route.close()
+        time.sleep(5)
 
 if __name__ == "__main__":
     main()
