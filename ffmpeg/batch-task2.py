@@ -40,12 +40,6 @@ def getlogger(level=logging.INFO):
 
     # fmt = logging.Formatter("%(asctime)s.%(msecs)d %(filename)s:%(funcName)s:%(lineno)d %(levelname)s %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
 
-    fp = logging.FileHandler(f"{PROG}.logs")
-    # fp = TimedRotatingFileHandler(f"{prog}.logs", when="D", interval=1, backupCount=7)
-    fp.setFormatter(FMT)
-
-    logger.setLevel(level)
-    logger.addHandler(fp)
     return logger
 
 
@@ -382,7 +376,7 @@ def server(args):
 
         if proto[0] == CmdType.Status:
             data = m.status()
-            data = f"{'+'*20} 服务port: {port} {'+'*20}\n" + data
+            data = f"{'+'*20} 服务器 [{host}]:{port} {'+'*20}\n" + data
             reply = pickle.dumps((CmdType.Result, data))
         
         elif proto[0] == CmdType.List:
@@ -550,6 +544,7 @@ def main():
     option.add_argument("--server", action="store_true", help="启动server端")
     option.add_argument("--host", default="::1", help="默认地址(server: '::', or client: '::1'， 如果有BATCH_TASK_HOST环境变量优先使用)")
     option.add_argument("--port", type=int, default=1122, help="server 地址(default: 1122，如果有BATCH_TASK_PORT环境变量优先使用)")
+    option.add_argument("--log", help=f"指定日志输出文件(default: {PROG}.log)")
 
     c = parse.add_argument_group(title="client 参数")
     group = c.add_mutually_exclusive_group()
@@ -590,6 +585,12 @@ def main():
     if args.server:
         args.host = ENV_HOST if ENV_HOST else "::1"
         args.port = int(ENV_PORT) if ENV_PORT else args.port
+
+        fp = logging.FileHandler(f"{PROG}.logs")
+        # fp = TimedRotatingFileHandler(f"{prog}.logs", when="D", interval=1, backupCount=7)
+        fp.setFormatter(FMT)
+        logger.setLevel(logging.INFO)
+        logger.addHandler(fp)
 
         try:
             server(args)
