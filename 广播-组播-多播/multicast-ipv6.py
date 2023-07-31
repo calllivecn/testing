@@ -23,7 +23,7 @@ def server():
 
     # Allow messages from this socket to loop back for development
 
-    sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_MULTICAST_LOOP, True)
+    sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_MULTICAST_LOOP, 1)
 
     # Construct message for joining multicast group
 
