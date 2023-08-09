@@ -3,6 +3,9 @@
 # date 2023-08-06 13:47:00
 # author calllivecn <c-all@qq.com>
 
+
+
+import time
 import asyncio
 
 
@@ -100,10 +103,16 @@ class UDPEchoServerProtocol(asyncio.DatagramProtocol):
         self.sock = transport.get_extra_info("socket")
 
         UDPEchoServerProtocol.count += 1
+        print("这是在什么阶段执行的？")
 
     def datagram_received(self, data, addr):
         print(f"{self.count=} {addr=}: {data=}")
+        time.sleep(5)
         self.transport.sendto(data, addr)
+    
+
+    def connection_lost(self, exc: Exception | None) -> None:
+        print("这个UDP socket close()")
 
 
 
@@ -128,16 +137,21 @@ async def server2():
     print("Starting UDP server")
     transport, protocol = await loop.create_datagram_endpoint(UDPEchoServerProtocol, local_addr=("::", 9999))
 
-    print(f"{type(transport)=}\n{dir(transport)=}\n{type(protocol)=}")
+    # print(f"{type(transport)=}\n{dir(transport)=}\n{type(protocol)=}")
 
+    future = loop.create_future()
     try:
         # await asyncio.sleep(3600) # 这样是可以，但是怎么让它 while True：起来呢？
-        while True:
-            await asyncio.sleep(60)
+        # while True:
+        #   await asyncio.sleep(60)
+            await future # 这样才对嘛
     except KeyboardInterrupt:
+        future.cancel()
+    except asyncio.exceptions.CancelledError:
         pass
     finally:
         transport.close()
+        loop.stop()
         loop.close()
 
 # asyncio.run(server())
