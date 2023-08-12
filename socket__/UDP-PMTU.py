@@ -52,6 +52,7 @@ def wrap_rtt(func):
     return wrap
 
 
+BUF=1*(1<<20) # 32K --> 1MB
 
 @wrap_rtt
 def pmtud(sock, MSS_try):
@@ -59,7 +60,7 @@ def pmtud(sock, MSS_try):
     d = ssl.RAND_bytes(MSS_try)
     sock.send(d)
     try:
-        data, addr = sock.recvfrom(1024)
+        data, addr = sock.recvfrom(BUF)
     except Exception:
         return False
     
@@ -72,9 +73,8 @@ def client(args, sock):
         print("需要目标地址")
         sys.exit(1)
 
-    HOST = args.target               # Symbolic name meaning all available interfaces
-    PORT = args.port                     # Arbitrary non-privileged port
-
+    HOST = args.target
+    PORT = args.port
 
 
     lo = args.min
@@ -85,51 +85,44 @@ def client(args, sock):
     sock.connect((HOST, PORT))
     sock.settimeout(args.timeout)
 
-    mid = lo
-    while lo < hi:
+
+    # 首先使用最小包测量下往返时间
+    pmtud(sock, 8)
+    sock.settimeout(RTO)
+
+    last_ok = lo
+    while lo <= hi:
+        mid = (lo + hi) //2
 
         print(f"负载 {mid}: ", end="", flush=True)
 
-        udp_ok = True
         for i in range(args.retry):
             if pmtud(sock, mid):
-                print('ok', flush=True)
-                udp_ok = True
+                print('ok', end="", flush=True)
+                lo = mid + 1
+                last_ok = mid
                 break
             else:
                 print('* ', end="", flush=True)
                 time.sleep(args.interval)
-                udp_ok = False
-                
-            
-        # print(lo, hi)
-        if udp_ok:
-            lo = mid
-        else:
-            # all attempts failed, payload probably too big
-            hi = mid
-            print(flush=True)
-            if lo + 1 == hi:
-                lo = hi
+                hi = mid - 1
 
-
-        mid = (lo + hi + 1) // 2
-        
+        print(flush=True)
         # set RTO 为 timeout
         sock.settimeout(RTO)
 
     # header_size = 28 if args.ipv4 else 48
     if sock.family == socket.AF_INET:
         header = 28
-        print(f">>> IPv4 MTU to {args.target}: {lo} + {header} = {lo+header}")
+        # print(f">>> IPv4 MTU to {args.target}: {lo} + {header} = {lo+header}")
+        print(f">>> IPv4 MTU to {args.target}: {last_ok} + {header} = {last_ok+header}")
     else:
         header = 48
-        print(f">>> IPv6 MTU to {args.target}: {lo} + {header} = {lo+header}")
+        print(f">>> IPv6 MTU to {args.target}: {last_ok} + {header} = {last_ok+header}")
     
     sock.close()
 
 def server(port):
-    BUF=1*(1<<20) # 32K --> 1MB
     sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
     sock.bind(("", port))
 

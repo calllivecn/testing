@@ -31,9 +31,10 @@ def ping_works(payload_size, args):
 def main(args):
     lo = args.lo  # MTUs lower or equal do work
     hi = args.hi  # MTUs greater or equal don't work
-    print(f'>>> PMTU to {args.target} in range [{lo}, {hi})')
+    print(f'>>> PMTU to {args.target} in range [{lo}, {hi}]')
 
-    while lo + 1 < hi:
+    last_ok = lo
+    while lo <= hi:
         mid = (lo + hi) // 2
 
         print(f"{mid}: ", end="", flush=True)
@@ -41,19 +42,19 @@ def main(args):
         for i in range(args.max_pings_per_step):
             if ping_works(mid, args):
                 # ping went through, this payload size works
-                lo = mid
-                print('pong', flush=True)
+                lo = mid + 1
+                last_ok = mid
+                print('pong', end="", flush=True)
                 break
             else:
                 print('* ', end="", flush=True)
                 time.sleep(args.ping_interval_sec)
-        else:
-            # all attempts failed, payload probably too big
-            hi = mid
-            print(flush=True)
+                hi = mid - 1
+
+        print(flush=True)
 
     header_size = 28 if args.ipv4 else 48
-    print(f">>> optimal MTU to {args.target}: {lo} + {header_size} = {lo+header_size}")
+    print(f">>> optimal MTU to {args.target}: {last_ok} + {header_size} = {last_ok+header_size}")
 
 def parse_args():
     p = argparse.ArgumentParser(description='Perform path MTU discovery.')
