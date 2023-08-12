@@ -10,6 +10,11 @@ import socket
 import struct
 
 
+"""
+注意需要在防火墙，放通对应UDP端口+ ip daddr ff02::1 的通过规则。
+"""
+
+
 def server():
     sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 
@@ -19,16 +24,15 @@ def server():
 
     # Binds to all interfaces on the given port
 
-    sock.bind(('', 8080))
+    sock.bind(('fc03::200', 18123))
 
     # Allow messages from this socket to loop back for development
 
-    sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_MULTICAST_LOOP, 1)
+    # sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_MULTICAST_LOOP, 1)
 
     # Construct message for joining multicast group
 
-    # mreq = struct.pack("16s15s".encode('utf-8'), socket.inet_pton(socket.AF_INET6, "ff02::abcd:1"), (chr(0) * 16).encode('utf-8'))
-
+    # mreq = struct.pack("16s15s".encode('utf-8'), socket.inet_pton(socket.AF_INET6, "ff02::1"), (chr(0) * 16).encode('utf-8'))
     # sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_JOIN_GROUP, mreq)
 
     data, addr = sock.recvfrom(1024)
@@ -43,7 +47,7 @@ def client():
     # Create ipv6 datagram socket
     sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
     # Allow own messages to be sent back (for local testing)
-    sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_MULTICAST_LOOP, True)
+    # sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_MULTICAST_LOOP, True)
 
     # sock.sendto("hello world".encode('utf-8'), ("ff02::abcd:1", 8080))
     sock.sendto("hello world".encode('utf-8'), ("ff02::1", 8080))

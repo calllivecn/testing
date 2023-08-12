@@ -7,6 +7,11 @@
 import time
 import threading
 
+"""
+2023-08-08
+这个需求应该使用threading.Event() 来实现更合适
+"""
+
 
 def newthread(func):
 
