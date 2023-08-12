@@ -6,7 +6,12 @@
 
 
 import time
+import socket
 import asyncio
+
+from typing import (
+    Any,
+)
 
 
 """
@@ -107,7 +112,6 @@ class UDPEchoServerProtocol(asyncio.DatagramProtocol):
 
     def datagram_received(self, data, addr):
         print(f"{self.count=} {addr=}: {data=}")
-        time.sleep(5)
         self.transport.sendto(data, addr)
     
 
@@ -153,6 +157,33 @@ async def server2():
         transport.close()
         loop.stop()
         loop.close()
+
+
+QPair = Any
+class UDPServer3:
+    """
+    这种方式要在py3.11及以上才行, 以下的只能使用 loop.sock_recv(), loop.sock_send() 的 TCP 的方法。
+    """
+
+    def __init__(self):
+        self.sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        self.sock.setblocking(False)
+        self.loop = asyncio.get_running_loop()
+
+        self.buf = memoryview(bytearray(8*(1<<20)))
+        self.buf_n = 0
+
+    def accept(self, host, port) -> QPair:
+        self.sock.bind((host, port))
+
+        self.buf_n = self.loop.sock(self.sock, self.buf)
+
+        self.loop.sock_sendall
+
+    
+    def connect(self, host, port):
+        pass
+
 
 # asyncio.run(server())
 asyncio.run(server2(), debug=True)

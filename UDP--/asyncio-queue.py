@@ -58,7 +58,9 @@ async def async_main():
 
     # 这样才是并发的
     await th
+    print("这是在 消费者后面")
     await p
+    print("这是在 生产者后面")
 
 async def async_main2():
     q = asyncio.Queue(2)
@@ -77,6 +79,6 @@ def main():
 
 
 if __name__ == "__main__":
-    # asyncio.run(async_main())
-    asyncio.run(async_main2())
+    asyncio.run(async_main())
+    # asyncio.run(async_main2())
     # main()
