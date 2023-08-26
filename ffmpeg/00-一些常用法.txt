@@ -47,3 +47,6 @@ ffmpeg -i 1.mp4 -ss 0:0:29 -t 0:0:8 -r 16 -f image2 ./test/0_%05d.jpg
 - 5 转换成黑白视频 (使用nvidia gpu) 
 ffmpeg [-hwaccel cuvid] -i input.mp4 -vf hue=s=0 -codec hevc_nvenc output.mp4
 
+
+- 6 使用 intel 核显
+
