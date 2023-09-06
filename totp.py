@@ -80,10 +80,13 @@ class TOTP:
         """
         进来的是个base32格式的secret...
         """
-        secret = self.secret
+        # 去掉太长 key 中间的空格
+        secret = "".join(self.secret.strip(" "))
+
         missing_padding = len(secret) % 8 
         if missing_padding != 0:
             secret += "=" * (8 - missing_padding)
+
         return base64.b32decode(secret, casefold=True)
     
 
