@@ -11,6 +11,7 @@ import argparse
 from pathlib import Path
 
 from typing import (
+    Any,
     Optional,
 )
 
@@ -80,14 +81,27 @@ class TOTP:
         """
         进来的是个base32格式的secret...
         """
-        # 去掉太长 key 中间的空格
-        secret = "".join(self.secret.strip(" "))
 
+        self.__preprocess()
+
+        secret = self.secret
         missing_padding = len(secret) % 8 
         if missing_padding != 0:
             secret += "=" * (8 - missing_padding)
 
         return base64.b32decode(secret, casefold=True)
+    
+
+    def __preprocess(self):
+        # 去掉太长 key 中间的空格
+        secret = self.secret
+
+        if secret.endswith("\n"):
+            secret = secret.strip("\n")
+
+        self.secret = "".join(secret.split(" "))
+
+        # print(f"预处理过后：{self.secret=}")
     
 
 
@@ -131,18 +145,13 @@ def main():
         secret = f.read()
 
     
-    if secret.endswith("\n"):
-        secret = secret.strip("\n")
-
-    # print(f"file read() --> {secret=}")
-
     totp = TOTP(secret)
     pw = totp.generate_totp()
 
     if args.html:
         print(f"<h1>TOTP</h1><p>一次性密码：{pw}</p><p>剩余时间：{totp.time_left} 秒</p>")
     else:
-        print(f"TOTP：{pw}, 剩余时间：{totp.time_left}")
+        print(f"TOTP：{pw} 剩余时间：{totp.time_left} 秒")
 
 
 
