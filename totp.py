@@ -127,6 +127,10 @@ def main():
     with open(args.secret_file) as f:
         secret = f.read()
 
+    
+    if secret.endswith("\n"):
+        secret = secret.strip("\n")
+
     # print(f"file read() --> {secret=}")
 
     totp = TOTP(secret)
