@@ -17,6 +17,7 @@ from typing import (
 
 """
 有一个开源模块: pip install pyotp
+2023-09-08： 移动到 https://github.com/calllivecn/mytools/totp/
 """
 
 class TOTP:
