@@ -4,11 +4,18 @@
 # author calllivecn <c-all@qq.com>
 
 
-import io
+# import io
+import ipaddress
 import asyncio
+import traceback
 import logging
-from http import HTTPStatus
+# from http import HTTPStatus
 from argparse import ArgumentParser
+
+from typing import (
+    Union,
+    Type,
+)
 
 try:
     import uvloop
@@ -40,14 +47,37 @@ class MethodError(RequestError):
 class HostPostError(RequestError):
     pass
 
+
 class Buffer(bytearray):
+    def __init__(self, size: int = 4096, mv: Union[memoryview, None] = None):
+        self.size = size
+        self.pos = 0
 
-    def __init__(self, size=(1<<12)):
-        super().__init__(size)
-        self._mv = memoryview(self)
+        if isinstance(mv, memoryview):
+            super().__init__(mv)
+            self._mv = mv
+        else:
+            super().__init__(size)
+            self._mv = memoryview(self)
+    
+    def __getitem__(self, key: slice) -> Type["Buffer"]:
+        buf = Buffer(key.stop, self._mv[key])
+        return buf
 
-    def __getitem__(self, slice):
-        return self._mv[slice]
+    def __setitem__(self, slice_, data):
+        self.pos = slice_.stop
+        self._mv[slice_] = data
+    
+    def __len__(self):
+        return self.pos
+    
+    def getvalue(self, start: int = 0, end: Union[int, None] = None) -> bytes:
+        if end is None:
+            return self._mv[start:self.pos].tobytes()
+        else:
+            return self._mv[start:end].tobytes()
+
+
 
 class Header:
 
@@ -56,9 +86,12 @@ class Header:
         self.writer = writer
         
         self._method = None
-        self.buffer = io.BytesIO()
+        # self.buffer = io.BytesIO()
+        self.buffer = Buffer(8*(1<<10))
+        self.buffer_pos = 0
         self.requestheaders = b""
         self.delimiter = 0
+        self.body_start = b""
 
         self.host = None
         self.port = None
@@ -79,17 +112,20 @@ class Header:
             if buffer == b"":
                 raise RequestError("peer close connection")
 
-            self.buffer.write(buffer)
+            buffer_len = len(buffer)
+            self.buffer[self.buffer.pos : self.buffer.pos + buffer_len] = buffer
 
-            delimiter = buffer.find(b"\r\n\r\n")
-            if delimiter != -1:
-                self.delimiter = self.buffer.tell() + delimiter
+            pos = self.buffer.find(b"\r\n\r\n", self.buffer_pos)
+
+            logger.debug(f"{pos=}")
+
+            if pos != -1:
+                self.delimiter = pos
                 break
 
 
-
-            # if len(self.buffer) >= 8192:
-            if self.buffer.tell() >= 8192:
+            if self.buffer.pos >= 8192:
+            # if self.buffer.tell() >= 8192:
 
                 self.writer.write(b"HTTP/1.1 400 REQUEST TOO LONG")
                 await self.writer.drain()
@@ -97,9 +133,14 @@ class Header:
 
                 raise RequestError("request too long")
 
-        self.buffer = self.buffer.getvalue()
+
+        try:
+            logger.debug(f"self.buffer.decode() -->\n{self.buffer.getvalue().decode()}")
+        except UnicodeDecodeError:
+            logger.debug(f"self.buffer -->\n{self.buffer.getvalue()}")
+
         # 这里可以 把 request line 分离出来了
-        self.headers = self.buffer[:self.delimiter].decode("ascii")
+        self.headers = self.buffer.getvalue(0, self.delimiter+4).decode("utf8")
 
         logger.debug(f"self.headers ==>\n{self.headers}")
 
@@ -112,10 +153,14 @@ class Header:
             return False
             
     def data(self):
+        # 跟在header 后面的部分数据
         if self.isHttps():
-            return self.buffer[self.delimiter + 4:]
+            data = self.buffer.getvalue(self.delimiter + 4)
         else:
-            return self.buffer
+            data = self.buffer.getvalue()
+
+        logger.debug(f"请求头后面带着的部分数据：{data=}")
+        return data
     
     def get_Host_Port(self):
 
@@ -127,32 +172,53 @@ class Header:
 
             method, host_port, protocol = https_line.split(" ")
 
-            if ":" in host_port:
-                self.host, self.port = host_port.split(":")
-                self.port = int(self.port)
-            else:
-                self.host = host_port
-                self.port = 443
+            # CONNECT 下都会有默认端口的
+            host, port = host_port.rsplit(":", 1)
+            self.port = int(port)
 
+            if host.startswith("[") and host.endswith("]"):
+                self.host = host[1:-1]
+            else:
+                self.host = host
 
         else:
 
             for header in self.headers.split("\r\n"):
+                key = header[:5].lower()
 
-                if header.startswith("Host:") or header.startswith("HOST:") or header.startswith("host:"):
+                if key == "host:":
+
+                    host_value = header.split(":", 1)[1].split()[0]
+
+                    # 检测是不是使用默认端口, 但是这里就要分为ipv4, ipv6, domain,  ipv6又要分带端口，和默认端口。
                     
-                    host_port = header.split(":")
-                    if len(host_port) == 2:
-                        self.host = host_port[1].strip(" ")
+                    # ipv6  带端口的
+                    if host_value.find("]:") != -1:
+                        host, port = host_value.rsplit(":", 1)
+                        self.host = host[1:-1]
+                        self.port = int(port)
+
+                    # ipv6 默认端口的
+                    elif host_value.find("]") != -1:
+                        self.host = host_value[1:-1]
                         self.port = 80
 
-                    elif len(host_port) == 3:
-                        self.host = host_port[1].strip(" ")
-                        self.port = int(host_port[2].strip(" "))
+                    # ipv4 和 domain 不使用在细分了
+                    elif host_value.find(":") != -1:
+                        self.host, port = host_value.rsplit(":", 1)
+                        self.port = int(port)
                     else:
-                        logger.warning("host: port 解析错误。")
-                        raise HostPostError("host: port 解析错误。")
+                        self.host = host_value
+                        self.port = 80
+                    
+                    break
+
+
+            else:
+                logger.warning("host: port 解析错误。")
+                raise HostPostError("host: port 解析错误。")
             
+        logger.debug(f"target addr --> {self.host=} {self.port=}")
         if self.host is None or self.port is None:
             raise RequestError("没有解析到host port")
         
@@ -181,10 +247,6 @@ async def swap(r1, w2):
         w2.close()
         await w2.wait_closed()
 
-    # if not w2.is_closing():
-    #    w2.close()
-    #    await w2.wait_closed()
-
 
 async def handle_add_timeout(reader, writer):
     addr = writer.get_extra_info("peername")
@@ -200,7 +262,6 @@ async def handle_add_timeout(reader, writer):
         # await writer.drain()
         await asyncio.wait_for(w2.drain(), timeout=TIMEOUT)
     else:
-        logger.debug(f"head.data ==>\n{head.data()}")
         w2.write(head.data())
         # await writer.drain()
         await asyncio.wait_for(w2.drain(), timeout=TIMEOUT)
@@ -224,7 +285,8 @@ async def handle(reader, writer):
         logger.warning(e)
 
     except Exception as e:
-        logger.warning(f"异常：{e}")
+        # logger.warning(f"异常：{e}")
+        traceback.print_exception(e)
     
     finally:
         writer.close()
