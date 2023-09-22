@@ -18,6 +18,7 @@ from pathlib import Path
 import pyaudio
 import numpy as np
 
+# whisper model 默认路径 ~/.cache/whisper/
 import torch
 import whisper
 
