@@ -42,6 +42,8 @@ hdfs--/input/
 *.mp4
 *.mkv
 *.aac
+*.jpg
+*.png
 
 
 *.class
