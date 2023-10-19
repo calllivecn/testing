@@ -10,12 +10,15 @@ camera = cv2.VideoCapture(video)
 
 
 if (camera.isOpened()):
-    print('Open')
+    print('视频源打开成功')
 else:
     print('摄像头未打开')
 
 # 设置窗口，大小可调。
-cv2.namedWindow('image', cv2.WINDOW_NORMAL)
+cv2.namedWindow('win1', cv2.WINDOW_NORMAL)
+cv2.namedWindow('win2', cv2.WINDOW_NORMAL)
+cv2.resizeWindow('win1', 1600, 900)
+cv2.resizeWindow('win2', 1600, 900)
 
 size = (int(camera.get(cv2.CAP_PROP_FRAME_WIDTH)), int(camera.get(cv2.CAP_PROP_FRAME_HEIGHT)))
 print(f"w x h: {size}")
@@ -55,8 +58,8 @@ while True:
             (x, y, w, h) = cv2.boundingRect(c)
             cv2.rectangle(frame_lwpCV, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
-    cv2.imshow('contours', frame_lwpCV)
-    cv2.imshow('dis', diff)
+    cv2.imshow('win1', frame_lwpCV)
+    cv2.imshow('win2', diff)
 
     key = cv2.waitKey(1) & 0xFF
     # if key == ord('q'):
