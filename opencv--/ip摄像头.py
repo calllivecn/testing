@@ -8,8 +8,9 @@ import cv2
 
 from conf import VIDEO as video
 
-if __name__ == '__main__':
 
+
+def main():
     # cv2.namedWindow("ipcamera", 1)
     # 开启ip摄像头
     # admin是账号，admin是密码
@@ -37,8 +38,8 @@ if __name__ == '__main__':
                        '.flv': 'FLV1',
     """
     # 保存为文件
-    #fourcc = cv2.VideoWriter_fourcc(*"avc1")
-    #out = cv2.VideoWriter("output.mp4", fourcc, 20, w_h)
+    fourcc = cv2.VideoWriter_fourcc(*"avc1")
+    out = cv2.VideoWriter("output.mp4", fourcc, 20, w_h)
 
     num = 0
     while True:
@@ -77,3 +78,7 @@ if __name__ == '__main__':
     capture.release()
     #out.release()
     cv2.destroyWindow("camera")
+
+
+if __name__ == '__main__':
+    main()

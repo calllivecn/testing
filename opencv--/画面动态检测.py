@@ -5,6 +5,12 @@ import numpy as np
 
 from conf import VIDEO as video
 
+# 逆时针旋转270度
+def rotated(image):
+    rotated_image = cv2.transpose(image)
+    return cv2.flip(rotated_image, 0)  # 水平翻转
+
+
 # camera = cv2.VideoCapture(0) , # 读取机器上第一个摄像头
 camera = cv2.VideoCapture(video)
 
@@ -12,13 +18,13 @@ camera = cv2.VideoCapture(video)
 if (camera.isOpened()):
     print('视频源打开成功')
 else:
-    print('摄像头未打开')
+    print('视频源打开失败')
 
 # 设置窗口，大小可调。
 cv2.namedWindow('win1', cv2.WINDOW_NORMAL)
 cv2.namedWindow('win2', cv2.WINDOW_NORMAL)
-cv2.resizeWindow('win1', 1600, 900)
-cv2.resizeWindow('win2', 1600, 900)
+cv2.resizeWindow('win1', 800, 600)
+cv2.resizeWindow('win2', 800, 600)
 
 size = (int(camera.get(cv2.CAP_PROP_FRAME_WIDTH)), int(camera.get(cv2.CAP_PROP_FRAME_HEIGHT)))
 print(f"w x h: {size}")
@@ -30,6 +36,12 @@ background = None
 while True:
 
     grabbed, frame_lwpCV = camera.read()
+
+    if not grabbed:
+        print("结束")
+        break
+    
+    frame_lwpCV = rotated(frame_lwpCV)
 
     gray_lwpCV = cv2.cvtColor(frame_lwpCV, cv2.COLOR_BGR2GRAY)
     gray_lwpCV = cv2.GaussianBlur(gray_lwpCV, (5, 5), 0)
@@ -44,19 +56,23 @@ while True:
     # ret3,th3 = cv2.threshold(diff, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
 
     # 二分阈值
-    ret, diff = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)
+    threshlod = 25
+    ret, diff = cv2.threshold(diff, threshlod, 255, cv2.THRESH_BINARY)
 
     diff = cv2.dilate(diff, es, iterations=1)
     # diff = cv2.dilate(diff, kernel, iterations=1)
 
-    contours, hierarchy = cv2.findContours(diff.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, hierarchy = cv2.findContours(diff, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+    areas = []
     for i, c in enumerate(contours):
         area = cv2.contourArea(c)
         if area > 40000:
-            print(f"第 {i} 个轮廓面积：{area}")
+            areas.append(area)
             (x, y, w, h) = cv2.boundingRect(c)
             cv2.rectangle(frame_lwpCV, (x, y), (x+w, y+h), (0, 255, 0), 2)
+
+    print(f"前10个轮廓面积：{areas[:10]}")
 
     cv2.imshow('win1', frame_lwpCV)
     cv2.imshow('win2', diff)
