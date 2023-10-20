@@ -88,6 +88,10 @@ try:
         out_container.mux(packet)
     """
 
+    # 获取输入流的时间基准
+    in_time_base = in_video_stream.time_base
+    out_time_base = stream.time_base
+
 
     t1 = time.time()
     # for packet in in_container.demux():
@@ -95,15 +99,14 @@ try:
         print(f"{dir(packet)=}\n{dir(packet.stream)=}\n{packet.stream.type=}")
 
         # 设置包的时间戳
-        if packet.pts is None:
-            packet.pts = packet.dts
-        if packet.time_base is None:
-            packet.time_base = packet.stream.time_base
 
         # 把视频转为黑白，第一次尝试
 
         if packet.stream.type == "video":
             for frame in packet.decode():
+                # 重置时间戳
+                frame.pts = frame.pts * out_time_base / in_time_base
+                frame.dts = frame.dts * out_time_base / in_time_base
 
                 vf1.push(frame)
                 vfilter_frame = sink.pull()
