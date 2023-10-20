@@ -3,6 +3,8 @@
 # date 2023-10-19 07:24:06
 # author calllivecn <c-all@qq.com>
 
+import time
+
 import numpy as np
 
 import av
@@ -10,7 +12,8 @@ import av
 video_out = "test-rtsp.mkv"
 # video = "test-mpeg4.mp4"
 # video = "rtsp://huawei.calllive.top:8554/live"
-video = "rtsp://huawei.calllive.top:8080/h264_opus.sdp"
+# video = "rtsp://huawei.calllive.top:8080/h264_opus.sdp"
+video = "test-rtsp-60s-hevc-crf30.mkv"
 
 options = {
     "rtsp_transport": "tcp",
@@ -24,86 +27,117 @@ in_video_stream = in_container.streams.video[0]
 in_audio_stream = in_container.streams.audio[0]
 # print(f"{dir(in_audio_stream)=}\n{in_audio_stream.average_rate=}")
 
-out_container = av.open(video_out, mode="w")
+opt = {
+    "pix_fmt": "gray",
+}
+
+out_container = av.open(video_out, mode="w", options=opt)
 # stream = container.add_stream("mpeg4", rate=fps)
 # AVDeprecationWarning: VideoStream.framerate is deprecated as it is not always set; please use VideoStream.average_rate.
 # stream = out_container.add_stream("mpeg4", rate=in_video_stream.average_rate) 
-# stream = out_container.add_stream("libx265", rate=in_video_stream.average_rate) 
-stream = out_container.add_stream(template=in_video_stream)
+# stream = out_container.add_stream(template=in_video_stream)
+
+stream = out_container.add_stream("libx265", rate=in_video_stream.average_rate) 
+# hevc_nvenc 可能需要从源代编译。
+# stream = out_container.add_stream("hevc_nvenc", rate=in_video_stream.average_rate) 
+stream.options = {
+    "crf": "30",
+    "pix_fmt": "gray",
+    }
+
+# 添加黑白过滤
+vfilter = av.filter.Graph()
+# 创建缓冲源滤镜
+vf1 = vfilter.add_buffer(template=in_video_stream)
+
+# vf2 = vfilter.add("vfilp")
+vf2 = vfilter.add("hue", "s=0")
+
+vf1.link_to(vf2)
+
+sink = vfilter.add('buffersink')
+
+vf2.link_to(sink)
+
+
+# 创建灰度滤镜
+# grayscale_filter = vfilter.add('colorchannelmixer', 'mono=1')
+
+# vfilter.add("format", "gray")
+# vfilter.add("hue", "s=0")
+vfilter.configure()
+
 
 # a_stream = out_container.add_stream("aac", rate=in_audio_stream.average_rate)
+
 # 复用流，避免重新解码+编码
 a_stream = out_container.add_stream(template=in_audio_stream)
 
-# stream.width = in_video_stream.width
-# stream.height = in_video_stream.height
+stream.width = in_video_stream.width
+stream.height = in_video_stream.height
 # stream.pix_fmt = "yuv420p"
 
-print(f"{dir(stream)=}\n")
+# print(f"{dir(stream)=}\n")
 
 # 使用多线程编码? 解码时这么用
 # container.streams.video[0].thread_type = "AUTO"
 
 try:
 
-    # 直接 -acodec copy 
-    for packet in in_container.demux((in_video_stream, in_audio_stream)):
-    # for packet in in_container.demux((in_video_stream,)):
-        out_container.mux(packet)
-
-
+    # 直接 -vcodec copy + -acodec copy
     """
-    for packet in in_container.demux():
+    for packet in in_container.demux((in_video_stream, in_audio_stream)):
+        out_container.mux(packet)
+    """
+
+
+    t1 = time.time()
+    # for packet in in_container.demux():
+    for packet in in_container.demux((in_video_stream, in_audio_stream)):
         # print(f"{dir(packet)=}\n{dir(packet.stream)=}\n{packet.stream.type=}")
         if packet.stream.type == "video":
             for frame in packet.decode():
-                frame.pts = None
-                frame.time_base = None
-                for out_packet in stream.encode(frame):
+
+                # 把视频转为黑白，第一次尝试
+                vf1.push(frame)
+                vfilter_frame = sink.pull()
+
+                """
+                # 把视频转为黑白，第二次尝试 (这种是可转，但是灰度和真正的gray有点不同。)
+                # Convert the frame to grayscale
+                gray_frame = frame.to_image().convert('L')
+                
+                # Convert the grayscale image back to a frame
+                gray_frame = av.VideoFrame.from_image(gray_frame)
+                
+                # Copy the frame properties from the original frame
+                gray_frame.pts = frame.pts
+                gray_frame.time_base = frame.time_base
+                """
+
+                for out_packet in stream.encode(vfilter_frame):
                     out_container.mux(out_packet)
 
         elif packet.stream.type == "audio":
+            out_container.mux(packet)
             # print("这是声音packet")
-            for frame in packet.decode():
-                frame.pts = None
-                frame.time_base = None
+            # for frame in packet.decode():
+            #     for out_packet in a_stream.encode(frame):
+            #         out_container.mux(out_packet)
 
-                # out_packet = a_stream.encode(frame)
-                for out_packet in a_stream.encode(frame):
-                    out_container.mux(out_packet)
-    """
+        if (time.time() - t1) > 60:
+            break
 
-
-    """
-    for frame in in_container.decode(in_video_stream):
-        frame.pts = None
-        frame.time_base = None
-
-        packet = stream.encode(frame)
-        out_container.mux(packet)
-    """
-
-    """
-    # 测试时间戳
-    for frame in in_container.decode(in_video_stream):
-        print(f"{dir(frame)=}\n{frame.pts=}\n{frame.time_base=}")
-        if frame.pts != None:
-            timestamp = frame.pts * frame.time_base
-            print(f"{timestamp=}")
-    """
-        
 except KeyboardInterrupt:
     print("结束录制, 写入剩下的数据。")
 
 
-"""
 # Flush stream
 for out_packet in stream.encode():
     out_container.mux(out_packet)
 
-for out_packet in a_stream.encode():
-    out_container.mux(out_packet)
-"""
+# for out_packet in a_stream.encode():
+    # out_container.mux(out_packet)
 
 in_container.close()
 
