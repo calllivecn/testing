@@ -50,3 +50,7 @@ ffmpeg [-hwaccel cuvid] -i input.mp4 -vf hue=s=0 -codec hevc_nvenc output.mp4
 
 - 6 使用 intel 核显
 
+
+- 7. 查看指定编码器的参数  ffmpeg -h encoder=编码器名称
+ffmpeg -h encoder=libx264
+
