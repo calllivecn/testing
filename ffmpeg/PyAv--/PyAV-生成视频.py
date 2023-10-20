@@ -13,6 +13,7 @@ fps = 30
 total_frames = duration * fps
 
 container = av.open("test.mkv", mode="w")
+container.title = "这是我的测试视频"
 
 # stream = container.add_stream("mpeg4", rate=fps)
 stream = container.add_stream("libx265", rate=fps)
@@ -28,6 +29,7 @@ stream.pix_fmt = "yuv420p"
 
 # 使用多线程编码? 解码时这么用
 # container.streams.video[0].thread_type = "AUTO"
+
 
 print("CTRL+C 停止生成")
 try:
@@ -51,7 +53,9 @@ try:
             packet = stream.encode(frame)
             container.mux(packet)
 
+
 except KeyboardInterrupt:
+    print(f"{container.streams.video[0].thread_type=}")
     print("停止生成")
 
 
