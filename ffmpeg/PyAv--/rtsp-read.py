@@ -9,17 +9,15 @@ import numpy as np
 
 import av
 
-video_out = "test-rtsp.mkv"
 # video = "test-mpeg4.mp4"
 # video = "rtsp://huawei.calllive.top:8554/live"
 # video = "rtsp://huawei.calllive.top:8080/h264_opus.sdp"
-video = "60s.mkv"
+video = "auto-split-30m_0001.mkv"
+
+video_out = "test-rtsp.mkv"
 
 options = {
     "rtsp_transport": "tcp",
-    # "stimeout": str(10*(1e6)),
-    # "probesize": "128M",
-    # "analyzeduration": "0.1",
 }
 
 in_container = av.open(video, options=options)
@@ -28,7 +26,7 @@ in_audio_stream = in_container.streams.audio[0]
 # print(f"{dir(in_audio_stream)=}\n{in_audio_stream.average_rate=}")
 
 opt = {
-    "title": "这是我的测试视频".encode(),
+    "title": "这是我的测试视频",
 }
 
 out_container = av.open(video_out, mode="w")
@@ -74,8 +72,6 @@ a_stream = out_container.add_stream(template=in_audio_stream)
 stream.width = in_video_stream.width
 stream.height = in_video_stream.height
 # stream.pix_fmt = "yuv420p"
-
-# print(f"{dir(stream)=}\n")
 
 # 使用多线程编码? 解码时这么用
 # container.streams.video[0].thread_type = "AUTO"
