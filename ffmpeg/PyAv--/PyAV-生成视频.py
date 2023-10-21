@@ -13,7 +13,14 @@ fps = 30
 total_frames = duration * fps
 
 container = av.open("test.mkv", mode="w")
-container.title = "这是我的测试视频"
+
+# 获取元数据字典
+metadata = container.metadata
+
+# 设置元数据信息
+metadata['title'] = "这是我的测试视频"
+metadata['author'] = '我是作者'
+metadata['comment'] = 'This is a test'
 
 # stream = container.add_stream("mpeg4", rate=fps)
 stream = container.add_stream("libx265", rate=fps)
@@ -55,7 +62,6 @@ try:
 
 
 except KeyboardInterrupt:
-    print(f"{container.streams.video[0].thread_type=}")
     print("停止生成")
 
 
