@@ -4,14 +4,14 @@
 # author calllivecn <c-all@qq.com>
 
 """
-按时间长度，切割文件，成功。：2023-10-23
+按时间长度，切割文件，
+并修复"uration: 06:18:33.50, start: 22659.300000" 问题
+实验成功。：2023-10-23
 """
 
 import time
 
 import av
-
-#inputContainer = av.open("rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4", "r")
 
 inputContainer = av.open("test.mkv", "r")
 in_stream = inputContainer.streams.video[0]
@@ -81,10 +81,12 @@ def main():
             stop_container()
         else:
             if packet.dts is not None:
-                packet.dts = packet.dts - frag_pts
+                packet.dts -= frag_pts
             
             if packet.pts is not None:
-                packet.pts = packet.pts - frag_pts
+                packet.pts -= frag_pts
+            
+            print(f"{packet.pts=} {packet.dts=}")
             out_container.mux(packet)
             
 

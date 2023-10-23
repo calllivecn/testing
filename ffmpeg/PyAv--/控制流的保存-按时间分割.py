@@ -58,16 +58,13 @@ try:
     # 直接 -vcodec copy + -acodec copy
     for packet in in_container.demux():
 
-        # if first_packet and packet.stream.type == "video":
-        if packet.pts is None and packet.dts is None:
-            print(f"{packet.stream.type=} -- {dir(packet)=}")
-            packet.pts = 0
-            packet.dts = 0
-            first_packet = False
+        if not packet.is_keyframe:
+            print(f"开始的，不是关键帧，丢掉： {packet=}")
+            continue
 
         cur_timestamp = int(time.time() * 1000)
         # cur_timestamp = time.time()
-        if packet.is_keyframe and (cur_timestamp - first_frame_timestamp) >= split_time:
+        if (cur_timestamp - first_frame_timestamp) >= split_time and packet.is_keyframe:
             stop_container()
         
         if out_container is None:
@@ -81,8 +78,6 @@ try:
 
         # packet.pts -= rescaling_nr 
         # packet.dts -= rescaling_nr
-
-        packet.pts = None
 
         out_container.mux(packet)
 
