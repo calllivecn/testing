@@ -54,11 +54,11 @@ try:
 
             frame = av.VideoFrame.from_ndarray(img, format="rgb24")
 
-            # for packet in stream.encode(frame):
-                # container.mux(packet)
+            for packet in stream.encode(frame):
+                container.mux(packet)
 
-            packet = stream.encode(frame)
-            container.mux(packet)
+            # packet = stream.encode(frame)
+            # container.mux(packet)
 
 
 except KeyboardInterrupt:

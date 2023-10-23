@@ -1,6 +1,7 @@
 
 
 import os
+import sys
 import time
 from pathlib import Path
 from typing import (
@@ -145,12 +146,23 @@ def rotated(image):
     rotated_image = cv2.transpose(image)
     return cv2.flip(rotated_image, 0)  # 水平翻转
 
+# 摄像头规格超过opencv 默认值后 (W:640, H:480)，也不会更高的参数
+# 需要手动设置下。
+
+def set_wxh(cap, w, h):
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, w)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, h)
+    cap.set(cv2.CAP_PROP_FPS, 30)
+
 # 打开视频文件
-cap = cv2.VideoCapture(video)
+cap = cv2.VideoCapture(0)
 if (cap.isOpened()):
     print('视频源打开成功')
+    set_wxh(cap, 1280, 720)
+    print(f"{cap=}")
 else:
     print('视频源打开失败')
+    sys.exit(1)
 
 # 获取视频的WxH
 w_h = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
