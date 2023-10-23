@@ -4,64 +4,85 @@
 # author calllivecn <c-all@qq.com>
 
 import time
+import threading
 
-import numpy as np
-
+# import numpy as np
 import av
 
-# video = "test-mpeg4.mp4"
-video = "60s.mkv"
-
-video_out = "test.mkv"
+video = "120s.mkv"
+video_out = "test-split-time.mkv"
 
 options = {
-    "rtsp_transport": "tcp",
+    # "rtsp_transport": "tcp",
     # "stimeout": str(10*(1e6)),
     # "probesize": "128M",
     # "analyzeduration": "0.1",
 }
 
 in_container = av.open(video, options=options)
-in_video_stream = in_container.streams.video[0]
-in_audio_stream = in_container.streams.audio[0]
-# print(f"{dir(in_audio_stream)=}\n{in_audio_stream.average_rate=}")
 
-opt = {
+metadata = {
     "title": "这是我的测试视频",
 }
 
-out_container = av.open(video_out, mode="w")
 
-# stream = container.add_stream("mpeg4", rate=fps)
-# AVDeprecationWarning: VideoStream.framerate is deprecated as it is not always set; please use VideoStream.average_rate.
-# stream = out_container.add_stream("mpeg4", rate=in_video_stream.average_rate) 
-stream = out_container.add_stream(template=in_video_stream)
+out_container = None
 
-# stream = out_container.add_stream("libx265", rate=in_video_stream.average_rate) 
-# stream = out_container.add_stream("libx265")
+def start_container(timestamp):
+    global out_container
+    filename = "file_" + str(timestamp) + ".mkv"
+    print(f"新文件：{filename}")
+    out_container = av.open(filename, "w")
+    out_container.metadata.update(metadata)
 
-# stream.options = {
-#     "crf": "30",
-# }
-# stream.pix_fmt = "gray"
+    for s in in_container.streams:
+        out_stream = out_container.add_stream(template=s)
 
-# a_stream = out_container.add_stream("aac", rate=in_audio_stream.average_rate)
-# 复用流，避免重新解码+编码
-a_stream = out_container.add_stream(template=in_audio_stream)
 
-stream.width = in_video_stream.width
-stream.height = in_video_stream.height
-# stream.pix_fmt = "yuv420p"
+def stop_container():
+    global out_container
+    out_container.close()
+    out_container = None
 
-# print(f"{dir(stream)=}\n")
 
-# 使用多线程编码? 解码时这么用
-# container.streams.video[0].thread_type = "AUTO"
 
+first_packet = True
+rescaling_nr = 0
+split_time = 30 # 30s
+first_frame_timestamp = int(time.time() * 1000)
+
+# 按30s 分割视频
 try:
 
+    start = time.time()
     # 直接 -vcodec copy + -acodec copy
-    for packet in in_container.demux((in_video_stream, in_audio_stream)):
+    for packet in in_container.demux():
+
+        # if first_packet and packet.stream.type == "video":
+        if packet.pts is None and packet.dts is None:
+            print(f"{packet.stream.type=} -- {dir(packet)=}")
+            packet.pts = 0
+            packet.dts = 0
+            first_packet = False
+
+        cur_timestamp = int(time.time() * 1000)
+        # cur_timestamp = time.time()
+        if packet.is_keyframe and (cur_timestamp - first_frame_timestamp) >= split_time:
+            stop_container()
+        
+        if out_container is None:
+            rescaling_nr = packet.dts
+            start_container(int(cur_timestamp))
+            first_frame_timestamp = cur_timestamp
+        
+        # first_frame_timestamp = cur_timestamp
+
+        print(f"{packet.stream.type} {packet.pts=} {packet.dts=}")
+
+        # packet.pts -= rescaling_nr 
+        # packet.dts -= rescaling_nr
+
+        packet.pts = None
 
         out_container.mux(packet)
 
@@ -69,15 +90,5 @@ except KeyboardInterrupt:
     print("结束录制, 写入剩下的数据。")
 
 
-# Flush stream
-for out_packet in stream.encode():
-    out_container.mux(out_packet)
-
-# for out_packet in a_stream.encode():
-    # out_container.mux(out_packet)
-
 in_container.close()
-
-# Close the file
-out_container.close()
-
+# out_container.close()
