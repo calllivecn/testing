@@ -23,6 +23,9 @@ ffmpeg -i "In.mp4" -f segment -segment_times 00:00:06.165,00:00:14.293 -c copy -
 ## 按时间段分割
 ffmpeg -i "In.mp4" -f segment -segment_time 00:00:05.000 -c copy -map 0 "Out_%04d.mp4"
 
+## 分段并使用时间戳做为文件名
+ffmpeg -hide_banner -rtsp_transport tcp -i "${VIDEO}" -vcodec copy -acodec copy -strftime 1 -reset_timestamps 1 -f segment -segment_time $[30*60] "output-%Y%m%d%H%M%S.mkv"
+
 ## 合并 
 ffmpeg -f concat -i list.txt -c copy Out.mp4
 
@@ -53,4 +56,8 @@ ffmpeg [-hwaccel cuvid] -i input.mp4 -vf hue=s=0 -codec hevc_nvenc output.mp4
 
 - 7. 查看指定编码器的参数  ffmpeg -h encoder=编码器名称
 ffmpeg -h encoder=libx264
+
+
+# 8 录音，本地
+ffmpeg -f pulse -i default -af "agate=threshold=0.1:attack=100:release=1000" -acodec libmp3lame -t 30s -y test-a.mp3
 
