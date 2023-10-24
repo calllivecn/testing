@@ -1,8 +1,8 @@
 
 import av
 
-in_vidoe="/home/zx/samba/rw/video/ipcamera/auto-split-30m_0001.mkv"
-out_vidoe="/home/zx/samba/rw/video/ipcamera/auto-split-30m_0001-metadata.mkv"
+in_vidoe="auto-split-30m_0001.mkv"
+out_vidoe="auto-split-30m_0001-metadata.mkv"
 
 # 打开一个视频文件
 in_container = av.open(in_vidoe)
