@@ -103,7 +103,7 @@ class DynamicDetection:
 
 
 
-class VdieoFile:
+class VideoFile:
 
     def __init__(self, fps, w_h):
         """
@@ -181,12 +181,13 @@ cv2.resizeWindow(win2name, 800, 600)
 dd = DynamicDetection(src_fps)
 
 # 保存为文件
-# videofile = VdieoFile(src_fps, w_h)
+# videofile = VideoFile(src_fps, w_h)
 
 start = time.time()
 
 while True:
-    ret, frame = cap.read()
+
+    ret, frame = cap.read() # frame is img
     if not ret:
         print("cv2.VideoCapture()退出。")
         break
