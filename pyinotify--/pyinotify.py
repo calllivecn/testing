@@ -4,6 +4,7 @@
 # author calllivecn <c-all@qq.com>
 
 
+import os
 import enum
 import errno
 import ctypes
@@ -69,7 +70,7 @@ class Event(ctypes.Structure):
         ("mask", ctypes.c_uint32), # inotify 事件的一位掩码
         ("cookies", ctypes.c_uint32), # 唯一的关联 inotify 事件的值
         ("len", ctypes.c_uint32), # 分配给 name 的字节数
-        ("name", ctypes.c_char), # 标识触发该事件的文件名
+        # ("name", ctypes.c_char), # 标识触发该事件的文件名
     ]
 
 
@@ -134,17 +135,12 @@ class Notify:
         print(f"{buf_len=} {nbytes=}")
         while i < nbytes:
             e = Event.from_buffer_copy(buf[i:i+e_size])
+
             name = buf[i+e_size:i+e_size+e.len]
+            name = name[:name.find(b"\0")]
             es.append((e, name))
 
-            print(f"{buf[i:i+e_size+e.len]}")
-
             i = i + e_size + e.len
-
-            if e.mask == 0:
-                break
-
-        print(f"{i=}")
 
         return es
 
