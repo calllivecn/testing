@@ -9,12 +9,13 @@ import errno
 import ctypes
 
 from ctypes import (
-                    c_int,
-                    c_uint64
-                    )
+    util,
+    c_int,
+    c_uint64
+    )
 
 
-libc = ctypes.CDLL("libc.so.6", use_errno=True)
+libc = ctypes.CDLL(util.find_library("c"), use_errno=True)
 
 print(f"通过libc.syscall() 调用 getpid() 系统调用拿到pid: {libc.syscall(39)}")
 
