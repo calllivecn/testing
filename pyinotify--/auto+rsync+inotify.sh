@@ -5,6 +5,11 @@
 # 一次失败的尝试，没有达到想要的效果。
 # 就是，自动实现同步本地和远程的两个目录，的增，删，改，创建。
 
+
+# 这种方式，怎么感觉像是会丢掉事件一样？？？？
+# 只要一次删除太多文件 rm -r zx* 这种，就会只检测到第一次的删除。
+# 可是直接使用 inotifywait 命令时，又能检测到。。。。
+
 SSH_HOST="routew"
 
 SRC="/home/zx/test-rsyncfile"
@@ -12,7 +17,7 @@ DEST="/home/zx/data/test-rsyncfile"
 
 
 monitor(){
-	inotifywait -mrq --format '%e|%w%f' -e create,close_write,delete $1 | while read line;
+	inotifywait -mrq --format '%e|%w%f' -e isdir,close_write,delete $1 | while read line;
 	do
 		a=($(echo "$line" |tr '|' ' '))
 
@@ -22,6 +27,9 @@ monitor(){
 		real_dest="${DEST}/${filename#${SRC}/}"
 
 		echo "real dest path: $real_dest"
+
+		# sleep 0.2
+		# continue
 
 		# 是目录
 		if [[ "$event" = *ISDIR* ]];then
