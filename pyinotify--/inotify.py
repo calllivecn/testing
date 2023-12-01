@@ -176,6 +176,7 @@ class Notify:
                         self.inotify_add_watch(pathname, self.mask)
 
                 elif e.mask & E.IN_ISDIR and e.mask & E.IN_DELETE:
+                    pass
 
             i = i_e_size + e.len
 
