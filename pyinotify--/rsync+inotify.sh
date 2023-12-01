@@ -7,7 +7,7 @@ SSH_HOST="tenw"
 SRC_Path="/home/test"
 DEST="$HOME/rsyncfile"
 
-monitor() {
+monitor(){
 	inotifywait -mrq --format '%w%f' -e create,close_write,delete $1 | while read line; do
 	    if [ -f $line ]; then
 	        #rsync -avz --password-file=/etc/rsyncd.pass --delete "$line" "$SSH_HOST":${module}
@@ -18,4 +18,5 @@ monitor() {
 	done
 }
 
-monitor $Path;
+monitor $Path
+
