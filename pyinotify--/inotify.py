@@ -114,6 +114,10 @@ class Notify:
         # 已经 watch 的路径
         self.wd = {}
 
+        # 如果是递归模式
+        self._recursive = False
+        self.mask = None
+
     
     def inotify_add_watch(self, path: Union[Path, str], mask: int):
 
@@ -162,7 +166,16 @@ class Notify:
             e_ones = self.__event_merge(e.mask)
             # print(f"{e.wd=}, {hex(e.mask)=}, {e.cookies=}, {e.len=}, {name=}")
 
-            es.append((e_ones, name))
+            pathname = self.__path_merge(e, name)
+            es.append((e_ones, pathname))
+
+            # 如果是递归模式？
+            if self._recursive:
+                if e.mask & E.IN_ISDIR and e.mask & E.IN_CREATE:
+                    if not e.wd in self.wd:
+                        self.inotify_add_watch(pathname, self.mask)
+
+                elif e.mask & E.IN_ISDIR and e.mask & E.IN_DELETE:
 
             i = i_e_size + e.len
 
@@ -171,9 +184,11 @@ class Notify:
 
     def inotify_add_watch_recursive(self, path: Union[Path, str], mask: int):
 
-        for r, d, f in os.walk(path):
-            self.
+        self._recursive = True
 
+        for dirpath, dirnames, filenames in os.walk(path):
+            # self.
+            pass
 
 
     def __event_merge(self, mask) -> Tuple[Event]:
@@ -188,6 +203,18 @@ class Notify:
     def __name_parse(self, name: bytes) -> str:
             name = name[:name.find(b"\0")]
             return name.decode("utf-8")
+    
+
+    def __path_merge(self, e: Event, name: Union[Path, str]) -> Path:
+
+        try:
+            dirname = self.wd[e.wd]
+        except ValueError:
+            return Path("")
+        
+        return dirname / name
+
+
 
 
 def test():

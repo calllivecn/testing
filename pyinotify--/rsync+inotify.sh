@@ -18,5 +18,5 @@ monitor(){
 	done
 }
 
-monitor $Path
+monitor $SRC_Path
 
