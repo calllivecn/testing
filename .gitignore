@@ -5,6 +5,8 @@ b.out
 *.db
 *.o
 *.so
+*_cffi.c
+
 *.pem
 *.cert
 *.crt
