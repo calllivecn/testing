@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <sys/inotify.h>
 
@@ -15,11 +16,13 @@ int main() {
   }
 
   // 添加监控点
-  inotify_add_watch(fd, path, IN_CREATE_RECURSIVE);
+  // inotify_add_watch(fd, path, IN_CREATE);
+  inotify_add_watch(fd, path, IN_ALL_EVENTS);
 
   // 等待事件
   while (1) {
-    struct inotify_event *event;
+    // struct inotify_event *event;
+    struct inotify_event event;
     int len;
 
     // 读取事件
@@ -30,12 +33,14 @@ int main() {
     }
 
     // 处理事件
-    switch (event->mask) {
+    switch (event.mask) {
       case IN_CREATE:
         // 文件创建
+        printf("create: %s\n", event.name);
         break;
       case IN_DELETE:
         // 文件删除
+        printf("delete: %s\n", event.name);
         break;
     }
   }
