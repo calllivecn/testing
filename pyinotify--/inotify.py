@@ -16,6 +16,9 @@
      vim /etc/sysctl.conf
             添加　fs.inotify.max_user_watches=[max_watch_number]
 
+3. 这玩意个特性：mkdir -vp d1/d2/d3 一次创建多层目录时，只能监控到顶层目录: d1。
+    但是 rm -r d1 删除时，就都能监控到了。
+    (inotifywait 工具也是如此)
 """
 
 import os
@@ -190,14 +193,16 @@ class INotify:
                 if e.mask & E.IN_CREATE:
                     print("是目录，是创建")
                     
-                    if not self.__path2wd(pathname):
+                    # realpath = self.wd[e.wd] / pathname
+                    if not self.__path_in_wd(pathname):
+
                         self.inotify_add_watch(pathname, self.mask)
                         print(f"添加{e.wd=} -> {self.wd=}")
 
-                elif e.mask & E.IN_DELETE_SELF:
+                elif e.mask & E.IN_DELETE:
 
-                    if self.__path2wd(pathname):
-                        wd = self.__path2wd(pathname)
+                    if self.__path_in_wd(pathname):
+                        wd = self.path2wd[pathname]
                         self.inotify_rm_watch(wd)
                         self.__del_wd(wd)
                         print(f"删除{wd=} -> {self.wd=}")
@@ -234,10 +239,10 @@ class INotify:
     def __exit__(self, exc_type, exc_value, tb):
         self.close()
 
-    def __wd2path(self, wd: int) -> bool:
+    def __wd_in_path(self, wd: int) -> bool:
         return wd in self.wd
 
-    def __path2wd(self, path: Path) -> bool:
+    def __path_in_wd(self, path: Path) -> bool:
         return path in self.path2wd
     
     def __add_wd(self, wd: int, path: Path):
