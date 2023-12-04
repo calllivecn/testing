@@ -5,13 +5,14 @@
 
 import os
 
-import miio
+from miio import Device
 
 IP = os.environ["MIROBO_IP"]
 TOKEN = os.environ["MIROBO_TOKEN"]
 
 def info():
-    s = miio.device.Device(ip=IP, token=TOKEN)
+    #s = miio.device.Device(ip=IP, token=TOKEN)
+    s = Device(ip=IP, token=TOKEN)
     print(s.info())
 
 """
@@ -32,6 +33,7 @@ from miio.chuangmi_plug  import ChuangmiPlug
 d = ChuangmiPlug(ip=IP, token=TOKEN)
 
 x=d.status() # 给出设备的状态
+
 print(f"status() --> {x}")
 # x: <ChuangmiPlugStatus power=True, usb_power=None, temperature=46, load_power=None, wifi_led=None>
 # x.power = True
