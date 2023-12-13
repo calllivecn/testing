@@ -34,13 +34,13 @@ help_text="""\
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="这是第一个机器人")
 
-async def help_func(update, context):
+async def help_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=help_text)
 
-async def about(update, context):
+async def about(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=f"""这是我今天(2023-12-03 02:00)创建的机器人""")
 
-async def test(update, context):
+async def test(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=f"""看到这个说明测试成功""")
 
 async def argument(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -50,7 +50,7 @@ async def argument(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Custom reply to message: '{update.message.text}'")
-    await update.message.reply_text(text=f"Custom reply to message: '{update.message.text}'")
+    await update.message.reply_text(text=f"echo: '{update.message.text}'")
 
 
 async def push_task(send_message, chat_id):
