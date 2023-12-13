@@ -53,6 +53,15 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text=f"Custom reply to message: '{update.message.text}'")
 
 
+async def push_task(send_message, chat_id):
+    count=10
+    for i in range(count):
+        await send_message(chat_id=chat_id, text=f"({i}/{count})主动push消息测试: '当前时间:{time.localtime()}'")
+        await asyncio.sleep(30)
+    
+    print("这是完成标志")
+
+
 async def push(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # update.messge.chat_id
     print(f"{update.effective_user.name=} | {update.effective_user.username=} | {update.effective_user.id=}")
@@ -61,12 +70,11 @@ async def push(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if user.username == "calllive":
         await context.bot.send_message(chat_id=update.effective_chat.id, text=f"管理员({user.username})，你好")
+        asyncio.create_task(push_task(context.bot.send_message, update.effective_chat.id))
 
-    count=10
-    for i in range(count):
-        # await context.bot.send_message(chat_id=update.effective_chat.id, text=f"({i}/{count})主动push消息测试: '{update.message.text}'")
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"主动push消息测试: '当前时间:{time.localtime()}'")
-        await asyncio.sleep(300)
+    else:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"你好{user.username}, 你不是管理员")
+
 
 
 def main():
