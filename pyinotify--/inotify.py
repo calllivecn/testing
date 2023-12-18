@@ -26,7 +26,7 @@ import sys
 import enum
 import errno
 import ctypes
-import selectors
+# import selectors
 
 from ctypes import util
 from pathlib import Path
@@ -119,10 +119,12 @@ class INotify:
         self._rm_watch.restype = ctypes.c_int
         self._rm_watch.argtypes = [ctypes.c_int, ctypes.c_uint32]
 
+        """
         self._read = self._libc.read
         self._read.restype = ctypes.c_ssize_t
         # self._read.restype = ctypes.POINTER(Event)
         self._read.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_size_t]
+        """
 
         self.fd = self._init()
 
@@ -137,6 +139,7 @@ class INotify:
         self._recursive = False
         self.mask: Union[int, None] = None
     
+
     def inotify_add_watch(self, path: Union[Path, str], mask: int):
 
         if isinstance(path, str):
@@ -164,11 +167,25 @@ class INotify:
             return -1
     
 
-    def read(self) -> List[Tuple[Event, str]]:
-
+    def __read1(self) -> Tuple[bytes, int]:
         buf = ctypes.create_string_buffer(4096)
         buf_len = 4096
         nbytes = self._read(self.fd, buf, buf_len)
+
+        return buf, nbytes
+
+
+    def __read2(self) -> Tuple[bytes, int]:
+        buf = os.read(self.fd, 4096)
+        nbytes = len(buf)
+        return buf, nbytes
+    
+
+    def read(self) -> List[Tuple[Event, str]]:
+
+        # buf, nbytes = self.__read1()
+        buf, nbytes = self.__read2()
+
         if nbytes == -1:
             raise OSError(f"inotify read() errno: {errno.errno}")
 

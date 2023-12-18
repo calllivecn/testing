@@ -39,11 +39,11 @@ async def main():
     # asyncio.gather(say_while(1), say_while(2)) #, return_exceptions=True)
 
     print("task1 begin...")
-    print(await task1)
+    await task1
     print("task1 end...")
 
     print("task2 begin...")
-    # print(await task2)
+    await task2
     print("task2 end...")
 
 

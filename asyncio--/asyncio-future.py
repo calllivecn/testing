@@ -13,6 +13,8 @@ def client(port):
 
 async def another_coroutine():
     print("手动添加成功")
+    await asyncio.sleep(5)
+    print("执行完成")
 
 
 def manual_add():
