@@ -30,14 +30,14 @@ tp = ThreadPoolExecutor(max_workers=4)
 def print_thread():
     try:
         while True:
-            print(threading.active_count())
+            print(f"当前活动线程数：{threading.active_count()}")
             time.sleep(1)
     except KeyboardInterrupt:
         return 0
 
-th = threading.Thread(target=print_thread, daemon=True)
+th = threading.Thread(target=print_thread, name="这是当前执行的？", daemon=True)
 th.start()
 
-for res in tp.map(f, range(10)):
+for res in tp.map(f, range(40)):
     print(res)
 
