@@ -14,8 +14,8 @@ from pprint import pprint
 
 import openai
 
-openai.api_key = "YOUR_API_KEY"
-openai.api_key = os.environ.get("OPENAI_TOKEN")
+#openai.api_key = "YOUR_API_KEY"
+#openai.api_key = os.environ.get("OPENAI_TOKEN")
 
 def generate_text(prompt):
     response = openai.Completion.create(
@@ -146,7 +146,7 @@ def main():
             continue
 
         print("="*20, "回答", "="*20)
-        print(gpt35.chatgpt35(prompt))
+        print(gpt35.chatgpt35(prompt, "gpt-3.5-turbo-1106"))
     
 
     gpt35.close()
