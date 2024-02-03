@@ -40,7 +40,8 @@ def configure_master_slave(master_host, master_port, slave_hosts, password: str 
         # while (slave_info := slave.info('replication')["master_link_status"]) == "down":
         slave_info = slave.info('replication')
         while slave_info["master_link_status"] == "down":
-            print(f"wait ... master_link_status: {slave_info}")
+            # print(f"wait ... master_link_status: {slave_info}")
+            print(f"wait ... master_link_status ...")
             time.sleep(1)
             slave_info = slave.info('replication')
 
@@ -54,7 +55,7 @@ def configure_master_slave(master_host, master_port, slave_hosts, password: str 
 if __name__ == "__main__":
     master_host = "10.1.3.1"
     master_port = 6379
-    slave_hosts = [("10.1.3.1", 6380)]
+    slave_hosts = [("10.1.3.1", 6380), ("10.1.3.1", 6381)]
 
     configure_master_slave(master_host, master_port, slave_hosts, password=sys.argv[1])
 

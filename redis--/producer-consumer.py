@@ -14,7 +14,7 @@ r = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
 def producer(count=100):
     for i in range(count):
-        r.xadd("stream1", 
+        r.xadd("stream1",)
 
 
 
