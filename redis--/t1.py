@@ -10,10 +10,11 @@ import redis
 r = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
 # 存储和获取简单字符串
-r.setnx('foo', 'bar')  # 返回 True
-r.incr("foo")
-print(f"{r.get('foo')=}")  # 输出 'bar'
 
+if r.setnx('foo', '4'):  # 返回 True
+    r.incr("foo")
+
+print(f"{r.get('foo')=}")  # 输出 'bar'
 
 r.set("zx", 5, ex=50)
 
