@@ -1,0 +1,6 @@
+FROM redis:latest
+
+COPY cluster6379.txt /data/redis-cluster.conf
+
+CMD ["redis-server", "/data/redis-cluster.conf"]
+
