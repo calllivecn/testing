@@ -1,6 +1,6 @@
 
-requirepass linux
-masterauth linux
+#requirepass linux
+#masterauth linux
 
 cluster-enabled yes
 cluster-node-timeout 5000

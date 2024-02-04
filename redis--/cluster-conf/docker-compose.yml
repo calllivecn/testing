@@ -1,8 +1,19 @@
-version: "3.9"
+version: 3.9
 
+# 这里的rediszx 镜像是在官方镜像基础上，添加了默认的配置文件路径: /data/redis-cluster.conf
 services:
-    redis1:
-        image: "redis:latest"
-        netowrk: "redis"
-        volume:
-            - "./
+    redis-zx:
+        image: "rediszx:latest"
+        scale: 3
+        networks:
+            - redis-cluster
+        command: 
+            - /data/redis-cluster.conf
+
+networks:
+    redis-cluster:
+        driver: bridge
+        #ipam:
+        #    config:
+        #        - subnet
+        #
