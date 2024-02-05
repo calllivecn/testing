@@ -2,23 +2,26 @@ version: "3.9"
 
 # 这里的rediszx 镜像是在官方镜像基础上，添加了默认的配置文件路径: /data/redis-cluster.conf
 services:
-    builder-rediszx:
-        image: rediszx:latest
-        build: .
+    #builder-rediszx:
+    #    image: rediszx:latest
+    #    build: .
 
     redis-zx:
         image: rediszx:latest
-        scale: 3
+        scale: 6
         networks:
             - redis-cluster
+
         command: 
             - /data/redis-cluster.conf
 
 
+# 使用compose 创建的网络，容器启动和停止后的ip会变化。
 networks:
     redis-cluster:
         driver: bridge
-        #ipam:
-        #    config:
-        #        - subnet
-        #
+        external: true
+#         #ipam:
+#         #    config:
+#         #        - subnet
+#         #

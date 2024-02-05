@@ -16,16 +16,22 @@ from typing import (
 )
 
 import redis
-from redis import RedisCluster
+from redis import (
+    RedisCluster,
+    exceptions,
+)
 from redis.cluster import ClusterNode
 
 
 
 # 创建一个 Redis 集群节点列表, startup_nodes
 nodes = [
-    ClusterNode('172.22.1.2', 6379),
-    ClusterNode('172.22.1.3', 6379),
-    ClusterNode('172.22.1.4', 6379),
+    ClusterNode('172.20.1.2', 6379),
+    ClusterNode('172.20.1.3', 6379),
+    ClusterNode('172.20.1.4', 6379),
+    ClusterNode('172.20.1.5', 6379),
+    ClusterNode('172.20.1.6', 6379),
+    ClusterNode('172.20.1.7', 6379),
 ]
 
 
@@ -50,14 +56,18 @@ def test_write(count=10000):
             print(f"当前执行了: {i}/{count}")
 
         key, value = generate()
-        r.set(key_prefix + key, value)
+        #r.set(key_prefix + key, value)
+        try:
+            r.setex(key_prefix + key, 60, value)
+        except exceptions.ConnectionError:
+            print("发生切换？")
 
 
 def test_read():
     cursor = 0
 
     while True:
-        nodes, list_response = r.scan(cursor, match=key_prefix + "*", count=1000, target_nodes=RedisCluster.REPLICAS)
+        nodes, list_response = r.scan(cursor, match=key_prefix + "*", count=1000)
         respnose_len = len(list_response)
 
         if respnose_len == 0:
@@ -92,15 +102,20 @@ def main():
 
     args = parse.parse_args()
 
-    nodes = [ClusterNode(args.host, args.port)]
+    #nodes = [ClusterNode(args.host, args.port)]
+    # redis_conn = RedisCluster(host=args.host, port=args.port, password=args.password)
+    # nodes = redis_conn.get_nodes()
+    # redis_conn.close()
 
     global r
-    # 这样 在集群中有节点故障时（不分master, replication), 都会卡住。
-    redis_con = RedisCluster(startup_nodes=nodes, password=args.password, read_from_replicas=True)
+    # 这样 在集群中有节点故障时（不分master, replication), 都会卡住。(startup_nodes的原因？)
+    # r = RedisCluster(startup_nodes=nodes, password=args.password)
 
-    r = redis_con
+    # ~~直接使用host 配置，让它自己连接其他节点。这样是会影响的。需要先连接一个节点,拿到所有节点的地址。在重新初始化一个startup_nodes=~~
+    # ~~现在看  好像和server 端的 io-threads 有关？？？？~~
+    r = RedisCluster(host=args.host, port=args.port, password=args.password, protocol=3)
 
-    atexit.register(redis_con.close)
+    atexit.register(r.close)
 
     if args.read:
         test_read()
