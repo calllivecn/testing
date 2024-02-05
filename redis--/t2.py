@@ -43,6 +43,7 @@ key_prefix="test-"
 
 
 def test_write(count=10000):
+
     for i in range(count):
 
         if i % 1000 == 0:
@@ -71,9 +72,7 @@ def test_read():
             # print(f"{key=} value={r.get(key)}")
             r.get(key)
 
-# 这样 在集群中有节点故障时（不分master, replication), 都会卡住。
-r = RedisCluster(startup_nodes=nodes, password="linux", read_from_replicas=True)
-atexit.register(r.close) 
+global r
 
 
 def main():
@@ -84,11 +83,24 @@ def main():
         usage="%(prog)s <--read|--write count>"
     )
 
+    parse.add_argument("--password", action="store", help="集群的密码")
+    parse.add_argument("--host", action="store", help="集群的地址: ip:port")
+    parse.add_argument("--port", action="store", type=int, default=6379, help="集群的地址: ip:port")
+
     parse.add_argument("--read", action="store_true", help="读取所有key")
     parse.add_argument("--write", action="store", type=int, help="读取所有key")
 
     args = parse.parse_args()
 
+    nodes = [ClusterNode(args.host, args.port)]
+
+    global r
+    # 这样 在集群中有节点故障时（不分master, replication), 都会卡住。
+    redis_con = RedisCluster(startup_nodes=nodes, password=args.password, read_from_replicas=True)
+
+    r = redis_con
+
+    atexit.register(redis_con.close)
 
     if args.read:
         test_read()
