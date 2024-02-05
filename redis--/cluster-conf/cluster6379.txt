@@ -1,6 +1,9 @@
 
+# 这个需要在配置里先配置，才行。不然创建的集群会主从不能同步，会报：NOAUTH Authorzai ....
 #requirepass linux
-#masterauth linux
+
+# 这个值是 CPUs - 1 or 2 得出的
+io-threads 2
 
 cluster-enabled yes
 cluster-node-timeout 5000
