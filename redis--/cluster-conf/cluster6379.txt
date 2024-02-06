@@ -1,6 +1,10 @@
 
-# 这个需要在配置里先配置，才行。不然创建的集群会主从不能同步，会报：NOAUTH Authorzai ....
+# requirepass 和 materauth 需要同时配置(最好相同，
+# 集群角色会动态变化)。会报：NOAUTH Authorzai ....
 #requirepass linux
+
+# slave 向主节点同步是的密码
+#masterauth linux
 
 # 这个值是 CPUs - 1 or 2 得出的
 io-threads 2
