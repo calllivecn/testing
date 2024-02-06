@@ -20,6 +20,8 @@ from redis import (
     RedisCluster,
     exceptions,
 )
+from redis.retry import Retry
+from redis.backoff  import ExponentialBackoff
 from redis.cluster import ClusterNode
 
 
@@ -29,17 +31,13 @@ nodes = [
     ClusterNode('172.20.1.2', 6379),
     ClusterNode('172.20.1.3', 6379),
     ClusterNode('172.20.1.4', 6379),
-    ClusterNode('172.20.1.5', 6379),
-    ClusterNode('172.20.1.6', 6379),
-    ClusterNode('172.20.1.7', 6379),
+    #ClusterNode('172.20.1.5', 6379),
+    #ClusterNode('172.20.1.6', 6379),
+    #ClusterNode('172.20.1.7', 6379),
 ]
 
 
 # usercfg = redis.UsernamePasswordCredentialProvider("default", "linux")
-
-# 创建一个 Redis 集群连接池
-# r = redis.RedisCluster(startup_nodes=nodes, password="linux")
-
 
 def generate() -> Tuple[str, bytes]:
     n = random.randint(16, 128)
@@ -57,30 +55,19 @@ def test_write(count=10000):
 
         key, value = generate()
         #r.set(key_prefix + key, value)
-        try:
-            r.setex(key_prefix + key, 60, value)
-        except exceptions.ConnectionError:
-            print("发生切换？")
+        r.setex(key_prefix + key, 120, value)
+        #try:
+        #    r.setex(key_prefix + key, 60, value)
+        #except exceptions.ConnectionError:
+        #    print("发生切换？")
 
 
 def test_read():
-    cursor = 0
 
-    while True:
-        nodes, list_response = r.scan(cursor, match=key_prefix + "*", count=1000)
-        respnose_len = len(list_response)
-
-        if respnose_len == 0:
-            print("扫描完成...")
-            break
-
-        cursor += respnose_len
-
-        print(f"当前已经扫描的key数量：{cursor}")
-
-        for key in list_response:
-            # print(f"{key=} value={r.get(key)}")
-            r.get(key)
+    for i in range(1000000):
+        key=f"number-{i}"
+        print(f"{key=} value={r.get(key)}")
+        #r.get(key)
 
 global r
 
@@ -109,11 +96,16 @@ def main():
 
     global r
     # 这样 在集群中有节点故障时（不分master, replication), 都会卡住。(startup_nodes的原因？)
-    # r = RedisCluster(startup_nodes=nodes, password=args.password)
+    #r = RedisCluster(startup_nodes=nodes, password=args.password, protocol=3, socket_timeout=5)
 
     # ~~直接使用host 配置，让它自己连接其他节点。这样是会影响的。需要先连接一个节点,拿到所有节点的地址。在重新初始化一个startup_nodes=~~
     # ~~现在看  好像和server 端的 io-threads 有关？？？？~~
-    r = RedisCluster(host=args.host, port=args.port, password=args.password, protocol=3)
+
+    # r = RedisCluster(host=args.host, port=args.port, password=args.password, protocol=3)
+
+
+    retry = Retry(ExponentialBackoff(), 3)
+    r = RedisCluster(host=args.host, port=args.port, password=args.password, retry=retry, protocol=3)
 
     atexit.register(r.close)
 

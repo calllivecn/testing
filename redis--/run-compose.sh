@@ -7,9 +7,7 @@
 init(){
 	for i in $(seq 1 6)
 	do
-		docker create --name "redis${i}" --network redis redis:latest /etc/redis-cluster.conf
-		docker cp cluster6379.conf "redis${i}:/etc/redis-cluster.conf"
-		docker start "redis${i}"
+		docker run -d --name "redis${i}" --network redis rediszx:latest /data/redis-cluster.conf
 	done
 }
 
@@ -18,10 +16,11 @@ init(){
 add_node_2(){
 	for i in $(seq 7 8)
 	do
-		docker create --name "redis${i}" --network redis redis:latest /etc/redis-cluster.conf
-		docker cp cluster6379.conf "redis${i}:/etc/redis-cluster.conf"
-		docker start "redis${i}"
+		docker run -d --name "redis${i}" --network redis rediszx:latest /data/redis-cluster.conf
 	done
 }
 
+#init
+
 add_node_2
+
