@@ -11,20 +11,22 @@ import pprint
 import redis
 
 
-# 从集群模式中，拿到指定主节点的从节点。
+# ~~从集群模式中，拿到指定主节点的从节点。~~
 def master_get_slave(nodes_info:dict):
-    nodes_info
+    pass
 
-r = redis.RedisCluster(host=sys.argv[1], port=sys.argv[2], socket_timeout=5)
+# r1 = redis.Redis(retry_on_timeout=15, retry_on_error=[redis.exceptions.ResponseError])
+
+r = redis.RedisCluster(host=sys.argv[1], port=sys.argv[2])
+
+# clusterinfo = r.info()
+# pprint.pprint(clusterinfo)
+# exit(0)
 
 c = 0
 try:
     while True:
         nodes_info = r.cluster_nodes()
-        # clusterinfo = r.info()
-        # print(f"""keys: {info["keys"]}""")
-
-        # pprint.pprint(nodes_info)
 
         print(c, "="*20)
 
