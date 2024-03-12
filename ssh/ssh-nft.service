@@ -1,0 +1,9 @@
+[Unit]
+Description=ssh + nftables
+After=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/ssh-nft.sh
+
