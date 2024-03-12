@@ -1,0 +1,12 @@
+[Unit]
+Description=ssh + nftables timer
+
+
+[Timer]
+#OnActiveSec=30min
+OnBootSec=15min
+OnCalendar=*-*-* 02:00:00
+
+[Install]
+WantedBy=default.target
+
