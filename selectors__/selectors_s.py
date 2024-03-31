@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #coding=utf-8
 # date 2017-11-04 09:37:33
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 
 from socket import socket,SOL_SOCKET,SO_REUSEPORT

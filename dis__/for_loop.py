@@ -1,7 +1,7 @@
 #!/usr/bin/env py3
 #coding=utf-8
 # date 2018-08-20 21:17:29
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 import time
 

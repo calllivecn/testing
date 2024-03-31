@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #coding=utf-8
 # date 2018-01-19 20:57:06
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 
 import pyaudio

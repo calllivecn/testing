@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2020-05-26 09:43:26
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 cwd=$(dirname $0)
 

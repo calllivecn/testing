@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2022-11-03 06:05:33
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 # "$1": 有off, on
 

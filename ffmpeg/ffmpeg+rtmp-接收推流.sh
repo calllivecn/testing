@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2023-07-09 04:49:26
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 # 这个是cient 连接到
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env py3
 #coding=utf-8
 # date 2018-08-30 14:24:51
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 import random
 

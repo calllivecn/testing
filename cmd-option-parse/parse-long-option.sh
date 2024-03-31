@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2021-01-04 11:29:34
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 param(){
 	if [ "${2::1}" = "-" ] || [ "${2::2}" = "--" ];then

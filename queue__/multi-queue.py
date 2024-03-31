@@ -1,7 +1,7 @@
 #!/usr/bin/env py3
 #coding=utf-8
 # date 2018-12-04 11:08:03
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 import queue
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # coding=utf-8
 # date 2020-11-29 01:01:54
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 字符集	字数	Unicode 编码
 基本汉字	20902字	4E00-9FA5

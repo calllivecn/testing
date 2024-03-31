@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2020-04-26 17:29:23
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 # 需要在header中加入：X-Auth-Token
 

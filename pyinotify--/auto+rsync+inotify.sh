@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2023-06-13 18:35:05
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 # 一次失败的尝试，没有达到想要的效果。
 # 就是，自动实现同步本地和远程的两个目录，的增，删，改，创建。

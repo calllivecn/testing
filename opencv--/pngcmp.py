@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # coding=utf-8
 # date 2021-08-29 04:30:13
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 # -*- coding: utf-8 -*-
 # 利用python实现多种方法来实现图像识别

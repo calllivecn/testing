@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # coding=utf-8
 # date 2024-02-05 17:26:06
-# author calllivecn <calllive@outlook.com>
+# author calllivecn <calllivecn@outlook.com>
 
 import sys
 import time

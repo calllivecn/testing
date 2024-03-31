@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # coding=utf-8
 # date 2019-08-23 17:09:01
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 from ldap3 import Server, Connection, ALL, SUBTREE, ServerPool
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2019-05-15 10:52:53
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 HADOOP_HOME="/usr/local"
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2020-06-02 18:01:02
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 # 拿到指定长度的随机可以字母和数字
 

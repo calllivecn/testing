@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2023-06-13 18:35:05
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 SSH_HOST="tenw"
 

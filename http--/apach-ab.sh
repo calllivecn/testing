@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2020-10-23 11:11:57
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 
 process=4

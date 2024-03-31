@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2018-01-18 00:06:06
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 getch(){
 

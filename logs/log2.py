@@ -1,7 +1,7 @@
 #!/usr/bin/env py3
 #coding=utf-8
 # date 2018-11-02 15:24:36
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 import logging
 logger = logging.getLogger() #定义对应的程序模块名name，默认是root

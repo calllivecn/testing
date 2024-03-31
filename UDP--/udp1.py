@@ -2,7 +2,7 @@
 # coding=utf-8
 # date 2022-05-14 08:39:33
 # update 2022-12
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 
 # 先尝试稳定传输

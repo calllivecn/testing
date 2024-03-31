@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2023-03-27 22:58:39
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 # 测试flock 的使用
 

@@ -2,7 +2,7 @@
 # coding=utf-8
 # date 2021-11-06 22:35:17
 # update 2022-08-01 17:35:17
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 """
 这里测试的是： 对等方的认证加密通信的密钥交换。

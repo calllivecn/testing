@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2023-06-13 19:52:22
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 TMP_CONF=$(mktemp -p /tmp/)
 chmod 0600 "$TMP_CONF"

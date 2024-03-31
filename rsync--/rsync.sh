@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2023-06-13 20:09:48
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 DEST_USER="rsync_backup"
 DEST_PW="rsync.secrets"

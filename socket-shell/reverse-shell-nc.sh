@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2022-04-15 12:08:42
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 tmp=$(mktemp -u --suffix=rshell-XXXX)
 
