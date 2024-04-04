@@ -40,6 +40,14 @@ from pathlib import Path
 import cv2
 # import numpy as np
 
+HELP_INFO="""\
+1. ↑↓←→方向键移动截图框。
+2. shift+方向键，扩大截图框。
+3. Alt+方向键，缩小截图框。
+4. w, s, a, d键是移动窗口在图片上的位置。(当前图片比窗口大时)
+5. z键在快速和慢速之间来回切换,截图框的速度。
+
+"""
 
 class PhotoScreenshot:
 
@@ -66,6 +74,28 @@ class PhotoScreenshot:
         self.__menu()
 
         self.canvas = None
+
+
+        self._help_info: bool = False
+
+
+    def __help_info(self):
+        # 这个点几次就会执行几次，需要打个标判断一下。
+        if self._help_info:
+            pass
+        else:
+            help_window = tk.Toplevel(self.root)
+            help_window.title("使用说明")
+            self._help_info = True
+
+            def func_tmp():
+                self._help_info = False
+                help_window.destroy()
+
+            help_window.protocol("WM_DELETE_WINDOW", func_tmp)
+
+            label_text = ttk.Label(help_window, text=HELP_INFO)
+            label_text.pack()
 
 
     def canvas_open_photo(self):
@@ -122,6 +152,8 @@ class PhotoScreenshot:
         file_menu.add_command(label="打开图片", command=self.__open_photo)
 
         file_menu.add_command(label="保存截图", command=self.__save_screenshot)
+        file_menu.add_separator()
+        file_menu.add_command(label="帮助", command=self.__help_info)
 
         self.root.config(menu=self._menu)
     
@@ -157,25 +189,27 @@ class PhotoScreenshot:
 
     def on_key_press(self):
 
+        self.step = 10
+        self.root.bind("<z>", self.__swap_step)
+
         print("有绑定上？")
 
         # 移动截图框
-        self.root.bind("<Up>", lambda e :self.__canvas_rect_move(e, "Up"))
-        self.root.bind("<Down>", lambda e :self.__canvas_rect_move(e, "Down"))
-        self.root.bind("<Left>", lambda e :self.__canvas_rect_move(e, "Left"))
-        self.root.bind("<Right>", lambda e :self.__canvas_rect_move(e, "Right"))
-
+        self.root.bind("<Up>", lambda e :self.__canvas_rect_move(self.step, "Up"))
+        self.root.bind("<Down>", lambda e :self.__canvas_rect_move(self.step, "Down"))
+        self.root.bind("<Left>", lambda e :self.__canvas_rect_move(self.step, "Left"))
+        self.root.bind("<Right>", lambda e :self.__canvas_rect_move(self.step, "Right"))
 
         # 移动截图框大小, 扩大
-        self.root.bind("<Shift-Up>", lambda e :self.__canvas_rect_expand(e, "Up"))
-        self.root.bind("<Shift-Down>", lambda e :self.__canvas_rect_expand(e, "Down"))
-        self.root.bind("<Shift-Left>", lambda e :self.__canvas_rect_expand(e, "Left"))
-        self.root.bind("<Shift-Right>", lambda e :self.__canvas_rect_expand(e, "Right"))
+        self.root.bind("<Shift-Up>", lambda e :self.__canvas_rect_expand(self.step, "Up"))
+        self.root.bind("<Shift-Down>", lambda e :self.__canvas_rect_expand(self.step, "Down"))
+        self.root.bind("<Shift-Left>", lambda e :self.__canvas_rect_expand(self.step, "Left"))
+        self.root.bind("<Shift-Right>", lambda e :self.__canvas_rect_expand(self.step, "Right"))
         # 移动截图框大小, 缩小
-        self.root.bind("<Alt-Up>", lambda e :self.__canvas_rect_reduce(e, "Up"))
-        self.root.bind("<Alt-Down>", lambda e :self.__canvas_rect_reduce(e, "Down"))
-        self.root.bind("<Alt-Left>", lambda e :self.__canvas_rect_reduce(e, "Left"))
-        self.root.bind("<Alt-Right>", lambda e :self.__canvas_rect_reduce(e, "Right"))
+        self.root.bind("<Alt-Up>", lambda e :self.__canvas_rect_reduce(self.step, "Up"))
+        self.root.bind("<Alt-Down>", lambda e :self.__canvas_rect_reduce(self.step, "Down"))
+        self.root.bind("<Alt-Left>", lambda e :self.__canvas_rect_reduce(self.step, "Left"))
+        self.root.bind("<Alt-Right>", lambda e :self.__canvas_rect_reduce(self.step, "Right"))
 
 
         # 移动画布视窗
@@ -186,6 +220,13 @@ class PhotoScreenshot:
 
         # 后期，上图片缩放
         # self.canvas.bind("<MouseWheel>", self.__photo_scale)
+    
+
+    def __swap_step(self, e):
+        if self.step == 1:
+            self.step = 10
+        elif self.step == 10:
+            self.step = 1
 
 
     def __rect(self):
@@ -196,14 +237,14 @@ class PhotoScreenshot:
         # 截图矩形的相对位置, 左上角位置，右下角位置
         self.rect_x0 = 0
         self.rect_y0 = 0
-        self.rect_x1 = 200
-        self.rect_y1 = 200
+        self.rect_x1 = self.image_width // 3
+        self.rect_y1 = self.image_height // 3
 
         # 这里坐标是矩形的左上角和右下角坐标
         self.rect = self.canvas.create_rectangle(self.rect_x0, self.rect_y0, self.rect_x1, self.rect_y1, width=self.outline_width, outline=self.outline_color)
 
 
-    def __canvas_rect_move(self, e, direction: str):
+    def __canvas_rect_move(self, step: int, direction: str):
 
         # 鼠标在画布上的坐标
         # x, y = self.canvas.canvasx(e.x), self.canvas.canvasy(e.y)
@@ -221,16 +262,16 @@ class PhotoScreenshot:
         move_y = 0
 
         if direction == "Up":
-            move_y -= 1
+            move_y -= step
 
         elif direction == "Down":
-            move_y += 1
+            move_y += step
 
         elif direction == "Left":
-            move_x -= 1
+            move_x -= step
 
         elif direction == "Right":
-            move_x += 1
+            move_x += step
 
 
         # 如果已经在画布边界，就不在移动。
@@ -249,48 +290,48 @@ class PhotoScreenshot:
         self.canvas.move(self.rect, move_x, move_y)
 
 
-    def __canvas_rect_expand(self, e, direction: str):
+    def __canvas_rect_expand(self, step: int, direction: str):
         # 扩大
 
         x0, y0, x1, y1 = self.canvas.coords(self.rect)
 
         if direction == "Up":
-            if y0 - 1 >= 0:
-                self.canvas.coords(self.rect, x0, y0 - 1, x1, y1)
+            if y0 - step >= 0:
+                self.canvas.coords(self.rect, x0, y0 - step, x1, y1)
 
         elif direction == "Down":
-            if y1 + 1 <= self.image_height:
-                self.canvas.coords(self.rect, x0, y0, x1, y1 + 1)
+            if y1 + step <= self.image_height:
+                self.canvas.coords(self.rect, x0, y0, x1, y1 + step)
 
         elif direction == "Left":
-            if x0 - 1 >= 0:
-                self.canvas.coords(self.rect, x0 - 1, y0, x1, y1)
+            if x0 - step >= 0:
+                self.canvas.coords(self.rect, x0 - step, y0, x1, y1)
 
         elif direction == "Right":
-            if x1 + 1 <= self.image_width:
-                self.canvas.coords(self.rect, x0, y0, x1 + 1, y1)
+            if x1 + step <= self.image_width:
+                self.canvas.coords(self.rect, x0, y0, x1 + step, y1)
 
 
-    def __canvas_rect_reduce(self, e, direction: str):
+    def __canvas_rect_reduce(self, step: int, direction: str):
         # 缩小
 
         x0, y0, x1, y1 = self.canvas.coords(self.rect)
 
         if direction == "Up":
-            if y1 - 1 >= 0:
-                self.canvas.coords(self.rect, x0, y0, x1, y1 - 1)
+            if y1 - step >= 0:
+                self.canvas.coords(self.rect, x0, y0, x1, y1 - step)
 
         elif direction == "Down":
-            if y0 + 1 <= self.image_height:
-                self.canvas.coords(self.rect, x0, y0 + 1, x1, y1)
+            if y0 + step <= self.image_height:
+                self.canvas.coords(self.rect, x0, y0 + step, x1, y1)
 
         elif direction == "Left":
-            if x1 - 1 >= 0:
-                self.canvas.coords(self.rect, x0, y0, x1 - 1, y1)
+            if x1 - step >= 0:
+                self.canvas.coords(self.rect, x0, y0, x1 - step, y1)
 
         elif direction == "Right":
-            if x0 + 1 <= self.image_width:
-                self.canvas.coords(self.rect, x0 + 1, y0, x1, y1)
+            if x0 + step <= self.image_width:
+                self.canvas.coords(self.rect, x0 + step, y0, x1, y1)
 
 
 
