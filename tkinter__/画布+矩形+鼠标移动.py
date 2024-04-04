@@ -29,7 +29,7 @@ canvas.tag_bind(rect, '<Leave>', on_leave)
 canvas.tag_bind(rect, '<Button-1>', on_button_press)
 canvas.tag_bind(rect, '<B1-Motion>', on_button_motion)
 
-oval = canvas.create_oval(600, 50, 200, 240, fill="blue")
+# oval = canvas.create_oval(600, 50, 200, 240, fill="blue")
 
 root.mainloop()
 

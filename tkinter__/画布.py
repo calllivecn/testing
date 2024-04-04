@@ -58,8 +58,8 @@ class Canvas_Rectangle:
 
         self.canvas.update()
 
-        # 这里还是无效呀！
-        self.root.attributes('-alpha', 0.7)
+        # 在ubuntu22.04 wayland 有效果了。
+        # self.root.attributes('-alpha', 0.7)
 
         # 需要查询画布大小(玩家可能使用调整)
         self.w = self.canvas.winfo_width()
@@ -72,15 +72,16 @@ class Canvas_Rectangle:
         self.rect_x1 = 220
         self.rect_y1 = 220
 
-        self.x0 =0
-        self.y0 =0
+        self.x0 = 0
+        self.y0 = 0
 
-        self.pos_range = 10
+        self.pos_range = 20
 
         self.left_up = self.right_down = False
 
         # 画线宽度
-        self.outline_width = 5
+        self.outline_width = 1
+
         # 这里坐标是矩形的左上角和右下角坐标
         self.rect = self.canvas.create_rectangle(self.rect_x0, self.rect_y0, self.rect_x1, self.rect_y1, width=self.outline_width, outline='red')
 
@@ -199,7 +200,7 @@ class Canvas_Rectangle:
         x, y = self.canvas.canvasx(event.x), self.canvas.canvasy(event.y)
         print(f"鼠标在画布上的坐标：{x=} {y=}")
 
-        # 矩形上次的位置
+        # 矩形当前的位置
         x0, y0, x1, y1 = self.canvas.coords(self.rect)
         print(f"当前矩形位置：", x0, y0, x1, y1)
 
@@ -210,7 +211,7 @@ class Canvas_Rectangle:
         move_x = x - self.x0
         move_y = y - self.y0
 
-        # 如果已经璚画布边界，就不在移动。
+        # 如果已经在画布边界，就不在移动。
         if x0 + move_x <= 0:
             move_x = 0
         elif x0 + move_x >= rect_x_move_area:
@@ -259,6 +260,6 @@ class ResizeCanvas(Canvas_Rectangle):
 
 
 if __name__ == "__main__":
-    # root = Canvas_Rectangle()
-    root = ResizeCanvas()
+    root = Canvas_Rectangle()
+    # root = ResizeCanvas()
     root.loop()
