@@ -1,4 +1,8 @@
 
+"""
+没有实现完全，只实现了2倍放大。
+"""
+
 import tkinter as tk
 
 import cv2
