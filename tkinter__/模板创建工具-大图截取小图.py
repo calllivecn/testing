@@ -147,13 +147,20 @@ class PhotoScreenshot:
         self._menu = tk.Menu(self.root)
 
         file_menu = tk.Menu(self._menu, tearoff=0)
+
+        # 将子菜单级联到主菜单
         self._menu.add_cascade(label="文件", menu=file_menu)
 
         file_menu.add_command(label="打开图片", command=self.__open_photo)
 
         file_menu.add_command(label="保存截图", command=self.__save_screenshot)
-        file_menu.add_separator()
-        file_menu.add_command(label="帮助", command=self.__help_info)
+        # file_menu.add_separator()
+
+        help_menu = tk.Menu(self._menu, tearoff=0)
+        # 将子菜单级联到主菜单
+        self._menu.add_cascade(label="帮助", menu=help_menu)
+
+        help_menu.add_command(label="使用说明", command=self.__help_info)
 
         self.root.config(menu=self._menu)
     
@@ -161,8 +168,10 @@ class PhotoScreenshot:
     def __open_photo(self):
         self.image_filename = filedialog.askopenfilename(title="选择图片", initialdir=self.image_dirname, filetypes=[("png", "*.png"), ("所有文件", "*.*")])
 
-        if self.image_filename == "":
-            return
+        print(f"{self.image_filename=}")
+        # "" 是 点击了 cancel, () 是用户关闭了选择窗口
+        if self.image_filename == "" or self.image_filename == ():
+            return 
 
         
         self.image_dirname = Path(self.image_filename).parent
