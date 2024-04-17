@@ -141,6 +141,9 @@ class PhotoScreenshot:
         # 显示窗口
         self.canvas.pack()
 
+        # 添加鼠标左键绑定移动事件
+        self.canvas.bind("<ButtonPress-1>", self.__B1_Press)
+        self.canvas.bind("<ButtonRelease-1>", self.__B1_Release)
 
 
     def __menu(self):
@@ -164,6 +167,57 @@ class PhotoScreenshot:
 
         self.root.config(menu=self._menu)
     
+        
+
+    def __B1_Press(self, event):
+        # 拿到矩形的坐标
+        rect_x0, rect_y0, rect_x1, rect_y1 = self.canvas.coords(self.rect)
+
+        # 判断当前鼠标是不是在矩形内
+        if rect_x0 <= event.x <= rect_x1 and rect_y0 <= event.y <= rect_y1:
+            # 添加上鼠标移动矩形
+            self.__B1_motion_id = self.canvas.bind('<B1-Motion>', self.__B1_motion)
+            print(f"在矩形内")
+
+            # 记录当前鼠标的位置，之后需要计算相对移动？
+            self.e_x, self.e_y = event.x, event.y
+        else:
+            print(f"没有在矩形内")
+    
+    def __B1_Release(self, event):
+        try:
+            self.canvas.unbind("<B1-Motion>", self.__B1_motion_id)
+        except tk.TclError:
+            print(f"没有绑定，正常返回函数。")
+
+    def __B1_motion(self, event):
+        print(f"有吗？{event=}")
+
+        # 矩开当前相对画布的位置
+        x0, y0, x1, y1 = self.canvas.coords(self.rect)
+        # print("x0, y0, x1, y1:", x0, y0, x1, y1)
+
+        # 矩形本身的大小, 这里是实现，小矩形不能跑到画布外面的问题
+        rect_x_move_area = (x1 - x0)
+        rect_y_move_area = (y1 - y0)
+
+
+        real_x, real_y = (event.x - self.e_x, event.y - self.e_y)
+        self.e_x, self.e_y = event.x, event.y
+
+        # 如果已经在画布边界，就不 在移动。
+        if x0 + real_x < 0:
+            real_x = 0
+        elif x0 + real_x + rect_x_move_area > self.image_width:
+            real_x = 0
+        
+        if y0 + real_y < 0:
+            real_y = 0
+        elif y0 + real_y + rect_y_move_area > self.image_height:
+            real_y = 0
+
+        self.canvas.move(self.rect, real_x, real_y)
+
 
     def __open_photo(self):
         self.image_filename = filedialog.askopenfilename(title="选择图片", initialdir=self.image_dirname, filetypes=[("png", "*.png"), ("所有文件", "*.*")])
@@ -284,12 +338,12 @@ class PhotoScreenshot:
 
 
         # 如果已经在画布边界，就不在移动。
-        if x0 + move_x <= 0:
+        if x0 + move_x < 0:
             move_x = 0
         elif x0 + move_x + rect_x_move_area > self.image_width:
             move_x = 0
         
-        if y0 + move_y <= 0:
+        if y0 + move_y < 0:
             move_y = 0
         elif y0 + move_y + rect_y_move_area > self.image_height:
             move_y = 0
