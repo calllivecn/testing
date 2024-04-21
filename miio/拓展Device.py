@@ -2,8 +2,10 @@
 
 import os
 import time
+import traceback
 
 from miio import Device
+from miio.exceptions import DeviceException
 
 IP = os.environ["MIROBO_IP"]
 TOKEN = os.environ["MIROBO_TOKEN"]
@@ -50,8 +52,12 @@ class MiPlug(Device):
 def main():
     dev = MiPlug(IP, TOKEN)
     while True:
-        W = dev.electric()
-        print(f"当前功率: {W}/w")
+        try:
+            W = dev.electric()
+            print(f"当前功率: {W}/w")
+        except DeviceException as e:
+            traceback.print_exception(e)
+
         time.sleep(5)
 
 
