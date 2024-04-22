@@ -1,6 +1,6 @@
 
-!miio/imgs
-!miio/devices-json
+!miio/imgs/
+!miio/devices-json/
 
 __pycache__/
 a.out
