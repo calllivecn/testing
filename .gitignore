@@ -1,3 +1,7 @@
+
+!miio/imgs/
+!miio/devices-json/
+
 __pycache__/
 a.out
 b.out
@@ -36,7 +40,6 @@ b.out
 *.gz
 *.bz2
 
-pw.py
 hdfs--/input/
 *.pyz
 

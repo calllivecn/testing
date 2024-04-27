@@ -1,6 +1,9 @@
 # 小米物联网python 库+命令工具
 
 - 安装: pip install python-miio
+- ~~[小米IoT设备信息](https://home.miot-spec.com/)~~
+- [siid, piid 的使用方式](!MiIoT-设备查询地址和方法.md)
+
 
 
 ## 查看当前设备IP+token

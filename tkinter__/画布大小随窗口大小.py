@@ -14,7 +14,6 @@ print(root.geometry())
 
 canvas = tk.Canvas(root, bg="yellow")
 # canvas.pack(fill=tk.BOTH, expand=True)
-canvas.pack()
 
 rect = canvas.create_rectangle(50, 50, 550, 550, outline='red')
 
@@ -24,6 +23,8 @@ def resize(event):
     canvas.configure(width=event.width, height=event.height)
 
 root.bind("<Configure>", resize)
+
+canvas.pack()
 
 root.mainloop()
 

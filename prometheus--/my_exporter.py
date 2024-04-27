@@ -14,7 +14,7 @@ from prometheus_client import (
 
 
 # 定义数据类型，metric, descrbie(描述), 标签
-node_cpu_temp = Gauge('node_cpu_temp', "自定义查询cpu温度", ["instance"])
+node_cpu_temp = Gauge('node_cpu_temp', "自定义查询cpu温度", labelnames=["instance"])
 
 def get():
     start_http_server(8000)
@@ -23,9 +23,9 @@ def get():
         itemkey = "instance"
         value = random.randint(-20, 120)
 
-        node_cpu_temp.labels("temp").set(value)
-        node_cpu_temp.labels("intance").set(value)
-
+        # node_cpu_temp.labels("diy").set(value)
+        # or
+        node_cpu_temp.labels(instance="diy").set(value)
         time.sleep(5)
 
 
