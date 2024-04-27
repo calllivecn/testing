@@ -5,23 +5,35 @@
 并修复"duration: 06:18:33.50, start: 22659.300000" 问题
 """
 
+import datetime
 
+from datetime import (
+    datetime,
+)
 import signal
 
 import av
+from av.container.core import Flags
 
 
 video = "/dev/video0"
 
-in_v = av.open(video)
+in_v = av.open(video, container_options={"video": "libx265"}, buffer_size=8<<20)
+print(f"{dir(in_v)=}")
+print(f"{in_v.flags=}")
+# in_v.flags |= Flags.IGNDTS
+# in_v.flags = Flags.AUTO_BSF
+# print(f"{in_v.flags=}")
 
 
 out_v = av.open("test.mkv", mode="w")
 
 out_v.metadata["title"] = "从本地摄像头录制"
+out_v.metadata["datetime"] =  datetime.now().strftime("%Y-%m-%d %H-%M-%S %Z")
 
 
 in_v_s = in_v.streams.video[0]
+
 
 # 能手动配置录制的分辨率么？ ok
 in_v_s.width = 1280
@@ -37,14 +49,15 @@ out_s.height = in_v_s.height
 
 out_s.pix_fmt = "yuv420p"
 
-out_s.options = {
-    # "crf": "10",
+options = {
+    "crf": "20",
     # "profile": "main",
     # "profile": "baseline", # libx265 没有baseline, 这是libx264
     # "preset": "ultrafast",
-    "preset": "veryfast",
+    # "preset": "veryfast",
     # "bitrate": "8000",
 }
+# out_s.options = options
 
 
 EXIT = False
@@ -64,10 +77,12 @@ def main():
 
     for packet in in_v.demux():
 
-        if EXIT and packet_encode.is_keyframe:
-            return
+        if packet.pts is None:
+            continue
 
         # 请注意，帧时间戳设置将根据帧速率进行设置
+        # 这些在使用本地摄像头时需要吗？可以调整和不调整
+        """
         if first_time:
             first_time = False
             first_time_pts = packet.pts
@@ -79,11 +94,15 @@ def main():
             packet.pts -= first_time_pts
 
         # print(f"{packet.pts=} ", end="")
+        """
 
         for frame in packet.decode():
             for packet_encode in out_s.encode(frame):
                 # print(f"{packet_encode.pts=} {packet_encode.dts=} {packet_encode.time_base=}")
                 out_v.mux(packet_encode)
+
+        if EXIT:
+            break
 
                     
 main()
