@@ -5,15 +5,13 @@
 并修复"duration: 06:18:33.50, start: 22659.300000" 问题
 """
 
-import datetime
-
+import signal
 from datetime import (
     datetime,
 )
-import signal
 
 import av
-from av.container.core import Flags
+from av.container import Flags
 
 
 video = "/dev/video0"
@@ -29,7 +27,7 @@ print(f"{in_v.flags=}")
 out_v = av.open("test.mkv", mode="w")
 
 out_v.metadata["title"] = "从本地摄像头录制"
-out_v.metadata["datetime"] =  datetime.now().strftime("%Y-%m-%d %H-%M-%S %Z")
+out_v.metadata["datetime"] =  datetime.now().strftime("%Y-%m-%d %H-%M-%S %z")
 
 
 in_v_s = in_v.streams.video[0]
@@ -68,33 +66,49 @@ def exit_signal(sig, frame):
     # print("使用信号退出")
     # print(f"signal: {frame=}")
 
+# 新输出容器重新开始时间线
+class ReTimeline:
+
+    """
+    请注意，帧时间戳设置将根据帧速率进行设置
+    这些在使用本地摄像头时需要吗？可以调整和不调整
+    """
+
+    def __init__(self):
+        self._pts = 0
+
+        self._first_time = True
+    
+    def generate(self, packet: av.Packet) -> av.Packet:
+        """
+        return: packet
+        """
+
+        if self._first_time:
+            self._first_time = False
+            self._first_time_pts = packet.pts
+        
+        if packet.dts is not None:
+            packet.dts -= self._first_time_pts
+
+        if packet.pts is not None:
+            packet.pts -= self._first_time_pts
+
+        return packet
+
 
 signal.signal(signal.SIGINT, exit_signal)
 
 def main():
 
-    first_time = True
+    rtl = ReTimeline()
 
     for packet in in_v.demux():
 
         if packet.pts is None:
             continue
 
-        # 请注意，帧时间戳设置将根据帧速率进行设置
-        # 这些在使用本地摄像头时需要吗？可以调整和不调整
-        """
-        if first_time:
-            first_time = False
-            first_time_pts = packet.pts
-        
-        if packet.dts is not None:
-            packet.dts -= first_time_pts
-        
-        if packet.pts is not None:
-            packet.pts -= first_time_pts
-
-        # print(f"{packet.pts=} ", end="")
-        """
+        packet = rtl.generate(packet)
 
         for frame in packet.decode():
             for packet_encode in out_s.encode(frame):
@@ -104,7 +118,7 @@ def main():
         if EXIT:
             break
 
-                    
+           
 main()
 print("停止录制，写入数据...")
 

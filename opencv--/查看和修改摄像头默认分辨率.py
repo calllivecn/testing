@@ -11,6 +11,11 @@ if (videoCaputer.isOpened()):
 else:
     print('视频源打开失败')
     sys.exit(1)
+
+# xiaomi 上不行
+# H_max = videoCaputer.get(cv2.CAP_PROP_FRAME_COUNT)
+# W_max = videoCaputer.get(cv2.CAP_PROP_GIGA_FRAME_HEIGH_MAX)
+# print(f"{H_max=} {W_max=}")
  
 size = (int(videoCaputer.get(cv2.CAP_PROP_FRAME_WIDTH)), int(videoCaputer.get(cv2.CAP_PROP_FRAME_HEIGHT)))
 print(f"默认分辨率大小：{size}")
