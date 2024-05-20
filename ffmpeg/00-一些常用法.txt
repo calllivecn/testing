@@ -1,3 +1,6 @@
+
+# 比较全面的入门讲解：https://wklchris.github.io/blog/FFmpeg/index.html
+
 # 收集的 ffmpeg 一些用法
 
 - 1 每个轨道分别指定 titile 分别修改音轨-字幕轨的
