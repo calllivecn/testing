@@ -50,8 +50,8 @@ ffmpeg -i 1.mp4 -ss 0:0:29 -t 0:0:8 -r 16 -f image2 ./test/0_%05d.jpg
 
 
 
-- 5 转换成黑白视频 (使用nvidia gpu) 
-ffmpeg [-hwaccel cuvid] -i input.mp4 -vf hue=s=0 -codec hevc_nvenc output.mp4
+- 5 转换成黑白视频 (使用nvidia gpu, 解码和编码都在GPU上。) 在编码器支持的情况下使用 -pix_fmt yuv400 
+ffmpeg [-hwaccel cuvid] [-hwaccel_output_format cuda] -i input.mp4 -vf hue=s=0 -codec hevc_nvenc output.mp4
 
 
 - 6 使用 intel 核显
@@ -61,6 +61,8 @@ ffmpeg [-hwaccel cuvid] -i input.mp4 -vf hue=s=0 -codec hevc_nvenc output.mp4
 ffmpeg -h encoder=libx264
 
 
-# 8 录音，本地
+- 8 录音，本地
 ffmpeg -f pulse -i default -af "agate=threshold=0.1:attack=100:release=1000" -acodec libmp3lame -t 30s -y test-a.mp3
+
+
 
