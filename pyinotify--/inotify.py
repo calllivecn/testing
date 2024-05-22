@@ -353,8 +353,7 @@ def test2():
             es = ni.read()
             # print(f"这次: {len(es)=}")
             for e, name in es:
-                # print(f"{name=}, {e}")
-                pass
+                print(f"{name=}, {e}")
 
 
 if __name__ == "__main__":
