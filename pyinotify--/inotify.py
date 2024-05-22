@@ -200,7 +200,7 @@ class INotify:
 
             # 把mask转换为一个个Event
             e_ones = self.__event_merge(e.mask)
-            print(f"{e.wd=}, {hex(e.mask)=}, {e.cookies=}, {e.len=}, {name=}")
+            # print(f"{name=}, {e_ones} {e.wd=}, {hex(e.mask)=}, {e.cookies=}, {e.len=}")
 
             pathname = self.__path_merge(e, name)
             es.append((e_ones, pathname))
@@ -208,13 +208,13 @@ class INotify:
             # 如果是递归模式？
             if self._recursive and e.mask & E.IN_ISDIR:
                 if e.mask & E.IN_CREATE:
-                    print("是目录，是创建")
+                    # print("是目录，是创建")
                     
                     # realpath = self.wd[e.wd] / pathname
                     if not self.__path_in_wd(pathname):
 
                         self.inotify_add_watch(pathname, self.mask)
-                        print(f"添加{e.wd=} -> {self.wd=}")
+                        # print(f"添加{e.wd=} -> {self.wd=}")
 
                 elif e.mask & E.IN_DELETE:
 
@@ -222,7 +222,7 @@ class INotify:
                         wd = self.path2wd[pathname]
                         self.inotify_rm_watch(wd)
                         self.__del_wd(wd)
-                        print(f"删除{wd=} -> {self.wd=}")
+                        # print(f"删除{wd=} -> {self.wd=}")
                     
 
             i = i_e_size + e.len
@@ -237,14 +237,13 @@ class INotify:
 
         if path.is_dir():
             self.inotify_add_watch(path, mask)
-            print(f"添加监控目录：{path}")
+            # print(f"添加监控目录：{path}")
 
         for dirpath, dirnames, filenames in os.walk(path):
             for dir2 in dirnames:
                 path2 = Path(dirpath) / dir2
                 self.inotify_add_watch(path2, mask)
-
-                print(f"添加监控目录：{path2}")
+                # print(f"添加监控目录：{path2}")
 
 
     def close(self):
@@ -299,7 +298,8 @@ class INotify:
             return Path("")
 
 
-def tail(filename: Path):
+
+def test_tail(filename: Path):
     """
     这样可以，测试成功。
     """
@@ -321,7 +321,10 @@ def tail(filename: Path):
 
 
 
-def test2():
+def test1():
+    """
+    添加测试单层目录，非递归的。
+    """
 
     p1, p2 = Path(sys.argv[1]), Path(sys.argv[2])
 
@@ -334,7 +337,10 @@ def test2():
     inotify.close()
 
 
-def test():
+def test2():
+    """
+    添加测试目录，递归的。
+    """
 
     path = Path(sys.argv[1])
 
@@ -347,10 +353,11 @@ def test():
             es = ni.read()
             # print(f"这次: {len(es)=}")
             for e, name in es:
-                print(f"{e}, {name=}")
+                # print(f"{name=}, {e}")
+                pass
 
 
 if __name__ == "__main__":
     # tail(sys.argv[1])
-    test()
-    # test2()
+    # test1()
+    test2()
