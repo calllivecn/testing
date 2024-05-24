@@ -12,7 +12,8 @@ import av
 # video = "test-mpeg4.mp4"
 # video = "rtsp://huawei.calllive.top:8554/live"
 # video = "rtsp://huawei.calllive.top:8080/h264_opus.sdp"
-video = "auto-split-30m_0001.mkv"
+video = "rtsp://192.168.0.108:6789"
+# video = "auto-split-30m_0001.mkv"
 
 video_out = "test-rtsp.mkv"
 
