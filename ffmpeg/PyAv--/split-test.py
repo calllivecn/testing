@@ -6,9 +6,8 @@
 """
 按时间长度，切割文件，
 并修复"uration: 06:18:33.50, start: 22659.300000" 问题
+实验视频分段成功。可以音频被弄的不同步了：2024-05-25
 
-实验还是有问题：2024-05-25
-    1. 切割时，从第二个分段开始的头一帧，会有少量花屏。音频也有问题。
 """
 
 import sys
@@ -50,7 +49,7 @@ def main():
 
         cur_timeline = float(packet.pts * packet.time_base)
 
-        print(f"cont: {packet.time_base=}, {cur_timeline=}, {packet.stream.type=}, {packet.pos=}, {packet=}")
+        # print(f"cont: {packet.time_base=}, {cur_timeline=}, {packet.stream.type=}, {packet.pos=}, {packet=}")
         
         """
         0. 如果是关键帧，就可以开始或者结束新的录制了。
@@ -58,10 +57,8 @@ def main():
         2. 当前是否在录制中。
         """
         
-        if packet.is_keyframe:
+        if packet.is_keyframe and packet.stream.type == "video":
 
-            vf.write(packet)
-            
             if cur_timeline >= (timeline_offset + split_time_length):
                 # 在结束这个分段了
                     timeline_offset = cur_timeline
@@ -69,6 +66,10 @@ def main():
                     vf.close()
                     # 同时也是下一个分段的开始
                     vf.new_output()
+                    print(f"开始新的写入: {packet.time_base=}, {cur_timeline=}, {packet.stream.type=}, {packet.pos=}, {packet=}")
+                    vf.write(packet)
+            else:
+                 vf.write(packet)
 
         else:
             vf.write(packet)
