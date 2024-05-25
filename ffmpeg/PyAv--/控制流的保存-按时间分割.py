@@ -3,14 +3,15 @@
 # date 2023-10-19 07:24:06
 # author calllivecn <calllivecn@outlook.com>
 
+
+import sys
 import time
 import threading
 
 # import numpy as np
 import av
 
-video = "120s.mkv"
-video_out = "test-split-time.mkv"
+video = sys.argv[1]
 
 options = {
     # "rtsp_transport": "tcp",

@@ -6,88 +6,76 @@
 """
 按时间长度，切割文件，
 并修复"uration: 06:18:33.50, start: 22659.300000" 问题
-实验成功。：2023-10-23
+
+实验还是有问题：2024-05-25
+    1. 切割时，从第二个分段开始的头一帧，会有少量花屏。音频也有问题。
 """
 
+import sys
 import time
 
 import av
 
-inputContainer = av.open("test.mkv", "r")
-in_stream = inputContainer.streams.video[0]
 
-av_options = {'avoid_negative_ts': '1'}
-
-frag_length = 20.0 # 要切割的时长, 秒钟
-
-metadata = {
-    "title": "这是我的测试视频",
-}
-
-out_container = None
-
-def start_container(timestamp):
-    global out_container
-    filename = "test_out_" + str(timestamp) + ".mkv"
-    print(f"新文件：{filename}")
-    out_container = av.open(filename, "w")
-    out_container.metadata.update(metadata)
-
-    for s in inputContainer.streams:
-        out_stream = out_container.add_stream(template=s)
-
-
-def stop_container():
-    global out_container
-    out_container.close()
-    out_container = None
-
-
+from libcommon import (
+    VideoFile,
+)
 
 
 def main():
 
-    first_pts = True
+    inputContainer = av.open(sys.argv[1], "r")
+
+    try:
+         split_time_length = float(sys.argv[2])
+    except Exception:
+        split_time_length = 60.0 # 要切割的时长, 秒钟
+
+    metadata = {
+        "title": "这是测试视频",
+    }
+
+
+    timeline_offset = 0
+
+    vf = VideoFile(inputContainer)
+    vf.new_output()
 
     for packet in inputContainer.demux():
 
-        if packet.dts is None:
-            print(f"开始的packete有空： {packet=}")
-            # packet.dts = packet.pts
+        if packet.pts is None:
+            print(f"当前 packet.pts is None: {packet=}")
+            continue
+
+
+        cur_timeline = float(packet.pts * packet.time_base)
+
+        print(f"cont: {packet.time_base=}, {cur_timeline=}, {packet.stream.type=}, {packet.pos=}, {packet=}")
         
-        if packet.size == 0:
-            print("转换结束")
-            break
-
-        if first_pts:
-            first_pts = False
-            frag_pts = packet.pts
-            frag_offset = float(packet.pts * packet.time_base)
-
-
-        cur_time = float(packet.pts * packet.time_base)
-        orig_pts = packet.pts
-
-        print(f"cont: {orig_pts=}, {packet.time_base=}, {cur_time=}")
-
-        # 开始割切的文件
-        if out_container is None:
-            start_container(frag_offset)
+        """
+        0. 如果是关键帧，就可以开始或者结束新的录制了。
+        1. 当录制时间>= 分段时间时，并且是关键帧时，可以结束旧录制，开始新录制了。
+        2. 当前是否在录制中。
+        """
         
-        if cur_time >= frag_offset + frag_length and packet.is_keyframe:
-            frag_offset = cur_time
-            frag_pts = orig_pts
-            # 结束当前文件
-            stop_container()
+        if packet.is_keyframe:
+
+            vf.write(packet)
+            
+            if cur_timeline >= (timeline_offset + split_time_length):
+                # 在结束这个分段了
+                    timeline_offset = cur_timeline
+                    # 结束当前文件
+                    vf.close()
+                    # 同时也是下一个分段的开始
+                    vf.new_output()
+
         else:
-            if packet.dts is not None:
-                packet.dts -= frag_pts
-            
-            if packet.pts is not None:
-                packet.pts -= frag_pts
-            
-            print(f"{packet.pts=} {packet.dts=}")
-            out_container.mux(packet)
+            vf.write(packet)
+        
+    
+    if vf.is_output():
+        vf.close()
             
 
 if __name__ == "__main__":

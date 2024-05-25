@@ -3,6 +3,7 @@
 """
 修复，直接从摄像头录制，文件持续时间，和开始播放时间不正确。
 并修复"duration: 06:18:33.50, start: 22659.300000" 问题
+直接使用 srt:// 协议就没有这个问题了。
 """
 
 import sys
@@ -53,8 +54,9 @@ def main2():
 
     out_v = av.open(filename, mode="w")
 
-    out_v.metadata["title"] = "从srt录制"
-    out_v.metadata["datetime"] =  datetime.now().strftime("%Y-%m-%d %H-%M-%S")
+    time_ = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
+    out_v.metadata["title"] = f"录制时间：{time_}"
+    out_v.metadata["datetime"] = time_
 
 
     in_v_s = in_v.streams.video[0]
@@ -70,6 +72,10 @@ def main2():
     try:
         demuxs = in_v.demux()
         for packet in demuxs:
+
+            if packet.is_corrupt:
+                print(f"有数据包损坏: {packet=}")
+                continue
 
             if packet.is_keyframe:
                 # print(f"{packet=}, 是is_keyframe")
