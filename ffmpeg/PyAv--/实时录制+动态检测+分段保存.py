@@ -78,12 +78,10 @@ class DynamicDetection:
     def detecion(self, frame: av.VideoFrame) -> bool:
         # frame: av.VideoFrame
 
-        if not self.is_detection():
-            return  True
+        # if not self.is_detection():
+            # return  False
 
-        frame = self.PIL2CV_IMG(frame.to_ndarray())
-
-        self.change = False
+        frame = cv2.cvtColor(frame.to_ndarray() , cv2.COLOR_RGB2BGR)
 
 
         #应用背景减法器，检测动态物体
@@ -100,11 +98,13 @@ class DynamicDetection:
         # 查找二进制图像中的轮廓
         contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+        self.change = False
         # 绘制边界框
         for contour in contours:
             if cv2.contourArea(contour) > self.areasize:  # 调整面积阈值以过滤小轮廓
-                x, y, w, h = cv2.boundingRect(contour)
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 4)
+                # debug时，可以使用下面的代码画出变化的位置
+                # x, y, w, h = cv2.boundingRect(contour)
+                # cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 4)
                 self.change = True
 
         """
@@ -117,8 +117,10 @@ class DynamicDetection:
         """
         if self.change:
             
+            self.start_record_timestamp = time.time()
+
             if self.record:
-                self.start_record_timestamp = time.time()
+                pass
             else:
                 self.record = True
         else:
@@ -131,6 +133,11 @@ class DynamicDetection:
     
 
     def is_detection(self):
+
+        if self.start == 0:
+            self.start = time.time()
+            return True
+
         end = time.time()
         if (end - self.start) > self.detecion_interval:
             self.start = end
@@ -142,12 +149,6 @@ class DynamicDetection:
     def __bool__(self):
         return self.change
     
-
-    def PIL2CV_IMG(self, nd: np.ndarray):
-
-        img = cv2.cvtColor(nd, cv2.COLOR_RGB2BGR)
-
-        return img
 
 
 
@@ -172,12 +173,11 @@ def main():
 
     in_container = av.open(args.video)
 
-    v_s = in_container.streams.video[0]
-
+    # v_s = in_container.streams.video[0]
     # print(f"{dir(v_s)=}\n{v_s=}")
-
     # print(f"{v_s.average_rate=}")
     # fps = round(float(v_s.average_rate), 0)
+
     # dd = DynamicDetection(fps)
     dd = DynamicDetection()
 
@@ -206,7 +206,7 @@ def main():
             
             try:
                 frames = packet.decode()
-                print(f"当前解码一个packet得到帧数: {len(frames)}")
+                # print(f"当前解码一个packet得到帧数: {len(frames)}")
                 for frame in frames:
 
                 # for frame in packet.decode():
@@ -220,24 +220,23 @@ def main():
             # 好像必须每个packet都decode() 不然，会报，如下：
             except av.InvalidDataError as e:
                 traceback.print_exception(e)
-                print("decode() 办一个无效数据frame")
+                print("decode() 到一个无效数据frame")
 
 
         if dd.record:
             if vf.is_outputing():
-                # print(f"写入记录: {packet=}")
                 print(".", end="", flush=True)
                 vf.write3(packet)
             else:
-                print(f"开始新记录: {packet=}")
                 vf.new_output()
+                print(f"开始新输出文件: {vf.filename}")
                 vf.write3(packet)
 
 
         else:
             # 这里是不需要记录的packet
             if vf.is_outputing():
-                print(f"关闭当前输出文件：{vf.filename}")
+                print(f"关闭旧前输出文件：{vf.filename}")
                 vf.close()
         
 
