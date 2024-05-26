@@ -67,12 +67,12 @@ def main():
                     # 同时也是下一个分段的开始
                     vf.new_output()
                     print(f"开始新的写入: {packet.time_base=}, {cur_timeline=}, {packet.stream.type=}, {packet.pos=}, {packet=}")
-                    vf.write(packet)
+                    vf.write3(packet)
             else:
-                 vf.write(packet)
+                 vf.write3(packet)
 
         else:
-            vf.write(packet)
+            vf.write3(packet)
         
     
     if vf.is_output():
