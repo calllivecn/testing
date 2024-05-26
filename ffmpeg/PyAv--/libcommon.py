@@ -37,18 +37,22 @@ class VideoFile:
         self.first_time = True
         self.first_time_pts = 0
 
+        self.output: bool = False
+
         self._stream_id_pts: Dict[int, Stream_first_time] = {}
         for s in self.in_container.streams:
             self._stream_id_pts[s.index] = Stream_first_time(True, 0)
 
 
-    def is_output(self) -> bool:
-        return not self.first_time
+    def is_outputing(self) -> bool:
+        return self.output
 
 
     def new_output(self, output_filename: Path = None):
 
         self.first_time = True
+
+        self.output = True
 
         for s in self.in_container.streams:
             self._stream_id_pts[s.index].first_time = True
@@ -90,7 +94,7 @@ class VideoFile:
     def write2(self, packet: av.Packet):
 
         if self.first_time:
-            self.first_time = not self.first_time
+            self.first_time = False
             self.first_time_pts = packet.pts
 
         if packet.dts is not None:
@@ -108,10 +112,13 @@ class VideoFile:
         每个流都需要有自己的 first_time
         """
 
+        if self.first_time:
+            self.first_time = False
+
         s = self._stream_id_pts[packet.stream_index]
 
         if s.first_time:
-            s.first_time = not s.first_time
+            s.first_time = False
             s.first_time_pts = packet.pts
 
         if packet.dts is not None:
@@ -127,4 +134,5 @@ class VideoFile:
 
     def close(self):
         self.first_time = True
+        self.output = False
         self.out_container.close()

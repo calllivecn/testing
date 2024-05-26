@@ -7,8 +7,10 @@
 """
 
 import sys
+import time
 import signal
 import traceback
+# from pathlib import Path
 from datetime import (
     datetime,
 )
@@ -27,27 +29,18 @@ def exit_signal(sig, frame):
 
 
 signal.signal(signal.SIGINT, exit_signal)
+signal.signal(signal.SIGTERM, exit_signal)
 
-def main2():
-
-
-    # video = "srt://192.168.0.103:5000"
-
-    try:
-        video = sys.argv[1]
-        filename = sys.argv[2]
-    except IndexError:
-        print("使用方法：{sys.argv[0]} <srt://server:port> <output.mkv>")
-        sys.exit(1)
+def record(url_srt: str, filename: str):
 
     options={
         "loglevel": "debug",
         }
 
-    in_v = av.open(video, options=options, buffer_size=8<<20)
+    in_v = av.open(url_srt, options=options, buffer_size=8<<20)
 
-    print(f"{dir(in_v)=}")
-    print(f"{in_v.flags=}")
+    # print(f"{dir(in_v)=}")
+    # print(f"{in_v.flags=}")
     # in_v.flags |= Flags.IGNDTS
     # in_v.flags = Flags.AUTO_BSF
     # print(f"{in_v.flags=}")
@@ -66,7 +59,6 @@ def main2():
     for s in in_v.streams:
         print(f"stream: {s} type:{s.type}")
         out_v_stream[s.type] = out_v.add_stream(template=s)
-
 
 
     try:
@@ -91,6 +83,7 @@ def main2():
 
     except OSError as e:
         traceback.print_exception(e)
+        raise e
 
     finally:
         print("停止录制，写入数据...")
@@ -99,5 +92,50 @@ def main2():
         out_v.close()
 
            
-# main()
-main2()
+def main():
+
+    import argparse
+
+    parse = argparse.ArgumentParser(usage="%(prog)s [--suffix <srt-camera>] --video-url <srt://192.168.1.1:5000>")
+
+    parse.add_argument("--video-url", dest="video", required=True, help="视频来源，参考ffmpeg的demuxer.")
+    parse.add_argument("--suffix", help="视频文件名前缀")
+
+    parse.add_argument("--debug", action="store_true", help=argparse.SUPPRESS)
+    parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
+
+    args = parse.parse_args()
+
+
+    if args.parse:
+        print(args)
+        sys.exit(0)
+
+
+    while True:
+        time_ = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
+
+        if args.suffix:
+            filename = f"{args.suffix}_{time_}.mkv"
+        else:
+            filename = f"{time_}.mkv"
+        
+
+        try:
+            record(args.video, filename)
+
+        except KeyboardInterrupt:
+            break
+
+        except Exception as e:
+            traceback.print_exception(e)
+
+        if EXIT:
+            break
+
+        print("30s 后尝试重新连接")
+        time.sleep(30)
+
+
+if __name__ == "__main__":
+    main()

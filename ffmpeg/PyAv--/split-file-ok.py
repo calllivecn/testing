@@ -75,7 +75,7 @@ def main():
             vf.write3(packet)
         
     
-    if vf.is_output():
+    if vf.is_outputing():
         vf.close()
             
 

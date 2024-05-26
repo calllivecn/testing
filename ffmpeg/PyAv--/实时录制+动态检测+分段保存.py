@@ -9,6 +9,7 @@ import sys
 import time
 import signal
 import argparse
+import traceback
 from pathlib import Path
 
 
@@ -70,19 +71,28 @@ class DynamicDetection:
         self.stop_record_time = 10
 
         self.start_record_timestamp = 0
+
+        self.frist_time = True
     
 
-    def detecion(self, frame: av.VideoFrame):
+    def detecion(self, frame: av.VideoFrame) -> bool:
+        # frame: av.VideoFrame
 
         if not self.is_detection():
-            return 
+            return  True
 
         frame = self.PIL2CV_IMG(frame.to_ndarray())
 
         self.change = False
 
+
         #应用背景减法器，检测动态物体
         self.fgmask = self.fgbg.apply(frame)
+
+        # 如果是初始化的第一帧，就不用记录了。
+        if self.frist_time:
+            self.frist_time = False
+            return False
         
         # 通过阈值处理二值化图像
         result, binary_image = cv2.threshold(self.fgmask, self.threshold, 255, cv2.THRESH_BINARY)
@@ -133,10 +143,6 @@ class DynamicDetection:
         return self.change
     
 
-    def is_record(self):
-        return self.record
-    
-
     def PIL2CV_IMG(self, nd: np.ndarray):
 
         img = cv2.cvtColor(nd, cv2.COLOR_RGB2BGR)
@@ -157,57 +163,93 @@ def main():
 
     args = parse.parse_args()
 
+
     if args.parse:
         print(args)
         sys.exit(0)
 
+    FRAME_CHECK_INTERVAL = 1
 
     in_container = av.open(args.video)
 
     v_s = in_container.streams.video[0]
 
-    print(f"{dir(v_s)=}\n{v_s=}")
+    # print(f"{dir(v_s)=}\n{v_s=}")
 
-    print(f"{v_s.average_rate=}")
+    # print(f"{v_s.average_rate=}")
     # fps = round(float(v_s.average_rate), 0)
     # dd = DynamicDetection(fps)
     dd = DynamicDetection()
 
-
     vf = VideoFile(in_container)
 
+    timeline_offset = 0
+
     for packet in in_container.demux():
+
+        if packet.pts is None:
+            print(f"当前 packet.pts is None: {packet=}")
+            continue
+
+        if packet.is_corrupt:
+            print(f"有数据包损坏: {packet=}")
+            continue
+
+        if packet.is_discard:
+            print(f"当前有个可以丢弃，但不影响视频播放的: {packet=}")
 
 
         timeline = float(packet.pts * packet.time_base)
 
-        for frame in packet.decode():
-
-            if isinstance(frame, av.AudioFrame):
-                # print(f"一个音频帧, 跳过")
-                continue
-        
+        if packet.stream.type == "video" and packet.is_keyframe and timeline >= (timeline_offset + FRAME_CHECK_INTERVAL):
+            timeline_offset = timeline
             
-            # print(f"{frame.to_image()=}")
-            # <PIL.Image.Image image mode=RGB size=1920x1080 at 0x756D707F1990>
+            try:
+                frames = packet.decode()
+                print(f"当前解码一个packet得到帧数: {len(frames)}")
+                for frame in frames:
 
-            dd.detecion(frame)
+                # for frame in packet.decode():
 
-        if dd.is_record():
-            print(f"当前是记录的:{packet=}")
-            if vf.is_output():
-                # vf.write2(packet)
-                vf.write(packet)
+                    # print(f"{frame.to_image()=}")
+                    # <PIL.Image.Image image mode=RGB size=1920x1080 at 0x756D707F1990>
+
+                    dd.detecion(frame)
+            
+            # 也可能不是，试着从一个关键帧才开始decode() 这样可以。就是需要输入端的keyframe之间的时间间隔不要太长。
+            # 好像必须每个packet都decode() 不然，会报，如下：
+            except av.InvalidDataError as e:
+                traceback.print_exception(e)
+                print("decode() 办一个无效数据frame")
+
+
+        if dd.record:
+            if vf.is_outputing():
+                # print(f"写入记录: {packet=}")
+                print(".", end="", flush=True)
+                vf.write3(packet)
             else:
+                print(f"开始新记录: {packet=}")
                 vf.new_output()
+                vf.write3(packet)
+
 
         else:
-            if vf.is_output():
+            # 这里是不需要记录的packet
+            if vf.is_outputing():
+                print(f"关闭当前输出文件：{vf.filename}")
                 vf.close()
+        
 
         if EXIT:
+            print("收尾工作...")
             break
 
+
+    if vf.is_outputing():
+        vf.close()
+    
+    print("收尾工作... done")
 
 
 if __name__ == "__main__":
