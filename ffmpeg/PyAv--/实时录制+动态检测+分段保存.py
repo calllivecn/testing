@@ -155,9 +155,9 @@ class DynamicDetection:
 def main():
 
 
-    parse = argparse.ArgumentParser(usage="%(prog)s --video-src [videofile or protocol_url]")
+    parse = argparse.ArgumentParser(usage="%(prog)s --video-url [videofile or protocol_url]")
 
-    parse.add_argument("--video-src", dest="video", required=True, help="视频来源，是参考ffmpeg的.")
+    parse.add_argument("--video-url", dest="video", required=True, help="视频来源，是参考ffmpeg的.")
 
     parse.add_argument("--debug", action="store_true", help=argparse.SUPPRESS)
     parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
@@ -225,7 +225,7 @@ def main():
 
         if dd.record:
             if vf.is_outputing():
-                print(".", end="", flush=True)
+                # print(".", end="", flush=True)
                 vf.write3(packet)
             else:
                 vf.new_output()
