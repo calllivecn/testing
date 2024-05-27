@@ -10,6 +10,7 @@ from typing import (
 )
 
 import av
+from av.container import Container
 
 
 class Stream_first_time:
@@ -24,7 +25,7 @@ class Stream_first_time:
 
 class VideoFile:
 
-    def __init__(self, in_container: av.CodecContext, videoformat=".mkv"):
+    def __init__(self, in_container: Container, videoformat=".mkv"):
         """
         1. 需要处理视频分割，
         2. 处理每帧的时间戳
@@ -72,17 +73,18 @@ class VideoFile:
     def copy_stream(self):
 
         for s in self.in_container.streams:
-            # print(f"stream: {dir(s)=}")
+            """
+            print(f"stream: {dir(s)=}")
             if s.type == "video":
-                # self.out_container.add_stream(template=s)
+                self.out_container.add_stream(template=s)
                 print(f"video stream: {s}")
             elif s.type == "audio":
-                # self.out_container.add_stream(template=s)
+                self.out_container.add_stream(template=s)
                 print(f"audio stream: {s}")
             else:
-                # print("当前只添加一个视频流和一个音频流，其他的丢弃：type: {s.stream.type} stream:{s} ")
+                print("当前只添加一个视频流和一个音频流，其他的丢弃：type: {s.stream.type} stream:{s} ")
                 print("其他流：type: {s.type} stream:{s} ")
-
+            """
 
             self.out_container.add_stream(template=s)
 

@@ -28,7 +28,7 @@ def exit_signal(sig, frame):
     # print(f"signal: {frame=}")
 
 
-signal.signal(signal.SIGINT, exit_signal)
+# signal.signal(signal.SIGINT, exit_signal)
 signal.signal(signal.SIGTERM, exit_signal)
 
 def record(url_srt: str, filename: str):
@@ -113,7 +113,7 @@ def main():
 
 
     while True:
-        time_ = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
+        time_ = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
         if args.suffix:
             filename = f"{args.suffix}_{time_}.mkv"

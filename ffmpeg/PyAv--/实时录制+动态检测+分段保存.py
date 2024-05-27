@@ -31,7 +31,7 @@ def exit_signal(sig, frame):
     # print(f"signal: {frame=}")
 
 
-signal.signal(signal.SIGINT, exit_signal)
+# signal.signal(signal.SIGINT, exit_signal)
 signal.signal(signal.SIGTERM, exit_signal)
 
 
@@ -185,68 +185,77 @@ def main():
 
     timeline_offset = 0
 
-    for packet in in_container.demux():
+    try:
 
-        if packet.pts is None:
-            print(f"当前 packet.pts is None: {packet=}")
-            continue
+        for packet in in_container.demux():
 
-        if packet.is_corrupt:
-            print(f"有数据包损坏: {packet=}")
-            continue
+            if packet.pts is None:
+                print(f"当前 packet.pts is None: {packet=}")
+                continue
 
-        if packet.is_discard:
-            print(f"当前有个可以丢弃，但不影响视频播放的: {packet=}")
+            if packet.is_corrupt:
+                print(f"有数据包损坏: {packet=}")
+                continue
 
-
-        timeline = float(packet.pts * packet.time_base)
-
-        if packet.stream.type == "video" and packet.is_keyframe and timeline >= (timeline_offset + FRAME_CHECK_INTERVAL):
-            timeline_offset = timeline
-            
-            try:
-                frames = packet.decode()
-                # print(f"当前解码一个packet得到帧数: {len(frames)}")
-                for frame in frames:
-
-                # for frame in packet.decode():
-
-                    # print(f"{frame.to_image()=}")
-                    # <PIL.Image.Image image mode=RGB size=1920x1080 at 0x756D707F1990>
-
-                    dd.detecion(frame)
-            
-            # 也可能不是，试着从一个关键帧才开始decode() 这样可以。就是需要输入端的keyframe之间的时间间隔不要太长。
-            # 好像必须每个packet都decode() 不然，会报，如下：
-            except av.InvalidDataError as e:
-                traceback.print_exception(e)
-                print("decode() 到一个无效数据frame")
+            if packet.is_discard:
+                print(f"当前有个可以丢弃，但不影响视频播放的: {packet=}")
 
 
-        if dd.record:
-            if vf.is_outputing():
-                # print(".", end="", flush=True)
-                vf.write3(packet)
+            timeline = float(packet.pts * packet.time_base)
+
+            if packet.stream.type == "video" and packet.is_keyframe and timeline >= (timeline_offset + FRAME_CHECK_INTERVAL):
+                timeline_offset = timeline
+
+                try:
+                    frames = packet.decode()
+                    # print(f"当前解码一个packet得到帧数: {len(frames)}")
+                    for frame in frames:
+
+                    # for frame in packet.decode():
+
+                        # print(f"{frame.to_image()=}")
+                        # <PIL.Image.Image image mode=RGB size=1920x1080 at 0x756D707F1990>
+
+                        dd.detecion(frame)
+
+                # 也可能不是，试着从一个关键帧才开始decode() 这样可以。就是需要输入端的keyframe之间的时间间隔不要太长。
+                # 好像必须每个packet都decode() 不然，会报，如下：
+                except av.InvalidDataError as e:
+                    traceback.print_exception(e)
+                    print("decode() 到一个无效数据frame")
+
+
+            if dd.record:
+                if vf.is_outputing():
+                    # print(".", end="", flush=True)
+                    vf.write3(packet)
+                else:
+                    vf.new_output()
+                    print(f"开始新输出文件: {vf.filename}")
+                    vf.write3(packet)
+
+
             else:
-                vf.new_output()
-                print(f"开始新输出文件: {vf.filename}")
-                vf.write3(packet)
+                # 这里是不需要记录的packet
+                if vf.is_outputing():
+                    print(f"关闭旧输出文件：{vf.filename}")
+                    vf.close()
 
 
-        else:
-            # 这里是不需要记录的packet
-            if vf.is_outputing():
-                print(f"关闭旧前输出文件：{vf.filename}")
-                vf.close()
-        
+            if EXIT:
+                print("收尾工作...")
+                break
 
-        if EXIT:
-            print("收尾工作...")
-            break
-
-
-    if vf.is_outputing():
-        vf.close()
+    except OSError as e:
+        traceback.print_exception(e)
+    
+    except KeyboardInterrupt:
+        print("手动结束工作...")
+        pass
+    
+    finally:
+        if vf.is_outputing():
+            vf.close()
     
     print("收尾工作... done")
 
