@@ -3,6 +3,11 @@
 # date 2023-10-27 00:01:00
 # author calllivecn <calllivecn@outlook.com>
 
+"""
+在检测到动态后，视频流的前面没有一缓存，回看时体验差一点。
+其他项目在改进。
+"""
+
 
 import sys
 import time
@@ -13,7 +18,6 @@ from pathlib import Path
 
 
 import av
-
 
 from libcommon import (
     DynamicDetection,
@@ -41,6 +45,7 @@ def main():
     parse = argparse.ArgumentParser(usage="%(prog)s --video-url [videofile or protocol_url]")
 
     parse.add_argument("--video-url", dest="video", required=True, help="视频来源，是参考ffmpeg的.")
+    parse.add_argument("--output-dir", dest="dir", type=Path, help="视频保存目录.")
 
     parse.add_argument("--debug", action="store_true", help=argparse.SUPPRESS)
     parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
@@ -60,6 +65,13 @@ def main():
         try:
 
             in_container = av.open(args.video)
+        except OSError as e:
+            traceback.print_exception(e)
+            print(f"可能网络波动，ip摄像头掉线. {ERROR_WAIT}秒后尝试重新连接.")
+            time.sleep(ERROR_WAIT)
+            continue
+    
+        try:
     
             # 设置使用多线程
             in_container.streams.video[0].thread_type = "AUTO"
@@ -99,6 +111,7 @@ def main():
                     try:
                         frames = packet.decode()
                         # print(f"当前解码一个packet得到帧数: {len(frames)}")
+                        # 在开始的开始也是可能，返回0个帧的。
                         for frame in frames:
 
                         # for frame in packet.decode():
@@ -120,7 +133,7 @@ def main():
                         # print(".", end="", flush=True)
                         vf.write3(packet)
                     else:
-                        vf.new_output()
+                        vf.new_output(args.dir)
                         print(f"开始新输出文件: {vf.filename}")
                         vf.write3(packet)
 
@@ -138,9 +151,7 @@ def main():
 
         except OSError as e:
             traceback.print_exception(e)
-            vf.in_close()
             print(f"可能网络波动，ip摄像头掉线. {ERROR_WAIT}秒后尝试重新连接.")
-            time.sleep(ERROR_WAIT)
     
         except KeyboardInterrupt:
             print("手动结束工作...")
@@ -148,9 +159,11 @@ def main():
     
         finally:
             print("收尾工作... done")
+            in_container.close()
             if vf.is_outputing():
                 vf.close()
     
+        time.sleep(ERROR_WAIT)
 
 
 if __name__ == "__main__":

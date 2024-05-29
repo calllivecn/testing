@@ -178,7 +178,7 @@ class VideoFile:
             self.filename = output_filename / f"{time_}{self.suffix}"
         else:
             self.filename = Path(f"{time_}{self.suffix}")
-
+        
         count = 0
         while self.filename.exists():
             self.filename = Path(f"{time_}_{count:04}{self.suffix}")
@@ -257,8 +257,4 @@ class VideoFile:
         self.first_time = True
         self.output = False
         self.out_container.close()
-
-    def in_close(self):
-        self.in_container.close()
-
 
