@@ -9,8 +9,122 @@ from typing import (
     Dict,
 )
 
+
+import cv2
 import av
 from av.container import Container
+
+
+class DynamicDetection:
+    """
+    在记录时间间隔上需要区别是视频文件，还是实时推流。
+    当前先处理实时推流。
+    """
+
+    # def __init__(self, history_fps: int, threshold: int = 50, areasize :int = 800):
+        # self.fps = history_fps
+
+    def __init__(self, threshold: float = 50.0, areasize: float = 800.0):
+
+        # 调整阈值以适应场景
+        self.threshold = threshold
+        # 调整面积阈值以过滤小轮廓
+        self.areasize = areasize
+
+        # 创建背景减法器
+        # self.fgbg = cv2.createBackgroundSubtractorMOG2(history=round(self.fps))
+        self.fgbg = cv2.createBackgroundSubtractorMOG2(10)
+
+        # 是否录制的状态
+        self.record = False
+
+        # 画面是否变化（是否检测到运动)
+        self.change = False
+
+        self.fgmask = None
+
+        self.detecion_interval = 1
+        self.start = time.time()
+
+        # 进入录制状态后，连续N秒钟没有变化才停止录制。
+        self.stop_record_time = 10
+
+        self.start_record_timestamp = 0
+
+        self.frist_time = True
+    
+
+    def detecion(self, frame: av.VideoFrame) -> bool:
+
+        # if not self.is_detection():
+            # return  False
+
+        frame = cv2.cvtColor(frame.to_ndarray() , cv2.COLOR_RGB2BGR)
+        #应用背景减法器，检测动态物体
+        self.fgmask = self.fgbg.apply(frame)
+
+        # 如果是初始化的第一帧，做初始化，就不用对比了。
+        if self.frist_time:
+            self.frist_time = False
+            return False
+        
+        # 通过阈值处理二值化图像
+        result, binary_image = cv2.threshold(self.fgmask, self.threshold, 255, cv2.THRESH_BINARY)
+
+        # 查找二进制图像中的轮廓
+        contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        self.change = False
+        # 绘制边界框
+        for contour in contours:
+            if cv2.contourArea(contour) > self.areasize:  # 调整面积阈值以过滤小轮廓
+                # debug时，可以使用下面的代码画出变化的位置
+                # x, y, w, h = cv2.boundingRect(contour)
+                # cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 4)
+                self.change = True
+
+        """
+        这里的动作是：
+        1. 如果画面变化，查看是否是录制状态，如果不是录制状态就进入录制状态。
+        2. 如果画面没有变化，查看是否是录制状态：
+            如果是录制状态，比较录制开始时间戳和当前时间的差，有没有大于 self.stop_record_time 。
+                如果大于就停止录制，否则，不操作。
+            如果不是录制状态, 不操作。
+        """
+        if self.change:
+            
+            self.start_record_timestamp = time.time()
+
+            if self.record:
+                pass
+            else:
+                self.record = True
+        else:
+            if self.record:
+                if (time.time() - self.start_record_timestamp) >= self.stop_record_time:
+                    self.record = False
+
+
+        return self.change
+    
+
+    def is_detection(self):
+
+        if self.start == 0:
+            self.start = time.time()
+            return True
+
+        end = time.time()
+        if (end - self.start) > self.detecion_interval:
+            self.start = end
+            return True
+        else:
+            return False
+
+
+    def __bool__(self):
+        return self.change
+    
 
 
 class Stream_first_time:
@@ -59,7 +173,12 @@ class VideoFile:
             self._stream_id_pts[s.index].first_time = True
 
         time_ = time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())
-        self.filename = Path(f"{time_}{self.suffix}")
+
+        if output_filename is not None:
+            self.filename = output_filename / f"{time_}{self.suffix}"
+        else:
+            self.filename = Path(f"{time_}{self.suffix}")
+
         count = 0
         while self.filename.exists():
             self.filename = Path(f"{time_}_{count:04}{self.suffix}")
@@ -138,3 +257,8 @@ class VideoFile:
         self.first_time = True
         self.output = False
         self.out_container.close()
+
+    def in_close(self):
+        self.in_container.close()
+
+
