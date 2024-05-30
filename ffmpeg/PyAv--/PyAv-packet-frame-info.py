@@ -10,9 +10,6 @@ import queue
 
 import av
 
-
-in_v = av.open(sys.argv[1])
-
 gen=True
 
 tail10 = queue.Queue(10)

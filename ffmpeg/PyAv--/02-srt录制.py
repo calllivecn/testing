@@ -17,7 +17,9 @@ from datetime import (
 
 import av
 
-
+from libcommon import (
+    VideoFile,
+)
 
 EXIT = False
 
@@ -53,17 +55,16 @@ def record(url_srt: str, filename: str):
 
 
     in_v_s = in_v.streams.video[0]
-    print(f"stream.type: {in_v_s.type} {in_v_s=} {in_v_s.average_rate=}")
+    # in_v_s.average_rate 可能有，可能没有。 有的是 in_vs.base_rate
+    print(f"stream.type: {in_v_s.type} {in_v_s=} {in_v_s.base_rate=}")
 
-    out_v_stream = {}
-    for s in in_v.streams:
-        print(f"stream: {s} type:{s.type}")
-        out_v_stream[s.type] = out_v.add_stream(template=s)
-
+    vf = VideoFile(in_v)
+    vf.new_output()
 
     try:
         demuxs = in_v.demux()
         for packet in demuxs:
+            print(f"有数据包: {packet=}")
 
             if packet.is_corrupt:
                 print(f"有数据包损坏: {packet=}")
@@ -76,7 +77,7 @@ def record(url_srt: str, filename: str):
                 # print(f"{packet=}")
                 pass
 
-            out_v.mux(packet)
+            vf.write3(packet)
 
             if EXIT:
                 break
@@ -89,7 +90,7 @@ def record(url_srt: str, filename: str):
         print("停止录制，写入数据...")
 
         in_v.close()
-        out_v.close()
+        vf.close()
 
            
 def main():
