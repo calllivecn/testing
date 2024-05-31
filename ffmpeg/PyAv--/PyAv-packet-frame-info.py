@@ -14,6 +14,8 @@ gen=True
 
 tail10 = queue.Queue(10)
 
+in_v = av.open(sys.argv[1])
+
 for i, packet in enumerate(in_v.demux()):
     if gen:
         print(f"{i=} {packet.is_keyframe=} {packet=}")
