@@ -11,7 +11,12 @@ from pprint import pprint
 
 import pymysql
 
-import user
+from user import Users
+
+
+dbinfo = Users["mysql"][0]
+
+
 
 def randomdata(count=10000):
     data = []
@@ -22,15 +27,25 @@ def randomdata(count=10000):
 
     return data
 
+
+def rand_person(count=10000):
+    data = [ binascii.b2a_hex(ssl.RAND_bytes(random.randint(8, 16))).decode() for _ in range(count) ]
+    return data
+
+
 con = pymysql.connect(
-                        host="localhost",
-                        port=3306,
-                        user="root",
-                        password="zxmysql",
-                        db="test",
+                        host=dbinfo["host"],
+                        port=dbinfo["port"],
+                        user=dbinfo["user"],
+                        password=dbinfo["password"],
+                        database=dbinfo["db"],
+                        # charset=dbinfo.charset,
                         )
 
+
 sql = """insert into milliontest(id, text) values(%s, %s);"""
+
+sql = """insert into person(name, age) values(%s, %s);"""
 
 cursor = con.cursor()
 
@@ -43,7 +58,8 @@ for i in range(int(sys.argv[1])):
     else:
         c += 1
 
-    fetch = cursor.executemany(sql, randomdata())
+    #fetch = cursor.executemany(sql, randomdata())
+    fetch = cursor.executemany(sql, rand_person())
     con.commit()
 
 
