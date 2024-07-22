@@ -25,6 +25,7 @@ b.out
 *.json
 *.conf
 *.ini
+*.toml
 
 #!requiremenets.txt
 #*.txt
