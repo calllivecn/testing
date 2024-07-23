@@ -3,6 +3,7 @@
 # date 2019-01-25 14:00:34
 # https://github.com/calllivecn
 
+import sys
 from pprint import pprint
 
 import pymysql
@@ -12,8 +13,7 @@ from user import Users
 dbinfo = Users["mysql"][0]
 
 try:
-
-	con = pymysql.connect(
+    conn = pymysql.connect(
                         host=dbinfo["host"],
                         port=dbinfo["port"],
                         user=dbinfo["user"],
@@ -21,69 +21,50 @@ try:
                         )
 
 except pymysql.err.Error as e:
-    print("连接异常")
-    exit(1)
+    print(f"连接异常: {e}")
+    sys.exit(1)
 
-host="%"
-username = "python3"
-password = "zxpython"
-
-useradd = """create user "{}"@"{}" identified by "{}";"""
-useradd_up = """create user %s@%s identified by %s;"""
-userdel_up = """drop user %s@%s;"""
-showuser_up = """show grants for %s@%s;"""
+useradd = """create user %s@%s identified by %s;"""
+userdel = """drop user %s@%s;"""
+showuser = """show grants for %s@%s;"""
 flush_privileges = """flush privileges;"""
 
-grant_up = """grant all on {}.* to "{}"@"{}";"""
-db = "db1"
+#grant = """grant all on {}.* to "{}"@"{}";"""
+# 使用不了占位符？！？！, 不是 db.* 这里有特殊。
+grant_up = """grant all privileges on *.* to %s@%s;"""
 
-cursor = con.cursor()
+with conn.cursor() as cursor:
+    try:
+        print("添加用户...")
+        result = cursor.execute(useradd, (username, host, password))
+        print("添加用户... ok")
+        print(f"{result}, {cursor.fetchone()}")
+    
+        print("用户授权...")
+        sql = cursor.mogrify(grant_up, (username, host))
+        print(f"{sql=}")
+        result = cursor.execute(grant_up, (username, host))
+        print("用户授权... ok")
+        print(f"{result}, {cursor.fetchone()}")
 
-try:
-    result = cursor.execute(useradd_up, (username, host, password))
-    print(result)
-    print(cursor.fetchone())
-except pymysql.err.Error as e:
-    print(e)
-    print("添加用户异常")
-    exit(1)
+        print("查看用户...")
+        result = cursor.execute(showuser, (username, host))
+        print("查看用户... ok")
+        print(f"{result}, {cursor.fetchone()}")
 
-try:
-    result = cursor.execute(grant_up.format(db, username, host))
-    print(result)
-    print(cursor.fetchone())
-except pymysql.err.Error as e:
-    print(e)
-    print("用户授权异常")
-    exit(1)
+    #except pymysql.err.Error as e:
+    except Exception as e:
+        print(e)
+        sys.exit(1)
 
-
-try:
-    result = cursor.execute(showuser_up, (username, host))
-    print(result)
-    print(cursor.fetchone())
-except pymysql.err.Error as e:
-    print(e)
-    print("查看用户异常")
-    exit(1)
 
 def delete():
     try:
-        result = cursor.execute(userdel_up,(username, host))
-        print(result)
-        print(cursor.fetchone())
+        result = cursor.execute(userdel, (username, host))
+        print(f"{result=}, {cursor.fetchone()=}")
     except pymysql.err.Error as e:
         print(e)
-        print("删除用户异常")
-        exit(1)
+        sys.exit(1)
 
 
-print("show user info")
-result = cursor.execute(flush_privileges)
-print(cursor.fetchone())
-
-con.commit()
-
-cursor.close()
-
-con.close()
+conn.close()

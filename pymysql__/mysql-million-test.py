@@ -55,20 +55,15 @@ sql = """insert into person(name, age) values(%s, %s);"""
 cursor = con.cursor()
 
 c = 0
-for i in range(int(sys.argv[1])):
-    print("已经写入1万条了")
-
-    if c == 9:
-        c = 0
-        print("已经写入10万条了")
-    else:
-        c += 1
+for i in range(1, int(sys.argv[1]) + 1):
 
     con.begin()
 
     #fetch = cursor.executemany(sql, randomdata())
     fetch = cursor.executemany(sql, rand_person())
     con.commit()
+
+    print(f"已经写入{i}万条了")
 
 
 

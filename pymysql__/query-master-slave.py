@@ -20,7 +20,7 @@ con = pymysql.connect(
                         port=dbinfo["port"],
                         user=dbinfo["user"],
                         password=dbinfo["password"],
-                        database=dbinfo.get("db"),
+                        # database=dbinfo.get("db"),
                         # charset=dbinfo.charset,
                         )
 
@@ -31,12 +31,17 @@ cursor = con.cursor()
 fetch = cursor.execute(sql)
 
 fields = [i[0] for i in cursor.description]
-print(fields)
+print(f"{fields=}")
 #print(f"{type(cursor)=}, {dir(cursor)=}")
+
+
+fetch = cursor.fetchone()
+
+print(f"{fetch=}")
 
 # 把字段头和值合并起来
 result = {}
-for k, v in zip(fields, cursor.fetchone()):
+for k, v in zip(fields, fetch):
     result.update({k: v})
 
 pprint(result)
