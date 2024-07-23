@@ -58,6 +58,12 @@ c = 0
 for i in range(int(sys.argv[1])):
     print("已经写入1万条了")
 
+    if c == 9:
+        c = 0
+        print("已经写入10万条了")
+    else:
+        c += 1
+
     con.begin()
 
     #fetch = cursor.executemany(sql, randomdata())
