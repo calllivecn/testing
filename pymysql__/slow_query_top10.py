@@ -8,12 +8,21 @@ from pprint import pprint
 
 import pymysql
 
+from user import Users
+
+dbinfo = Users["mysql"][0]
+
 
 try:
-    conn = pymysql.Connect(host="172.32.1.2",
-                            user="root",
-                            password="mysql57",
-                            db="mysql")
+	con = pymysql.connect(
+                        host=dbinfo["host"],
+                        port=dbinfo["port"],
+                        user=dbinfo["user"],
+                        password=dbinfo["password"],
+                        database=dbinfo["db"],
+                        # charset=dbinfo.charset,
+                        )
+
 except pymysql.Error as e:
     print("连接错误")
     print(e)

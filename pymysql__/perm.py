@@ -9,12 +9,18 @@ from pprint import pprint
 
 import pymysql
 
+
+from user import Users
+
+dbinfo = Users["mysql"][0]
+
 con = pymysql.connect(
-                        host="localhost",
-                        port=13306,
-                        user="zhangxu",
-                        password="mysql5.7",
-                        db="zhangxu",
+                        host=dbinfo["host"],
+                        port=dbinfo["port"],
+                        user=dbinfo["user"],
+                        password=dbinfo["password"],
+                        database=dbinfo["db"],
+                        # charset=dbinfo.charset,
                         )
 
 sql = """insert into this_my(name,id,phone) values(%s,%s,%s);"""

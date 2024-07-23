@@ -29,7 +29,12 @@ def randomdata(count=10000):
 
 
 def rand_person(count=10000):
-    data = [ binascii.b2a_hex(ssl.RAND_bytes(random.randint(8, 16))).decode() for _ in range(count) ]
+    data = []
+    for i in range(count):
+        r = ssl.RAND_bytes(random.randint(8, 16))
+        name = binascii.b2a_hex(r).decode()
+        age = random.randint(1, 50)
+        data.append((name, age))
     return data
 
 
@@ -51,12 +56,9 @@ cursor = con.cursor()
 
 c = 0
 for i in range(int(sys.argv[1])):
+    print("已经写入1万条了")
 
-    if c == 10:
-        c = 0
-        print("已经写入10万条了")
-    else:
-        c += 1
+    con.begin()
 
     #fetch = cursor.executemany(sql, randomdata())
     fetch = cursor.executemany(sql, rand_person())
@@ -64,10 +66,15 @@ for i in range(int(sys.argv[1])):
 
 
 
-query = """select count(id) from milliontest;"""
-cursor.execute(query)
-result = cursor.fetchall()
-print(f"总共有{result}数据")
-pprint(result)
+def query():
+    query = """select count(id) from milliontest;"""
+    query = """select count(id) from person;"""
+    
+    
+    cursor.execute(query)
+    result = cursor.fetchall()
+    print(f"总共有{result}数据")
+    pprint(result)
+
 
 con.close()

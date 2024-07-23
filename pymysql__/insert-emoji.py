@@ -8,19 +8,17 @@ import pprint
 import pymysql
 
 
-#con = pymysql.connect(host="mysql.bnq.in",
-#                        user="igor",
-#                        password="123qwe",
-#                        db="igor",
-#                        #charset="utf8mb4",
-#                        )
+from user import Users
 
-con = pymysql.connect(host="localhost",
-                        port=13306,
-                        user="root",
-                        password="mysql57",
-                        db="db1",
-                        charset="utf8mb4",
+
+dbinfo = Users["mysql"][0]
+
+con = pymysql.connect(host=dbinfo["dbinfo"],
+                        port=dbinfo["port"],
+                        user=dbinfo["user"],
+                        password=dbinfo["password"],
+                        database=dbinfo.get("db"),
+                        charset=dbinfo.get("charset"),
                         )
 
 sql = """insert into emoji(record) values(%s);"""

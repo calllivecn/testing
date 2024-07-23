@@ -7,15 +7,19 @@ from pprint import pprint
 
 import pymysql
 
+from user import Users
+
+dbinfo = Users["mysql"][0]
+
 try:
-    con = pymysql.connect(
-                        host="localhost",
-                        port=13306,
-                        #user="zhangxu",
-                        user="root",
-                        password="mysql57",
-                        #db="zhangxu",
+
+	con = pymysql.connect(
+                        host=dbinfo["host"],
+                        port=dbinfo["port"],
+                        user=dbinfo["user"],
+                        password=dbinfo["password"],
                         )
+
 except pymysql.err.Error as e:
     print("连接异常")
     exit(1)
