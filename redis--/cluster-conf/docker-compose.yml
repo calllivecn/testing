@@ -5,13 +5,15 @@ services:
     #builder-rediszx:
     #    image: rediszx:latest
     #    build: .
-
     redis-zx:
+        deploy:
+            replicas: 6
+        container_name: rediszx
         image: rediszx:latest
-        scale: 6
+        ports:
+            - 6371:6379
         networks:
             - redis-cluster
-
         command: 
             - /data/redis-cluster.conf
 
@@ -20,7 +22,7 @@ services:
 networks:
     redis-cluster:
         driver: bridge
-        external: true
+          #external: true
 #         #ipam:
 #         #    config:
 #         #        - subnet
