@@ -14,6 +14,7 @@ def loadcfg(path: Path):
     with open(path, "rb") as f:
         return tomllib.load(f)
 
+
 # 从一个查询中把字段头，和字段值，合并成一个字典。
 def merge_header_value(cursor) -> dict:
     fields = [i[0] for i in cursor.description]
@@ -44,9 +45,10 @@ def create_replication():
             print(f"""同步用户：{replica["user"]} 已经存在不用创建""")
         else:
             print("添加用户")
-            #fetch = cursor.execute("""create user %s identified by %s;""", (replica["user"], replica["password"]))
-            fetch = cursor.execute("""create user %s identified with 'mysql_native_password' by %s;""", (replica["user"], replica["password"]))
+            fetch = cursor.execute("""create user %s identified by %s;""", (replica["user"], replica["password"]))
+            #fetch = cursor.execute("""create user %s identified with 'mysql_native_password' by %s;""", (replica["user"], replica["password"]))
             print(f"{fetch=}, {cursor.fetchone()}")
+
     except pymysql.err.Error as e:
         print(e)
         print("添加用户异常")
@@ -62,6 +64,7 @@ def create_replication():
             print("用户授权")
             fetch = cursor.execute("""GRANT REPLICATION SLAVE ON *.* to %s@'%%';""", (replica["user"],))
             print(f"{fetch=}, {cursor.fetchone()}")
+
     except pymysql.err.Error as e:
         print(e)
         print("用户授权异常")
@@ -74,7 +77,7 @@ def create_replication():
 
 
 
-# 2. 从加上 添加 change master to ....
+# 2. 在slave加上 添加 change master to ....
 def ops_slave(slave):
 
     conn = pymysql.connect(
@@ -154,7 +157,6 @@ replica = Users["replica"]
 
 # 是list 可以有多个
 slaves = Users["slaves"]
-
 
 def main():
     create_replication()
