@@ -46,9 +46,9 @@ def create_replication():
             print(f"""同步用户：{replica["user"]} 已经存在不用创建""")
         else:
             print("添加用户")
-            #fetch = cursor.execute("""create user %s identified by %s;""", (replica["user"], replica["password"]))
-            fetch = cursor.execute("""create user %s identified with 'mysql_native_password' by %s;""", (replica["user"], replica["password"]))
-            print(f"{fetch=}, {cursor.fetchone()}")
+            #rows = cursor.execute("""create user %s identified by %s;""", (replica["user"], replica["password"]))
+            rows = cursor.execute("""create user %s identified with 'mysql_native_password' by %s;""", (replica["user"], replica["password"]))
+            print(f"{rows=}, {cursor.fetchone()}")
     except pymysql.err.Error as e:
         print(e)
         print("添加用户异常")
@@ -62,15 +62,15 @@ def create_replication():
             print(f"""用户：{replica["user"]} 已授权""")
         else:
             print("用户授权")
-            fetch = cursor.execute("""GRANT REPLICATION SLAVE ON *.* to %s@'%%';""", (replica["user"],))
-            print(f"{fetch=}, {cursor.fetchone()}")
+            rows = cursor.execute("""GRANT REPLICATION SLAVE ON *.* to %s@'%%';""", (replica["user"],))
+            print(f"{rows=}, {cursor.fetchone()}")
     except pymysql.err.Error as e:
         print(e)
         print("用户授权异常")
         sys.exit(1)
 
     
-    fetch = cursor.execute("""flush privileges;""")
+    rows = cursor.execute("""flush privileges;""")
 
     conn.close()
 
@@ -93,20 +93,20 @@ def ops_slave(slave):
         print("配置: change master to ... ")
         # v8.0.23 以后可以使用 change replication source to for channel 'channel_name'; 这种语句的
         # 也是从这版后，有了 MGR 集群模式。
-        fetch = cursor.execute("""change master to master_host=%s,master_port=%s,master_user=%s,master_password=%s,master_auto_position=1;""", 
+        rows = cursor.execute("""change master to master_host=%s,master_port=%s,master_user=%s,master_password=%s,master_auto_position=1;""", 
             (master["host"], int(master["port"]), replica["user"], replica["password"],)
             )
 
-        fetch = cursor.execute("""start slave;""")
+        rows = cursor.execute("""start slave;""")
 
-        print(f"{fetch=}, {cursor.fetchone()}")
+        print(f"{rows=}, {cursor.fetchone()}")
     except pymysql.err.Error as e:
         print(e)
         print("配置: change master to ... 失败")
         sys.exit(1)
 
-    #fetch = cursor.execute("""set global super_read_only=ON;""")
-    fetch = cursor.execute("""set global read_only=ON;""")
+    #rows = cursor.execute("""set global super_read_only=ON;""")
+    rows = cursor.execute("""set global read_only=ON;""")
 
     conn.close()
 
@@ -130,7 +130,7 @@ def check_slave_status(slave):
     
         # check: show slave status;
         try:
-            fetch = cursor.execute("""show slave status;""")
+            rows = cursor.execute("""show slave status;""")
         except pymysql.err.Error as e:
             print(e)
             print("用户授权异常")
