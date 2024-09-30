@@ -179,7 +179,7 @@ def main():
         description="创建mysql 8.0 的一主从一从 OR 一主多从",
         )
 
-    parse.add_argument("cfg", nargs="1", type=loadcfg_toml, help="主从实例的配置信息")
+    parse.add_argument("cfg", nargs=1, type=loadcfg_toml, help="主从实例的配置信息")
 
     parse.add_argument("--semi-sync", dest="semi_sync", action="store_true", help="可选的--semi-sync (使用半同步模式创建)")
 
@@ -187,7 +187,7 @@ def main():
 
     args = parse.parse_args()
     if args.parse:
-        print(parse)
+        print(args)
         sys.exit(0)
 
 
