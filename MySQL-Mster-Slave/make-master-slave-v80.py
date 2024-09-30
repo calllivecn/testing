@@ -1,6 +1,11 @@
 
+from typing import (
+    Dict,
+)
+
 import sys
 import time
+import argparse
 from pathlib import Path
 
 import pymysql
@@ -27,7 +32,7 @@ def merge_header_value(cursor) -> dict:
 
 
 # 1. 在主库上创建 repli_user 用户
-def create_replication():
+def create_replication(master: Dict, replica: Dict):
 
     conn = pymysql.connect(
                             host=master["host"],
@@ -77,7 +82,7 @@ def create_replication():
 
 
 # 2. 从加上 添加 change master to ....
-def ops_slave(slave):
+def ops_slave(master: Dict, slave: Dict, replica: Dict):
 
     conn = pymysql.connect(
                             host=slave["host"],
@@ -113,7 +118,7 @@ def ops_slave(slave):
 
 
 # 3. check slave
-def check_slave_status(slave):
+def check_slave_status(slave: Dict):
 
     conn = pymysql.connect(
                             host=slave["host"],
@@ -153,21 +158,53 @@ def check_slave_status(slave):
     conn.close()
 
 
-Users = loadcfg("user-m-s.toml")
+def loadcfg_toml(cfg_name):
+    p = Path(cfg_name)
 
-master = Users["master"]
+    if p.exists():
+        try:
+            r = loadcfg(p)
+        except Exception:
+            argparse.ArgumentTypeError(f"需要是 toml 配置文件")
+        
+        return r
 
-replica = Users["replica"]
-
-# 是list 可以有多个
-slaves = Users["slaves"]
+    else:
+        argparse.ArgumentTypeError(f"需要给出一个 toml 配置文件")
 
 
 def main():
-    create_replication()
+    parse = argparse.ArgumentParser(
+        usage="%(prog)s --help 查看使用说明",
+        description="创建mysql 8.0 的一主从一从 OR 一主多从",
+        )
+
+    parse.add_argument("cfg", nargs="1", type=loadcfg_toml, help="主从实例的配置信息")
+
+    parse.add_argument("--semi-sync", dest="semi_sync", action="store_true", help="可选的--semi-sync (使用半同步模式创建)")
+
+    parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
+
+    args = parse.parse_args()
+    if args.parse:
+        print(parse)
+        sys.exit(0)
+
+
+    Users = args.cfg
+
+    master = Users["master"]
+
+    replica = Users["replica"]
+
+    # 是list 可以有多个
+    slaves = Users["slaves"]
+
+
+    create_replication(master, replica=replica)
 
     for slave in slaves:
-        ops_slave(slave)
+        ops_slave(master, slave, replica)
         check_slave_status(slave)
     
 
