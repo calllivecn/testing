@@ -50,28 +50,18 @@ def create_replication(master: Dict, replica: Dict):
         if result >= 1:
             print(f"""同步用户：{replica["user"]} 已经存在不用创建""")
         else:
-            print("添加用户")
+            print("添加用户 和 授权")
             #rows = cursor.execute("""create user %s identified by %s;""", (replica["user"], replica["password"]))
             rows = cursor.execute("""create user %s identified with 'mysql_native_password' by %s;""", (replica["user"], replica["password"]))
             print(f"{rows=}, {cursor.fetchone()}")
-    except pymysql.err.Error as e:
-        print(e)
-        print("添加用户异常")
-        sys.exit(1)
 
-
-    try:
-        print("查询同步用户是否授权")
-        result = cursor.execute("""SHOW GRANTS FOR %s@'%%';""", (replica["user"],))
-        if result >= 1:
-            print(f"""用户：{replica["user"]} 已授权""")
-        else:
             print("用户授权")
             rows = cursor.execute("""GRANT REPLICATION SLAVE ON *.* to %s@'%%';""", (replica["user"],))
             print(f"{rows=}, {cursor.fetchone()}")
+
     except pymysql.err.Error as e:
         print(e)
-        print("用户授权异常")
+        print("添加用户和授权异常")
         sys.exit(1)
 
     
@@ -191,7 +181,7 @@ def main():
         sys.exit(0)
 
 
-    Users = args.cfg
+    Users = args.cfg[0]
 
     master = Users["master"]
 
@@ -201,7 +191,7 @@ def main():
     slaves = Users["slaves"]
 
 
-    create_replication(master, replica=replica)
+    create_replication(master, replica)
 
     for slave in slaves:
         ops_slave(master, slave, replica)
