@@ -10,9 +10,11 @@ try:
 except ModuleNotFoundError:
     import tomli as tomllib
 
+
 def loadcfg(path: Path):
     with open(path, "rb") as f:
         return tomllib.load(f)
+
 
 # 从一个查询中把字段头，和字段值，合并成一个字典。
 def merge_header_value(cursor) -> dict:
@@ -86,12 +88,11 @@ def ops_slave(slave):
     
     
     cursor = conn.cursor()
-    
-
-    fetch = cursor.execute("""set global super_read_only=ON;""")
 
     try:
-        print("config: change master to ... ")
+        print("配置: change master to ... ")
+        # v8.0.23 以后可以使用 change replication source to for channel 'channel_name'; 这种语句的
+        # 也是从这版后，有了 MGR 集群模式。
         fetch = cursor.execute("""change master to master_host=%s,master_port=%s,master_user=%s,master_password=%s,master_auto_position=1;""", 
             (master["host"], int(master["port"]), replica["user"], replica["password"],)
             )
@@ -101,8 +102,14 @@ def ops_slave(slave):
         print(f"{fetch=}, {cursor.fetchone()}")
     except pymysql.err.Error as e:
         print(e)
-        print("config: change master to ... fail")
+        print("配置: change master to ... 失败")
         sys.exit(1)
+
+    #fetch = cursor.execute("""set global super_read_only=ON;""")
+    fetch = cursor.execute("""set global read_only=ON;""")
+
+    conn.close()
+
 
 
 # 3. check slave

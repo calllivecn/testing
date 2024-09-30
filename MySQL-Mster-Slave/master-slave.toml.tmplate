@@ -1,3 +1,8 @@
+[replica]
+# 同步使用的用户名和密码
+user="replica"
+password="mysql80"
+
 [master]
 host="10.88.12.10"
 port=3306
@@ -16,4 +21,5 @@ host="10.88.12.22"
 port=3306
 user="root"
 password="mysql80"
+
 
