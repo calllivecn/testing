@@ -15,7 +15,8 @@
 	binlog_format=row
 	expire_logs_days = 7
 
-	# 在运行完, install plugin 之后配置
+	# 启用半同步主从复制
+	plugin-load="rpl_semi_sync_master=semisync_master.so;rpl_semi_sync_slave=semisync_slave.so"
 	rpl_semi_sync_master_enabled=1
 
 	```
@@ -32,11 +33,14 @@
 	binlog_format=row
 	expire_logs_days = 7
 
-	# 在运行完, install plugin 之后配置
+	# 启用半同步主从复制
+	plugin-load="rpl_semi_sync_master=semisync_master.so;rpl_semi_sync_slave=semisync_slave.so"
 	rpl_semi_sync_slave_enabled=1
 	```
 
-## 在容器中使用官方docker.io/library/mysql:8.0 时，
+## 在容器中使用官方docker.io/library/mysql:5.7 做实验时，
+
+- 首先从启动一个容器，从里拿到默认配置文件 podman cp \<container\_name\>:/etc/my.cnf 复制出来原本的配置
 
 - 需要先从 podman cp \<container\_name\>:/etc/my.cnf 复制出来原本的配置
 
@@ -47,72 +51,67 @@
 - 在启动新的容器，时映射配置。
 
 
-# 8.0 主从配置， 加上半同步复制。
 
-## 0. 在前面默认主从的异步复制状态下，继续配置为半同步复制。
+
+# 5.7 在一个已有的异步同步方式的主从集群上， 启用半同步复制。
+
 
 ## 1. 在主库上执行
 
 - 安装插件
 
 	```shell
-	mysql> INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master.so'; #永久安装插件
+	mysql> INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master.so';
+	mysql> INSTALL PLUGIN rpl_semi_sync_slave SONAME 'semisync_slave.so';
 	```
 
-- 临时开启半同步功能(免重启立即生效)
+	- 记录下删除插件命令：uninstall plugin rpl_semi_sync_slave;
 
+- 动态开启半同步功能(免重启立即生效)
 	```shell
-	# 8.0 之前
-	mysql> SET GLOBAL rpl_semi_sync_master_enabled=1; #临时修改变量
-	# 8.0 之后
-	mysql> SET GLOBAL rpl_semi_sync_source=1; #临时修改变量
+	mysql> SET GLOBAL rpl_semi_sync_master_enabled=1;
 	```
 
-- 需要在安装插件后才能配置;主节点修改配置文件并设定半同步阈值 **(根据你的场景，判断是否需要写入配置文件)**
+- 需要写入配置文件重启后才会生效
 
 	```ini
 	[mysqld]
-
-	# 添加或者修改 根据需要是否写入配置文件
-	# 8.0 之前
-	rpl_semi_sync_master_enabled=ON
-	# 8.0 之后
-	rpl_semi_sync_source=ON
-
+	# 启用半同步主从复制
+	plugin-load="rpl_semi_sync_master=semisync_master.so;rpl_semi_sync_slave=semisync_slave.so"
+	rpl_semi_sync_master_enabled=1
 
 	# 添加或者修改，默认的超时是10s
-	rpl_semi_sync_master_timeout=3000
+	#rpl_semi_sync_master_timeout=3000
 	```
 
 ## 2. 从节点配置
 
-- 同样安装插件 **(注意名称不一样)**
+- 同样安装插件
 
 	```shell
-	mysql> INSTALL PLUGIN rpl_semi_sync_slave SONAME 'semisync_slave.so'; #永久安装插件
+	mysql> INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master.so';
+	mysql> install plugin rpl_semi_sync_slave SONAME 'semisync_slave.so';
 	```
 
-- 临时开启半同步功能(免重启立即生效)
+- 动态开启半同步功能(免重启立即生效)
 
 	```shell
 	mysql> SET GLOBAL rpl_semi_sync_slave_enabled=1; #临时修改变量
-	# 8.0 之后 ？
-	mysql> SET GLOBAL rpl_semi_sync_replica=1; #临时修改变量
 	```
 
-- 需要在安装插件后才能配置;从节点修改配置文件并设定半同步阈值 **(根据你的场景，判断是否需要写入配置文件)**
+- 需要写入配置文件重启后才会生效
 
 	```ini
 	[mysqld]
-
-	# 添加或者修改 根据需要是否写入配置文件
-	rpl_semi_sync_slave_enabled=ON
+	# 启用半同步主从复制
+	plugin-load="rpl_semi_sync_master=semisync_master.so;rpl_semi_sync_slave=semisync_slave.so"
+	rpl_semi_sync_slave_enabled=1
 
 	# 添加或者修改，默认的超时是10s
-	rpl_semi_sync_slave_timeout=3000
+	#rpl_semi_sync_slave_timeout=3000
 	```
 
-- **要先检测第一个 slave 的 半同步配置，然后在检测 master 的。**
+- **要先检测一个 slave 的半同步配置，然后在检测 master 的。**
 
 - 从节点确认配置生效 **注意:如果已经实现主从复制,需要stop slave;start slave;**
 
@@ -207,15 +206,4 @@ Query OK, 0 rows affected (0.006 sec)
 # 在master实现，创建数据库，立即成功
 MariaDB [db1]> create database db4;
 Query OK, 1 row affected (0.002 sec)
-```
-
-
-
-# FQA
-
-## 8.0 认证插件问题
-
-```hell
-Last_IO_Errno                 | 2061
-Last_IO_Error                 | Error connecting to source 'replica@mysql80-master:3306'. This was attempt 3/86400, with a delay of 60 seconds between attempts. Message: Authentication plugin 'caching_sha2_password' reported error: Authentication requires secure connection.
 ```

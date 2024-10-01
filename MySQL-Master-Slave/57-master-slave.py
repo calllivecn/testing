@@ -289,12 +289,12 @@ def loadcfg_toml(cfg_name):
 def main():
     parse = argparse.ArgumentParser(
         usage="%(prog)s --help 查看使用说明",
-        description="创建mysql 8.0 的一主从一从 OR 一主多从",
+        description="创建mysql 5.7 的一主从一从 OR 一主多从",
         )
 
     parse.add_argument("cfg", nargs=1, type=loadcfg_toml, help="主从实例的配置信息")
 
-    parse.add_argument("--semi-sync", dest="semi_sync", action="store_true", help="可选的--semi-sync (使用半同步模式创建)")
+    parse.add_argument("--semi-sync", dest="semi_sync", action="store_true", help="可选的--semi-sync (半同步模式创建)")
 
     parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
 
