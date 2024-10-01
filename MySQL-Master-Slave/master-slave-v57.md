@@ -1,5 +1,5 @@
 
-# 8.0 主从配置, 默认的异步复制模式。(实验验证ok)
+# 5.7 主从配置, 默认的异步复制模式。
 
 ## 需要在默认配置之上，添加配置
 
@@ -9,10 +9,14 @@
 	server-id=1
 	gtid-mode=on
 	enforce-gtid-consistency=on
-	# 8.0 之前
+
 	log-slave-updates=on
-	# 8.0 开始
-	log_replica_updates=on
+	log-bin=mysql-bin
+	binlog_format=row
+	expire_logs_days = 7
+
+	# 在运行完, install plugin 之后配置
+	rpl_semi_sync_master_enabled=1
 
 	```
 
@@ -23,6 +27,13 @@
 	gtid-mode=on
 	enforce-gtid-consistency=on
 
+	log-slave-updates=on
+	log-bin=mysql-bin
+	binlog_format=row
+	expire_logs_days = 7
+
+	# 在运行完, install plugin 之后配置
+	rpl_semi_sync_slave_enabled=1
 	```
 
 ## 在容器中使用官方docker.io/library/mysql:8.0 时，

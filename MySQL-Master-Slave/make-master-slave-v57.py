@@ -51,8 +51,10 @@ def create_replication(master: Dict, replica: Dict, semi_sync: bool):
             print(f"""同步用户：{replica["user"]} 已经存在不用创建""")
         else:
             print("添加用户")
-            rows = cursor.execute("""create user %s identified by %s;""", (replica["user"], replica["password"]))
-            #rows = cursor.execute("""create user %s identified with 'mysql_native_password' by %s;""", (replica["user"], replica["password"]))
+            #rows = cursor.execute("""create user %s identified by %s;""", (replica["user"], replica["password"]))
+            # ~~8.0 之前的， 在配置中文中设置默认认证插件为 default_authentication_plugin=caching_sha2_password 就行.~~
+            # ~~不然就在在创建用户时指定 'mysql_native_password'~~ 这种不行
+            rows = cursor.execute("""create user %s identified with 'mysql_native_password' by %s;""", (replica["user"], replica["password"]))
             print(f"{rows=}, {cursor.fetchone()}")
     except pymysql.err.Error as e:
         print(e)
@@ -82,7 +84,7 @@ def create_replication(master: Dict, replica: Dict, semi_sync: bool):
     if semi_sync:
         print("设置半同步复制: master")
         try:
-            cursor.execute("""install plugin rpl_semi_sync_master soname 'semisync_master.so';""")
+            cursor.execute("""INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master.so';""")
             cursor.execute("""set global rpl_semi_sync_master_enabled=1;""")
         except pymysql.err.Error as e:
             print(e)
@@ -176,6 +178,8 @@ def ops_slave(master: Dict, slave: Dict, replica: Dict, semi_sync: bool):
 
     try:
         print("配置: change master to ... ")
+        # v8.0.23 以后可以使用 change replication source to for channel 'channel_name'; 这种语句的
+        # 也是从这版后，有了 MGR 集群模式。
         rows = cursor.execute("""change master to master_host=%s,master_port=%s,master_user=%s,master_password=%s,master_auto_position=1;""", 
             (master["host"], int(master["port"]), replica["user"], replica["password"],)
             )
@@ -200,7 +204,9 @@ def ops_slave(master: Dict, slave: Dict, replica: Dict, semi_sync: bool):
         print("rpl_semi_sync_slave_enabled=ON")
 
 
+    #rows = cursor.execute("""set global super_read_only=ON;""")
     rows = cursor.execute("""set global read_only=ON;""")
+
 
     rows = cursor.execute("""start slave;""")
 
@@ -283,7 +289,7 @@ def loadcfg_toml(cfg_name):
 def main():
     parse = argparse.ArgumentParser(
         usage="%(prog)s --help 查看使用说明",
-        description="创建mysql 5.7 的一主从一从 OR 一主多从",
+        description="创建mysql 8.0 的一主从一从 OR 一主多从",
         )
 
     parse.add_argument("cfg", nargs=1, type=loadcfg_toml, help="主从实例的配置信息")
