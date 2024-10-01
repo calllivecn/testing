@@ -3,25 +3,34 @@
 
 ## 需要在默认配置之上，添加配置
 
-- 这是master
+- 这是source
 
 	```ini
 	server-id=1
 	gtid-mode=on
 	enforce-gtid-consistency=on
-	# 8.0 之前
-	log-slave-updates=on
-	# 8.0 开始
 	log_replica_updates=on
+
+	# 8.0 需要在 mysql initalize 之后 在写入配置
+	# 8.0.26 之后
+	plugin-load-add="rpl_semi_sync_source=semisync_source.so"
+	plugin-load-add="rpl_semi_sync_replica=semisync_replica.so"
+	rpl_semi_sync_source_enabled=1
 
 	```
 
-- 这是slave
+- 这是replica
 
 	```ini
 	server-id=10
 	gtid-mode=on
 	enforce-gtid-consistency=on
+
+	# 8.0 需要在 mysql initalize 之后 在写入配置
+	# 8.0.26 之后
+	plugin-load-add="rpl_semi_sync_source=semisync_source.so"
+	plugin-load-add="rpl_semi_sync_replica=semisync_replica.so"
+	rpl_semi_sync_replica_enabled=1
 
 	```
 
@@ -36,41 +45,41 @@
 - 在启动新的容器，时映射配置。
 
 
-# 8.0 主从配置， 加上半同步复制。
-
-## 0. 在前面默认主从的异步复制状态下，继续配置为半同步复制。
+# 8.0 在已经存在的主从中， 加上半同步复制。
 
 ## 1. 在主库上执行
 
 - 安装插件
 
 	```shell
-	mysql> INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master.so'; #永久安装插件
+	mysql> INSTALL PLUGIN rpl_semi_sync_master soname 'semisync_master.so';
+
+	#Or from MySQL 8.0.26:
+	mysql> install plugin rpl_semi_sync_replica soname 'semisync_replica.so';
 	```
 
 - 临时开启半同步功能(免重启立即生效)
 
 	```shell
-	# 8.0 之前
-	mysql> SET GLOBAL rpl_semi_sync_master_enabled=1; #临时修改变量
-	# 8.0 之后
-	mysql> SET GLOBAL rpl_semi_sync_source=1; #临时修改变量
+	mysql> SET GLOBAL rpl_semi_sync_master_enabled=1;
+
+	#Or from MySQL 8.0.26:
+	mysql> SET GLOBAL rpl_semi_sync_source=1;
 	```
 
-- 需要在安装插件后才能配置;主节点修改配置文件并设定半同步阈值 **(根据你的场景，判断是否需要写入配置文件)**
+
+- 需要在安装插件, 并启用半同步成功后才能将以下配置**写入配置文件**
 
 	```ini
 	[mysqld]
+	plugin-load-add="rpl_semi_sync_source=semisync_source.so"
+	plugin-load-add="rpl_semi_sync_replica=semisync_replica.so"
 
-	# 添加或者修改 根据需要是否写入配置文件
-	# 8.0 之前
-	rpl_semi_sync_master_enabled=ON
-	# 8.0 之后
-	rpl_semi_sync_source=ON
-
+	#Or from MySQL 8.0.26 with the rpl_semi_sync_source plugin:
+	rpl_semi_sync_source_enabled=1
 
 	# 添加或者修改，默认的超时是10s
-	rpl_semi_sync_master_timeout=3000
+	rpl_semi_sync_source_timeout=3000
 	```
 
 ## 2. 从节点配置
@@ -94,19 +103,21 @@
 	```ini
 	[mysqld]
 
-	# 添加或者修改 根据需要是否写入配置文件
-	rpl_semi_sync_slave_enabled=ON
+	plugin-load-add="rpl_semi_sync_source=semisync_source.so"
+	plugin-load-add="rpl_semi_sync_replica=semisync_replica.so"
+
+	rpl_semi_sync_replica_enabled=1
 
 	# 添加或者修改，默认的超时是10s
-	rpl_semi_sync_slave_timeout=3000
+	rpl_semi_sync_replica_timeout=3000
 	```
 
-- **要先检测第一个 slave 的 半同步配置，然后在检测 master 的。**
+- **要先检测第一个 replica 的 半同步配置，然后在检测 source 的。**
 
-- 从节点确认配置生效 **注意:如果已经实现主从复制,需要stop slave;start slave;**
+- 从节点确认配置生效 **注意:如果已经实现主从复制,需要stop replica;start replica;**
 
 	```shell
-	mysql> stop slave;start slave;
+	mysql> stop replica;start replica;
 	Query OK, 0 rows affected, 1 warning (0.00 sec)
 	Query OK, 0 rows affected, 1 warning (0.01 sec)
 
@@ -115,15 +126,15 @@
 	+---------------------------------+-------+
 	| Variable_name                   | Value |
 	+---------------------------------+-------+
-	| rpl_semi_sync_slave_enabled     | ON    |
-	| rpl_semi_sync_slave_trace_level | 32    |
+	| rpl_semi_sync_replica_enabled     | ON    |
+	| rpl_semi_sync_replica_trace_level | 32    |
 	+---------------------------------+-------+
 
 	mysql> show global status like "%semi%";
 	+----------------------------+-------+
 	| Variable_name              | Value |
 	+----------------------------+-------+
-	| Rpl_semi_sync_slave_status | ON    |
+	| Rpl_semi_sync_replica_status | ON    |
 	+----------------------------+-------+
 	1 row in set
 	Time: 0.027s
@@ -131,20 +142,20 @@
 
 - 主节点确认配置生效
 
-	- 主要查看: `rpl_semi_sync_master_enabled=ON`
-	- 和: `Rpl_semi_sync_master_status=ON` 和 `Rpl_semi_sync_master_clients >= 1`
+	- 主要查看: `rpl_semi_sync_source_enabled=ON`
+	- 和: `Rpl_semi_sync_source_status=ON` 和 `Rpl_semi_sync_source_clients >= 1`
 
 	```shell
 	mysql> show global variables like '%semi%';
 	+-------------------------------------------+------------+
 	| Variable_name                             | Value      |
 	+-------------------------------------------+------------+
-	| rpl_semi_sync_master_enabled              | ON         |
-	| rpl_semi_sync_master_timeout              | 10000      |
-	| rpl_semi_sync_master_trace_level          | 32         |
-	| rpl_semi_sync_master_wait_for_slave_count | 1          |
-	| rpl_semi_sync_master_wait_no_slave        | ON         |
-	| rpl_semi_sync_master_wait_point           | AFTER_SYNC |
+	| rpl_semi_sync_source_enabled              | ON         |
+	| rpl_semi_sync_source_timeout              | 10000      |
+	| rpl_semi_sync_source_trace_level          | 32         |
+	| rpl_semi_sync_source_wait_for_slave_count | 1          |
+	| rpl_semi_sync_source_wait_no_slave        | ON         |
+	| rpl_semi_sync_source_wait_point           | AFTER_SYNC |
 	+-------------------------------------------+------------+
 	6 rows in set
 	Time: 0.028s
@@ -153,20 +164,20 @@
 	+--------------------------------------------+-------+
 	| Variable_name                              | Value |
 	+--------------------------------------------+-------+
-	| Rpl_semi_sync_master_clients               | 1     |
-	| Rpl_semi_sync_master_net_avg_wait_time     | 0     |
-	| Rpl_semi_sync_master_net_wait_time         | 0     |
-	| Rpl_semi_sync_master_net_waits             | 0     |
-	| Rpl_semi_sync_master_no_times              | 0     |
-	| Rpl_semi_sync_master_no_tx                 | 0     |
-	| Rpl_semi_sync_master_status                | ON    |
-	| Rpl_semi_sync_master_timefunc_failures     | 0     |
-	| Rpl_semi_sync_master_tx_avg_wait_time      | 0     |
-	| Rpl_semi_sync_master_tx_wait_time          | 0     |
-	| Rpl_semi_sync_master_tx_waits              | 0     |
-	| Rpl_semi_sync_master_wait_pos_backtraverse | 0     |
-	| Rpl_semi_sync_master_wait_sessions         | 0     |
-	| Rpl_semi_sync_master_yes_tx                | 0     |
+	| Rpl_semi_sync_source_clients               | 1     |
+	| Rpl_semi_sync_source_net_avg_wait_time     | 0     |
+	| Rpl_semi_sync_source_net_wait_time         | 0     |
+	| Rpl_semi_sync_source_net_waits             | 0     |
+	| Rpl_semi_sync_source_no_times              | 0     |
+	| Rpl_semi_sync_source_no_tx                 | 0     |
+	| Rpl_semi_sync_source_status                | ON    |
+	| Rpl_semi_sync_source_timefunc_failures     | 0     |
+	| Rpl_semi_sync_source_tx_avg_wait_time      | 0     |
+	| Rpl_semi_sync_source_tx_wait_time          | 0     |
+	| Rpl_semi_sync_source_tx_waits              | 0     |
+	| Rpl_semi_sync_source_wait_pos_backtraverse | 0     |
+	| Rpl_semi_sync_source_wait_sessions         | 0     |
+	| Rpl_semi_sync_source_yes_tx                | 0     |
 	+--------------------------------------------+-------+
 	14 rows in set
 	Time: 0.020s
@@ -204,7 +215,16 @@ Query OK, 1 row affected (0.002 sec)
 
 ## 8.0 认证插件问题
 
-```hell
+```shell
 Last_IO_Errno                 | 2061
 Last_IO_Error                 | Error connecting to source 'replica@mysql80-master:3306'. This was attempt 3/86400, with a delay of 60 seconds between attempts. Message: Authentication plugin 'caching_sha2_password' reported error: Authentication requires secure connection.
 ```
+
+
+## 8.0 初始化时 不能加载 插件 的问题
+
+```shell
+[Warning] [MY-013501] [Server] Ignoring --plugin-load[_add] list as the server is running with --initialize(-insecure).
+```
+
+- 解决：在实例 initialize 之后，在添加 plugin-load-add=

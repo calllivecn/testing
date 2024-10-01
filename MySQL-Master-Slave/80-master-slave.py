@@ -51,8 +51,8 @@ def create_replication(master: Dict, replica: Dict, semi_sync: bool):
             print(f"""同步用户：{replica["user"]} 已经存在不用创建""")
         else:
             print("添加用户")
-            rows = cursor.execute("""create user %s identified by %s;""", (replica["user"], replica["password"]))
-            #rows = cursor.execute("""create user %s identified with 'mysql_native_password' by %s;""", (replica["user"], replica["password"]))
+            # rows = cursor.execute("""create user %s identified by %s;""", (replica["user"], replica["password"]))
+            rows = cursor.execute("""create user %s identified with 'mysql_native_password' by %s;""", (replica["user"], replica["password"]))
             print(f"{rows=}, {cursor.fetchone()}")
     except pymysql.err.Error as e:
         print(e)
@@ -80,16 +80,16 @@ def create_replication(master: Dict, replica: Dict, semi_sync: bool):
 
     # 半同步复制 master
     if semi_sync:
-        print("设置半同步复制: master")
+        print("设置半同步复制: source")
         try:
-            cursor.execute("""install plugin rpl_semi_sync_master soname 'semisync_master.so';""")
-            cursor.execute("""set global rpl_semi_sync_master_enabled=1;""")
+            cursor.execute("""install plugin rpl_semi_sync_source soname 'semisync_source.so';""")
+            cursor.execute("""set global rpl_semi_sync_source_enabled=1;""")
         except pymysql.err.Error as e:
             print(e)
             sys.exit(1)
         
         print("根据你的场景，判断是否需要写入配置文件: 以下配置")
-        print("rpl_semi_sync_master_enabled=ON")
+        print("rpl_semi_sync_source_enabled=ON")
 
     conn.close()
 
@@ -113,7 +113,7 @@ def check_slave_status(slave: Dict, semi_sync: bool):
     
         # check: show slave status;
         try:
-            rows = cursor.execute("""show slave status;""")
+            rows = cursor.execute("""show replica status;""")
         except pymysql.err.Error as e:
             print(e)
             print("查看 show replica status; 异常")
@@ -138,19 +138,19 @@ def check_slave_status(slave: Dict, semi_sync: bool):
     if semi_sync:
         semi_sync_fail = False
 
-        rows = cursor.execute("""show global variables like 'rpl_semi_sync_slave_enabled'""")
+        rows = cursor.execute("""show global variables like 'rpl_semi_sync_replica_enabled'""")
         field, result_char = cursor.fetchone()
         if result_char != "ON":
             semi_sync_fail = True
             print(f"配置失败：")
-            print(f"rpl_semi_sync_slave_enabled = {result_char}")
+            print(f"rpl_semi_sync_replica_enabled = {result_char}")
 
-        rows = cursor.execute("""show global status like 'rpl_semi_sync_slave_status'""")
+        rows = cursor.execute("""show global status like 'rpl_semi_sync_replica_status'""")
         field, result_char = cursor.fetchone()
         if result_char != "ON":
             semi_sync_fail = True
             print(f"配置失败：")
-            print(f"rpl_semi_sync_slave_status = {result_char}")
+            print(f"rpl_semi_sync_replica_status = {result_char}")
 
 
         
@@ -175,34 +175,35 @@ def ops_slave(master: Dict, slave: Dict, replica: Dict, semi_sync: bool):
     cursor = conn.cursor()
 
     try:
-        print("配置: change master to ... ")
-        rows = cursor.execute("""change master to master_host=%s,master_port=%s,master_user=%s,master_password=%s,master_auto_position=1;""", 
+        print("配置: change replication source to ... ")
+        # rows = cursor.execute("""change master to master_host=%s,master_port=%s,master_user=%s,master_password=%s,master_auto_position=1;""", 
+        rows = cursor.execute("""change replication source to source_host=%s,source_port=%s,source_user=%s,source_password=%s,source_auto_position=1;""", 
             (master["host"], int(master["port"]), replica["user"], replica["password"],)
             )
 
         print(f"{rows=}, {cursor.fetchone()}")
     except pymysql.err.Error as e:
         print(e)
-        print("配置: change master to ... 失败")
+        print("配置: change replication source to ... 失败")
         sys.exit(1)
     
     if semi_sync:
-        print("设置半同步复制: slave")
+        print("设置半同步复制: replica")
         try:
-            rows = cursor.execute("""INSTALL PLUGIN rpl_semi_sync_slave SONAME 'semisync_slave.so';""")
-            rows = cursor.execute("""SET GLOBAL rpl_semi_sync_slave_enabled=1;""")
+            rows = cursor.execute("""install plugin rpl_semi_sync_source soname 'semisync_source.so';""")
+            rows = cursor.execute("""set globaL rpl_semi_sync_source_enabled=1;""")
         except pymysql.err.Error as e:
             print(e)
-            print("配置: change master to ... 失败")
+            print("配置: change replication source to ... 失败")
             sys.exit(1)
 
         print("根据你的场景，判断是否需要写入配置文件: 以下配置")
-        print("rpl_semi_sync_slave_enabled=ON")
+        print("rpl_semi_sync_source_enabled=1")
 
 
-    rows = cursor.execute("""set global read_only=ON;""")
+    rows = cursor.execute("""set global read_only=1;""")
 
-    rows = cursor.execute("""start slave;""")
+    rows = cursor.execute("""start replica;""")
 
     conn.close()
 
@@ -227,25 +228,25 @@ def check_master_semi_sync(master: Dict, semi_sync: bool):
     if semi_sync:
         semi_sync_fail = False
 
-        rows = cursor.execute("""show global variables like 'rpl_semi_sync_master_enabled'""")
+        rows = cursor.execute("""show global variables like 'rpl_semi_sync_source_enabled'""")
         field, result_char = cursor.fetchone()
         print(f"{field=} {result_char=}")
 
         if result_char != "ON":
             semi_sync_fail = True
             print(f"配置失败：")
-            print(f"rpl_semi_sync_master_enabled = {result_char}")
+            print(f"rpl_semi_sync_source_enabled = {result_char}")
 
         
-        rows = cursor.execute("""show global status like 'Rpl_semi_sync_master_status'""")
+        rows = cursor.execute("""show global status like 'Rpl_semi_sync_source_status'""")
         field, result_char = cursor.fetchone()
         print(f"{field=} {result_char=}")
         if result_char != "ON":
             semi_sync_fail = True
             print(f"配置失败：")
-            print(f"rpl_semi_sync_master_status = {result_char}")
+            print(f"rpl_semi_sync_source_status = {result_char}")
         
-        rows = cursor.execute("""show global status like 'Rpl_semi_sync_master_clients'""")
+        rows = cursor.execute("""show global status like 'Rpl_semi_sync_source_clients'""")
         field, result_int = cursor.fetchone()
         print(f"{field=} {result_int=}")
         if int(result_int) >= 1:
@@ -253,7 +254,7 @@ def check_master_semi_sync(master: Dict, semi_sync: bool):
         else:
             semi_sync_fail = True
             print(f"配置失败：")
-            print(f"rpl_semi_sync_master_client = {result_char}")
+            print(f"rpl_semi_sync_source_client = {result_char}")
 
         if semi_sync_fail:
             print(f"开启半同步复制失败：{master=}")
@@ -283,7 +284,7 @@ def loadcfg_toml(cfg_name):
 def main():
     parse = argparse.ArgumentParser(
         usage="%(prog)s --help 查看使用说明",
-        description="创建mysql 5.7 的一主从一从 OR 一主多从",
+        description="创建mysql 8.0 的一主从一从 OR 一主多从",
         )
 
     parse.add_argument("cfg", nargs=1, type=loadcfg_toml, help="主从实例的配置信息")
