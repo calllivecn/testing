@@ -9,7 +9,13 @@
 	server-id=1
 	gtid-mode=on
 	enforce-gtid-consistency=on
+	# 8.0 之前
 	log-slave-updates=on
+	# 8.0 开始
+	log_replica_updates=on
+
+	# 修改认证插件
+	default_authentication_plugin=caching_sha2_password
 	```
 
 - 这是slave
@@ -18,6 +24,9 @@
 	server-id=10
 	gtid-mode=on
 	enforce-gtid-consistency=on
+
+	# 修改认证插件
+	default_authentication_plugin=caching_sha2_password
 	```
 
 ## 在容器中使用官方docker.io/library/mysql:8.0 时，
@@ -46,16 +55,23 @@
 - 临时开启半同步功能(免重启立即生效)
 
 	```shell
+	# 8.0 之前
 	mysql> SET GLOBAL rpl_semi_sync_master_enabled=1; #临时修改变量
+	# 8.0 之后
+	mysql> SET GLOBAL rpl_semi_sync_source=1; #临时修改变量
 	```
 
-- 主节点修改配置文件并设定半同步阈值 **(根据你的场景，判断是否需要写入配置文件)**
+- 需要在安装插件后才能配置;主节点修改配置文件并设定半同步阈值 **(根据你的场景，判断是否需要写入配置文件)**
 
 	```ini
 	[mysqld]
 
 	# 添加或者修改 根据需要是否写入配置文件
+	# 8.0 之前
 	rpl_semi_sync_master_enabled=ON
+	# 8.0 之后
+	rpl_semi_sync_source=ON
+
 
 	# 添加或者修改，默认的超时是10s
 	rpl_semi_sync_master_timeout=3000
@@ -73,9 +89,11 @@
 
 	```shell
 	mysql> SET GLOBAL rpl_semi_sync_slave_enabled=1; #临时修改变量
+	# 8.0 之后 ？
+	mysql> SET GLOBAL rpl_semi_sync_replica=1; #临时修改变量
 	```
 
-- 从节点修改配置文件并设定半同步阈值 **(根据你的场景，判断是否需要写入配置文件)**
+- 需要在安装插件后才能配置;从节点修改配置文件并设定半同步阈值 **(根据你的场景，判断是否需要写入配置文件)**
 
 	```ini
 	[mysqld]
@@ -87,12 +105,23 @@
 	rpl_semi_sync_slave_timeout=3000
 	```
 
+- **要先检测第一个 slave 的 半同步配置，然后在检测 master 的。**
+
 - 从节点确认配置生效 **注意:如果已经实现主从复制,需要stop slave;start slave;**
 
 	```shell
 	mysql> stop slave;start slave;
 	Query OK, 0 rows affected, 1 warning (0.00 sec)
 	Query OK, 0 rows affected, 1 warning (0.01 sec)
+
+
+	mysql> show global variables like "%semi%";
+	+---------------------------------+-------+
+	| Variable_name                   | Value |
+	+---------------------------------+-------+
+	| rpl_semi_sync_slave_enabled     | ON    |
+	| rpl_semi_sync_slave_trace_level | 32    |
+	+---------------------------------+-------+
 
 	mysql> show global status like "%semi%";
 	+----------------------------+-------+
@@ -106,8 +135,8 @@
 
 - 主节点确认配置生效
 
-	- 主要查看: `rpl_semi_sync_master_enabled=ON, Rpl_semi_sync_master_status=ON`
-	- 和: `Rpl_semi_sync_master_clients >= 1`
+	- 主要查看: `rpl_semi_sync_master_enabled=ON`
+	- 和: `Rpl_semi_sync_master_status=ON` 和 `Rpl_semi_sync_master_clients >= 1`
 
 	```shell
 	mysql> show global variables like '%semi%';
@@ -147,6 +176,8 @@
 	Time: 0.020s
 	```
 
+
+
 ## 3. 测试
 
 ```shell
@@ -171,3 +202,13 @@ MariaDB [db1]> create database db4;
 Query OK, 1 row affected (0.002 sec)
 ```
 
+
+
+# FQA
+
+## 8.0 认证插件问题
+
+```hell
+Last_IO_Errno                 | 2061
+Last_IO_Error                 | Error connecting to source 'replica@mysql80-master:3306'. This was attempt 3/86400, with a delay of 60 seconds between attempts. Message: Authentication plugin 'caching_sha2_password' reported error: Authentication requires secure connection.
+```
