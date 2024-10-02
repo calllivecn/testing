@@ -124,7 +124,7 @@ while True:
         attr_type, attr_len = struct.unpack("=HH", data[cur:cur+4])
         cur += 4
         attr_value = data[cur:cur+attr_len]
-        print("attr_type:", attr_type)
+        print(f"attr_type: {attr_type:x}")
         print("attr_len:", attr_len)
         print("attr_value:", attr_value)
         cur += attr_len
