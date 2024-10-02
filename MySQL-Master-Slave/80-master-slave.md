@@ -11,7 +11,7 @@
 	enforce-gtid-consistency=on
 	log_replica_updates=on
 
-	# 8.0 需要在 mysql initalize 之后 在写入配置
+	# 8.0 需要在 mysql initialization 之后 在写入配置, 不能直接修改配置后做为首次启动。
 	# 8.0.26 之后
 	plugin-load-add="rpl_semi_sync_source=semisync_source.so"
 	plugin-load-add="rpl_semi_sync_replica=semisync_replica.so"
@@ -26,7 +26,7 @@
 	gtid-mode=on
 	enforce-gtid-consistency=on
 
-	# 8.0 需要在 mysql initalize 之后 在写入配置
+	# 8.0 需要在 mysql initialization 之后 在写入配置, 不能直接修改配置后做为首次启动。
 	# 8.0.26 之后
 	plugin-load-add="rpl_semi_sync_source=semisync_source.so"
 	plugin-load-add="rpl_semi_sync_replica=semisync_replica.so"
