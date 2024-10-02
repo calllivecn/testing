@@ -16,8 +16,6 @@ from user import Users
 
 dbinfo = Users["mysql"][0]
 
-
-
 def randomdata(count=10000):
     data = []
     for i in range(count):
@@ -47,19 +45,26 @@ con = pymysql.connect(
                         # charset=dbinfo.charset,
                         )
 
+create_db = """create database if not exists test;"""
+
+create_table = """create table if not exists person(id bigint primary key auto_increment, name varchar(64), age int);"""
+
+cursor = con.cursor()
+
+cursor.execute(create_db)
+
+con.select_db("test")
+
+cursor.execute(create_table)
 
 sql = """insert into milliontest(id, text) values(%s, %s);"""
 
 sql = """insert into person(name, age) values(%s, %s);"""
 
-cursor = con.cursor()
-
 c = 0
 for i in range(1, int(sys.argv[1]) + 1):
 
     con.begin()
-
-    #fetch = cursor.executemany(sql, randomdata())
     fetch = cursor.executemany(sql, rand_person())
     con.commit()
 
