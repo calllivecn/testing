@@ -12,9 +12,8 @@
 	log_replica_updates=on
 
 	# 8.0 需要在 mysql initialization 之后 在写入配置, 不能直接修改配置后做为首次启动。
-	# 8.0.26 之后
-	plugin-load-add="rpl_semi_sync_source=semisync_source.so"
-	plugin-load-add="rpl_semi_sync_replica=semisync_replica.so"
+
+	# 在半同步配置完成后，把默认启用写入配置文件 
 	rpl_semi_sync_source_enabled=1
 
 	```
@@ -28,8 +27,10 @@
 
 	# 8.0 需要在 mysql initialization 之后 在写入配置, 不能直接修改配置后做为首次启动。
 	# 8.0.26 之后
-	plugin-load-add="rpl_semi_sync_source=semisync_source.so"
-	plugin-load-add="rpl_semi_sync_replica=semisync_replica.so"
+	~~plugin-load-add="rpl_semi_sync_source=semisync_source.so"~~
+	~~plugin-load-add="rpl_semi_sync_replica=semisync_replica.so"~~
+
+	# 在半同步配置完成后，把默认启用写入配置文件 
 	rpl_semi_sync_replica_enabled=1
 
 	```
@@ -52,10 +53,10 @@
 - 安装插件
 
 	```shell
-	mysql> INSTALL PLUGIN rpl_semi_sync_master soname 'semisync_master.so';
+	mysql> INSTALL PLUGIN rpl_semi_sync_master soname 'semisync_master.so'; #永久安装插件
 
 	#Or from MySQL 8.0.26:
-	mysql> install plugin rpl_semi_sync_replica soname 'semisync_replica.so';
+	mysql> install plugin rpl_semi_sync_replica soname 'semisync_replica.so'; #永久安装插件
 	```
 
 - 临时开启半同步功能(免重启立即生效)
@@ -72,9 +73,13 @@
 
 	```ini
 	[mysqld]
-	plugin-load-add="rpl_semi_sync_source=semisync_source.so"
-	plugin-load-add="rpl_semi_sync_replica=semisync_replica.so"
 
+	# 8.0.26 之后, 
+	#这不行，不能在初始化时添加插件
+	~~plugin-load-add="rpl_semi_sync_source=semisync_source.so"~~
+	~~plugin-load-add="rpl_semi_sync_replica=semisync_replica.so"~~
+
+	# 在半同步配置完成后，把默认启用写入配置文件 
 	#Or from MySQL 8.0.26 with the rpl_semi_sync_source plugin:
 	rpl_semi_sync_source_enabled=1
 
@@ -94,7 +99,7 @@
 
 	```shell
 	mysql> SET GLOBAL rpl_semi_sync_slave_enabled=1; #临时修改变量
-	# 8.0 之后 ？
+	# 8.0.26 之后 ？
 	mysql> SET GLOBAL rpl_semi_sync_replica=1; #临时修改变量
 	```
 
@@ -103,9 +108,7 @@
 	```ini
 	[mysqld]
 
-	plugin-load-add="rpl_semi_sync_source=semisync_source.so"
-	plugin-load-add="rpl_semi_sync_replica=semisync_replica.so"
-
+	# 在半同步配置完成后，把默认启用写入配置文件 
 	rpl_semi_sync_replica_enabled=1
 
 	# 添加或者修改，默认的超时是10s

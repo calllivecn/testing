@@ -69,8 +69,8 @@ def create_replication(master: Dict, replica: Dict, semi_sync: bool):
             print(f"""同步用户：{replica["user"]} 已经存在""")
         else:
             print("添加用户")
-            # rows = cursor.execute("""create user %s identified by %s;""", (replica["user"], replica["password"]))
-            rows = cursor.execute("""create user %s identified with 'mysql_native_password' by %s;""", (replica["user"], replica["password"]))
+            rows = cursor.execute("""create user %s identified by %s;""", (replica["user"], replica["password"]))
+            # rows = cursor.execute("""create user %s identified with 'mysql_native_password' by %s;""", (replica["user"], replica["password"]))
             print(f"{rows=}, {cursor.fetchone()}")
     except pymysql.err.Error as e:
         print(e)
@@ -197,7 +197,7 @@ def ops_slave(master: Dict, slave: Dict, replica: Dict, semi_sync: bool):
             replica_ok = False
             print("配置: change replication source to ... ")
             # rows = cursor.execute("""change master to master_host=%s,master_port=%s,master_user=%s,master_password=%s,master_auto_position=1;""", 
-            rows = cursor.execute("""change replication source to source_host=%s,source_port=%s,source_user=%s,source_password=%s,source_auto_position=1;""", 
+            rows = cursor.execute("""change replication source to source_host=%s,source_port=%s,source_user=%s,source_password=%s,source_auto_position=1,GET_SOURCE_PUBLIC_KEY=1;""", 
                 (master["host"], int(master["port"]), replica["user"], replica["password"],)
                 )
 
