@@ -223,6 +223,13 @@ Last_IO_Errno                 | 2061
 Last_IO_Error                 | Error connecting to source 'replica@mysql80-master:3306'. This was attempt 3/86400, with a delay of 60 seconds between attempts. Message: Authentication plugin 'caching_sha2_password' reported error: Authentication requires secure connection.
 ```
 
+	- 解决方式 在最后添加上: GET_SOURCE_PUBLIC_KEY=1
+	```sql
+    change replication source to source_host=%s,source_port=%s,source_user=%s,source_password=%s,source_auto_position=1,GET_SOURCE_PUBLIC_KEY=1;
+	```
+
+
+
 
 ## 8.0 初始化时 不能加载 插件 的问题
 
@@ -230,4 +237,4 @@ Last_IO_Error                 | Error connecting to source 'replica@mysql80-mast
 [Warning] [MY-013501] [Server] Ignoring --plugin-load[_add] list as the server is running with --initialize(-insecure).
 ```
 
-- 解决：在实例 initialize 之后，在添加 plugin-load-add=
+- 解决：在实例 initialize 之后，在添加 plugin-load-add。（当然也可以不添加到配置文件）
