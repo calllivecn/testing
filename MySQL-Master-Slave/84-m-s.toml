@@ -1,0 +1,23 @@
+[replica]
+# 同步使用的用户名和密码
+user="replica"
+password="mysql80"
+
+[master]
+host="mysql84-m"
+port=3306
+user="root"
+password="mysql80"
+
+[[slaves]]
+host="mysql84-s1"
+port=3306
+user="root"
+password="mysql80"
+
+[[slaves]]
+host="mysql84-s2"
+port=3306
+user="root"
+password="mysql80"
+
