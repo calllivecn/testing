@@ -25,6 +25,8 @@
 	# Group Replication configuration
 	#
 	plugin_load_add='group_replication.so'
+
+	# 每个节点的组名必须一样
 	group_replication_group_name="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 	group_replication_start_on_boot=off
 	group_replication_local_address="s2:33061"
@@ -53,10 +55,7 @@
 
 	```sql
 	mysql> CREATE USER mgr_user@'%' IDENTIFIED BY 'password';
-	mysql> GRANT REPLICATION SLAVE ON *.* TO mgr_user@'%';
-	mysql> GRANT CONNECTION_ADMIN ON *.* TO mgr_user@'%';
-	mysql> GRANT BACKUP_ADMIN ON *.* TO mgr_user@'%';
-	mysql> GRANT GROUP_REPLICATION_STREAM ON *.* TO mgr_user@'%';
+	mysql> GRANT REPLICATION SLAVE,CONNECTION_ADMIN,BACKUP_ADMIN,GROUP_REPLICATION_STREAM ON *.* TO mgr_user@'%';
 	mysql> FLUSH PRIVILEGES;
 	```
 
@@ -176,10 +175,7 @@
 	```sql
 	SET SQL_LOG_BIN=0;
 	CREATE USER mgr_user@'%' IDENTIFIED BY 'password';
-	GRANT REPLICATION SLAVE ON *.* TO mgr_user@'%';
-	GRANT CONNECTION_ADMIN ON *.* TO mgr_user@'%';
-	GRANT BACKUP_ADMIN ON *.* TO mgr_user@'%';
-	GRANT GROUP_REPLICATION_STREAM ON *.* TO mgr_user@'%';
+	GRANT REPLICATION SLAVE,CONNECTION_ADMIN,BACKUP_ADMIN,GROUP_REPLICATION_STREAM ON *.* TO mgr_user@'%';
 	FLUSH PRIVILEGES;
 	SET SQL_LOG_BIN=1;
 	```
@@ -187,8 +183,7 @@
 	- 如果您使用CHANGE REPLICATION SOURCE TO提供用户凭据，请在此之后发出以下语句：
   
 	```sql
-	CHANGE REPLICATION SOURCE TO SOURCE_USER='mgr_user', SOURCE_PASSWORD='password' \
-	FOR CHANNEL 'group_replication_recovery';
+	CHANGE REPLICATION SOURCE TO SOURCE_USER='mgr_user', SOURCE_PASSWORD='password' FOR CHANNEL 'group_replication_recovery';
 	```
 
 	- *如有必要，请安装组复制插件*
