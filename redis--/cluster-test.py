@@ -130,7 +130,7 @@ def main():
         usage="%(prog)s <--read|--write count>"
     )
 
-    parse.add_argument("--password", action="store", help="集群的密码")
+    parse.add_argument("--password", action="store", default=None, help="集群的密码")
     parse.add_argument("--host", action="store", help="集群的地址: ip:port")
     parse.add_argument("--port", action="store", type=int, default=6379, help="集群的地址: ip:port")
 
