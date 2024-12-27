@@ -77,6 +77,6 @@ def mandelbrot(n):
 
 if __name__ == '__main__':
     """
-    python $0 1000x1000 > 1000.pbm
+    python $0 1000 > 1000.pbm
     """
     mandelbrot(int(argv[1]))
