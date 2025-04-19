@@ -7,6 +7,5 @@ import pprint
 
 import av
 
-
 pprint.pprint(av.library_versions)
 
