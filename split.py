@@ -41,7 +41,7 @@ def split_by_bytes(infile, prefix, bytes_per_file, verbose):
     bytes_written_current_file = 0
     outfile = None
 
-    blocksize = 1<<20 # 1MB
+    blocksize = min(1 << 20, bytes_per_file)  # 动态调整 blocksize，确保不超过 bytes_per_file
 
     in_stream = sys.stdin.buffer if infile == '-' else open(infile, 'rb')
 
@@ -52,24 +52,25 @@ def split_by_bytes(infile, prefix, bytes_per_file, verbose):
             if not chunk:
                 break  # 读取到文件末尾
 
-            # 如果当前文件未打开或已达到指定大小，则创建新文件
-            if outfile is None or bytes_written_current_file >= bytes_per_file:
-                if outfile:
-                    outfile.close()
-                out_filename = f"{prefix}.{file_count}"
-                if verbose:
-                    print(f"Creating file '{out_filename}'")
-                outfile = open(out_filename, 'wb')
-                file_count += 1
-                bytes_written_current_file = 0
+            while chunk:  # 确保 chunk 被完全处理
+                # 如果当前文件未打开或已达到指定大小，则创建新文件
+                if outfile is None or bytes_written_current_file >= bytes_per_file:
+                    if outfile:
+                        outfile.close()
+                    out_filename = f"{prefix}.{file_count}"  # 使用零填充的编号
+                    if verbose:
+                        print(f"Creating file '{out_filename}'")
+                    outfile = open(out_filename, 'wb')
+                    file_count += 1
+                    bytes_written_current_file = 0
 
-            # 写入数据到当前文件
-            write_size = min(len(chunk), bytes_per_file - bytes_written_current_file)
-            outfile.write(chunk[:write_size])
-            bytes_written_current_file += write_size
+                # 写入数据到当前文件
+                write_size = min(len(chunk), bytes_per_file - bytes_written_current_file)
+                outfile.write(chunk[:write_size])
+                bytes_written_current_file += write_size
 
-            # 如果当前块未完全写入，则将剩余部分保留到下一轮
-            chunk = chunk[write_size:]
+                # 如果当前块未完全写入，则将剩余部分保留到下一轮
+                chunk = chunk[write_size:]
 
     finally:
         if outfile:
