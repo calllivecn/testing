@@ -86,25 +86,34 @@ class FileSplitterMerger:
 
         return 0
 
-    def merge(self, prefix, output_file=None):
+    def merge(self, input, prefix, output=None):
         """将具有指定前缀的多个文件合并为一个文件。"""
 
-        out_stream = sys.stdout.buffer if output_file is None else open(output_file, 'wb')
+        out_stream = sys.stdout.buffer if output is None else open(output, 'wb')
 
         try:
             file_generator = self.__file_generator(prefix)
             while True:
-                file = next(file_generator)
+                filename = next(file_generator)
+
+                file = Path(input) / filename
+
+                if not file.exists():
+                    print(f"{file}: 文件不存在，停止合并。")
+                    return 0
+
                 if self.verbose:
                     print(f"正在合并文件 '{file}'")
+
                 with open(file, 'rb') as infile:
                     while chunk := infile.read(CHUNK_SIZE):  # 每次读取 8KB
                         out_stream.write(chunk)
+
         except Exception as e:
             print(f"debug: {e}", file=sys.stderr)
 
         finally:
-            if output_file is not None:
+            if output is not None:
                 out_stream.close()
 
     def __file_generator(self, prefix):
@@ -115,35 +124,31 @@ class FileSplitterMerger:
             if self.verbose:
                 print(f"检查文件 '{file_name}'")
 
-            if not file_name.exists():
-                raise ValueError(f"{file_name}: 文件不存在，停止合并。")
-
             yield file_name
             index += 1
 
 
 def main():
     parser = argparse.ArgumentParser(description="将文件拆分为多个部分或合并文件。模仿 GNU split 的某些功能。")
-    parser.add_argument('input', nargs='?', default='-',
-                        help="输入文件（默认：标准输入，用 '-' 表示）")
-    parser.add_argument('prefix', nargs='?', default='data',
-                        help="输出文件名的前缀（默认：'data'）")
-
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-b', '--bytes', type=str, default="512M",
                        help="每个输出文件的字节数（例如 10K、1M、500）。后缀：K,M,G,T,P（1024 的幂）")
+
     group.add_argument('-m', '--merge', action='store_true',
                        help="将具有指定前缀的文件合并为一个文件。")
-
-    parser.add_argument('--separator', default='\n',
-                        help="行分隔符字符（默认：换行符）。使用 '\\0' 表示 NULL。")
 
     parser.add_argument('-v', '--verbose', action='store_true',
                         help="在每个输出文件打开之前打印诊断信息到标准错误。")
 
+    parser.add_argument('--prefix', default='data',
+                        help="输出文件名的前缀（默认：'data'）")
+
     parser.add_argument('-o', '--output', type=str,
-                        help="合并操作的输出文件（默认：标准输出）。")
+                        help="切割操作： 输出目录，合并操作: 输出文件（或者：标准输出）。")
         
+    parser.add_argument('input', nargs='?', default='-',
+                        help="切割时：输入文件 或者 合并时输入目录路径（默认：标准输入, 也可用'-'表示。）")
+
     parser.add_argument('--parse', action='store_true',
                         help=argparse.SUPPRESS)
 
@@ -158,8 +163,7 @@ def main():
 
     try:
         if args.merge:
-            # splitter_merger.merge(args.prefix, args.output)
-            splitter_merger.merge(args.input, args.output)
+            splitter_merger.merge(args.input, args.prefix, args.output)
         else:
             byte_size = parse_size(args.bytes)
             if byte_size <= 0:
