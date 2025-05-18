@@ -1,3 +1,7 @@
+"""
+测试成功，但是，窗口如果是不是当前焦点。件事发送过来。窗口应用也不会执行。
+"""
+
 import win32gui
 import win32api
 import win32con
@@ -432,7 +436,42 @@ class WindowMessenger:
         print(f"在当前鼠标位置 ({screen_x},{screen_y}) (客户区: {client_x},{client_y}) 对窗口 {self.hwnd} 发送左键点击...")
         return self.send_lbutton_click(client_x, client_y, delay, flags)
 
+
     # 您可以类似地添加 send_rbutton_click_current 等方法
+    def send_rbutton_click_current(self, delay=0.05, flags=0):
+        """
+        在当前鼠标指针位置对目标窗口发送左键点击。
+        首先获取当前鼠标位置，然后转换为窗口客户区坐标再发送消息。
+
+        Args:
+            delay: 按下和抬起之间的延迟时间 (秒)。
+            flags: 修饰键状态。
+
+        Returns:
+            发送成功返回 True，否则返回 False。
+        """
+        if not self._is_handle_valid():
+            return False
+
+        # 1. 获取当前鼠标屏幕坐标
+        try:
+            screen_x, screen_y = win32api.GetCursorPos()
+        except Exception as e:
+            print(f"错误: 无法获取当前鼠标位置 - {e}")
+            return False
+
+        # 2. 将屏幕坐标转换为目标窗口的客户区坐标
+        try:
+            client_x, client_y = win32gui.ScreenToClient(self.hwnd, (screen_x, screen_y))
+        except Exception as e:
+             print(f"错误: 无法将屏幕坐标 ({screen_x},{screen_y}) 转换为窗口 {self.hwnd} 的客户区坐标 - {e}")
+             return False
+
+
+        # 3. 使用客户区坐标发送点击消息
+        print(f"在当前鼠标位置 ({screen_x},{screen_y}) (客户区: {client_x},{client_y}) 对窗口 {self.hwnd} 发送右键点击...")
+        return self.send_rbutton_click(client_x, client_y, delay, flags)
+
 
 # --- 您可以类似地添加 send_mbutton_down/up/click 方法 ---
 # wm_mbuttondown = win32con.WM_MBUTTONDOWN
@@ -458,7 +497,11 @@ if __name__ == "__main__":
     hwnd = win32gui.GetForegroundWindow()
     if not hwnd:
         raise RuntimeError("无法获取前台窗口句柄，请确保窗口已激活。")
+
     print(f"已选择窗口: {win32gui.GetWindowText(hwnd)}")
+
+    print(f"3秒后开始执行")
+    time.sleep(3)
 
 
     if hwnd:
@@ -468,16 +511,21 @@ if __name__ == "__main__":
 
             print("\n--- 键盘事件示例 ---")
 
-            # 发送 'H' 键
+            messenger.send_key_by_name('Escape')
+            time.sleep(0.5)
+
             print("发送 'H' 键...")
-            messenger.send_key_by_name('H')
+            messenger.send_key_by_name('7')
             time.sleep(0.5)
 
-            messenger.send_key_by_name('B')
+            messenger.send_rbutton_click_current()
             time.sleep(0.5)
 
-            messenger.send_key_by_name('Enter')
-            time.sleep(0.5)
+            #messenger.send_key_by_name('7')
+            #time.sleep(0.5)
+
+            #messenger.send_key_by_name('Enter')
+            #time.sleep(0.5)
             sys.exit(0)
 
             # 发送 'ello World!' 字符 (注意：这需要应用程序能响应低级键消息)

@@ -19,6 +19,7 @@ def capture_window(hwnd: int, include_border: bool = True) -> Image.Image:
     # 获取窗口尺寸
     left, top, right, bottom = win32gui.GetWindowRect(hwnd)
     width, height = right - left, bottom - top
+    print(f"当前窗口，客户区大小：{width}x{height}")
 
     # 获取窗口 DC，使用 GetDCEx 支持更多场景
     hwnd_dc = win32gui.GetDC(hwnd)

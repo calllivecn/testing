@@ -11,7 +11,7 @@ import time
 
 
 # 交互式焦点选择
-countdown = 5
+countdown = 3
 print("--- 交互模式：请在倒计时结束前切换目标窗口 ---")
 for i in range(countdown, 0, -1):
     print(f"{i} 秒后截图...", end='\r')
