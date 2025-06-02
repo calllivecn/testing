@@ -6,6 +6,7 @@
 
 import sys
 import queue
+import pprint
 
 
 import av
@@ -21,7 +22,28 @@ def print_dict(obj):
         if not proerty.startswith("__"):
             print(f"{proerty}:{getattr(obj, proerty)}")
 
-print_dict(in_v)
+def get_attr(obj):
+    """
+    获取对象的所有公共属性及其对应的值。
+    
+    参数:
+    obj (object): 要检查的对象
+    
+    返回:
+    dict: 包含对象所有公共属性及其对应值的字典
+    """
+    attributes = {}
+    for attr in dir(obj):
+        if not attr.startswith('_'):  # 过滤掉私有属性和特殊方法
+            value = getattr(obj, attr)
+            if callable(value):  # 过滤掉方法
+                attributes[attr] = type(value)
+            else:
+                attributes[attr] = value
+    #return attributes
+    pprint.pprint(attributes)
+
+get_attr(in_v)
 print("-"*40)
 
 for i, packet in enumerate(in_v.demux()):
@@ -36,9 +58,11 @@ for i, packet in enumerate(in_v.demux()):
 
         match packet.stream.type:
             case "video":
-                print(f"video: keyframe:{packet.is_keyframe} {packet.dts=}  {packet.pts=}")
+                #print(f"video: keyframe:{packet.is_keyframe} {packet.dts=}  {packet.pts=}")
+                get_attr(packet)
             case "audio":
-                print(f"audio: keyframe:{packet.is_keyframe} {packet.dts=}  {packet.pts=}")
+                #print(f"audio: keyframe:{packet.is_keyframe} {packet.dts=}  {packet.pts=}")
+                get_attr(packet)
 
             case _:
                 print(f"未知类型: {packet=}")
