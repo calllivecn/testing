@@ -8,10 +8,17 @@
 # 1. convert-img t.pbm t.{webp|jpg}
 # 2. 使用图片工具查看
 
+# 添加上 线程池版本（在frethread下测试, ok）
+
 from os import cpu_count
-from sys import argv, stdout
+from sys import argv, stdout, stderr
 from itertools import islice
 from contextlib import closing
+from concurrent.futures import (
+    ThreadPoolExecutor,
+    ProcessPoolExecutor,
+)
+
 
 def pixels(y, n, abs):
     range7 = bytearray(range(7))
@@ -58,14 +65,12 @@ def ordered_rows(rows, n):
 
 def compute_rows(n, f):
     row_jobs = ((y, n) for y in range(n))
-
-    if cpu_count() < 2:
-        yield from map(f, row_jobs)
-    else:
-        from multiprocessing import Pool
-        with Pool() as pool:
-            unordered_rows = pool.imap_unordered(f, row_jobs)
-            yield from ordered_rows(unordered_rows, n)
+    # 添加进程池和线程池。
+    #with ThreadPoolExecutor(max_workers=cpu_count()) as executor:
+    #with ProcessPoolExecutor(max_workers=cpu_count()) as executor:
+    with PoolExecutor(max_workers=cpu_count()) as executor:
+        unordered_rows = executor.map(f, row_jobs)
+        yield from ordered_rows(unordered_rows, n)
 
 def mandelbrot(n):
     write = stdout.buffer.write
@@ -75,8 +80,23 @@ def mandelbrot(n):
         for row in rows:
             write(row[1])
 
+PoolExecutor = ProcessPoolExecutor
+
 if __name__ == '__main__':
     """
     python $0 1000 > 1000.pbm
     """
+    try:
+        if argv[2] == "--thread":
+            print("使用线程池版本...", file=stderr)
+            PoolExecutor = ThreadPoolExecutor
+        elif argv[2] == "--process":
+            print("使用进程池版本...", file=stderr)
+            #PoolExecutor = ProcessPoolExecutor
+        else:
+            print("使用进程池版本...", file=stderr)
+
+    except IndexError:
+        print("使用进程池版本...", file=stderr)
+
     mandelbrot(int(argv[1]))
