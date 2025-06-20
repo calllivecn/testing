@@ -32,13 +32,35 @@ class B:
 
 class C(A, B):
 
-    def __init__(self, arga, argb):
-        super().__init__(arga)
-        self.argB = argb
+    def __init__(self, arga, argb, argc="这是C类的默认参数"):
+        #super().__init__(arga)
+        #self.argB = argb
 
         # 这样会执行多次 __init__()
         #super(A, self).__init__(arga)
         #super(B, self).__init__(argb)
+
+        # 由于不能修改 A 和 B 的定义，为了让代码能够运行并清晰地展示，
+        # 使用第二种方法：显式调用父类 __init__。
+        # 但请记住，如果可以修改父类，让它们支持 **kwargs 并使用 super() 链式调用是更优的。
+
+        # -----------------------------------------------------------
+        # 正式推荐的写法 (假设 A 和 B 已修改，可以处理 **kwargs)
+        # -----------------------------------------------------------
+        # super().__init__(name_a=name_a, name_b=name_b)
+        # self.name_c = name_c
+        # print(f"初始化 C: {self.name_c}")
+        # print(f"C 的 MRO: {C.__mro__}")
+
+
+        # -----------------------------------------------------------
+        # 为了演示目的，且不修改 A, B 的定义，我们使用显式调用方式
+        # -----------------------------------------------------------
+        A.__init__(self, arga)
+        B.__init__(self, argb)
+        self.argc = argc
+        print(f"初始化 C: {self.argc}")
+        print(f"C 的 MRO: {C.__mro__}")
 
 
 print(f"MRO: {C.__mro__}")
@@ -57,4 +79,5 @@ d = D("argD")
 
 d.print()
 d.show()
+
 
