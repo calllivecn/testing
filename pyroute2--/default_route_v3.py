@@ -43,3 +43,5 @@ for addr in addresses:
     if is_mngtmpaddr:
         print(f"找到符合条件的地址：{ipv6}")
 
+
+ip.close()
