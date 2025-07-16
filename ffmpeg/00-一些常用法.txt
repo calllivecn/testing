@@ -65,4 +65,65 @@ ffmpeg -h encoder=libx264
 ffmpeg -f pulse -i default -af "agate=threshold=0.1:attack=100:release=1000" -acodec libmp3lame -t 30s -y test-a.mp3
 
 
+## 无损压缩
+
+- libx265
+
+ffmpeg -i input.mp4 -c:v libx265 -x265-params lossless=1 -c:a copy output.mp4
+
+- hevc_nvenc
+
+```python
+ffmpeg_command = [
+    'ffmpeg',
+    '-hwaccel', 'cuda',  # 启用CUDA硬件加速
+    '-hwaccel_output_format', 'cuda',  # 指定硬件加速的输出格式
+    '-c:v', 'h264_cuvid',  # 使用NVIDIA的硬件解码器进行H.264解码
+    '-i', input_file,  # 输入文件
+    '-vf', 'scale_cuda=1280:720',  # 使用NVIDIA硬件加速进行分辨率缩放
+    '-c:v', 'hevc_nvenc',  # 使用NVIDIA的硬件编码器进行HEVC编码
+    '-preset', 'slow',  # 编码预设，较慢的速度通常意味着更好的压缩，提高输出质量
+    '-rc', 'vbr',  # 可变比特率控制
+    '-cq', '0',  # 设置恒定质量因子为0以启用无损模式
+    '-b:v', '0',  # 平均比特率设置为0，因为我们在使用恒定质量模式
+    '-c:a', 'copy',  # 音频复制，不转码
+    output_file  # 输出文件
+]
+```
+注意在上述脚本中，-cq 0 是用来指定无损模式的，而在hevc_nvenc中，这表示启用无损压缩2。
+
+另外，如果你希望使用HM（HEVC Test Model）工具来进行无损压缩，可以通过命令行参数--TransquantBypassEnable=1和--CUTransquantBypassFlagForce=1来实现
+
+
+## 需要在画面质量和源视频一样的前提下。尽可能的减小文件大小
+
+```shell
+ffmpeg -i A.mp4 \
+       -map 0 \
+       -c:v libx265 \
+       -crf 24 \
+       -preset slow \
+       -c:a copy \
+       A.mkv
+```
+
+-crf 24: 这是 最核心的参数。
+
+CRF 代表 Constant Rate Factor (恒定速率因子)。这是一种控制视频质量的模式。它不会去适配某个特定的比特率，而是尝试在整个视频中维持一个恒定的“感知质量”。编码器会根据画面的复杂度动态调整比特率：对于复杂的动态画面（如爆炸、水花），分配更高的比特率；对于静态画面（如风景、对话），分配更低的比特率。
+
+这完美符合你的需求：“保持画面质量”。
+
+对于 libx265，CRF 的取值范围是 0-51，数值越小，质量越高，文件越大。
+
+0 是无损的（但文件巨大，通常没必要）。
+
+~18 通常被认为是视觉上几乎无损的。
+
+22-28 是一个非常常用的范围，能在质量和文件大小之间取得极佳的平衡。24 是一个非常可靠的、质量不错的起点。
+
+-preset slow: 这个参数控制编码速度和压缩效率的平衡。
+
+可用的预设包括 ultrafast, superfast, veryfast, faster, fast, medium (默认), slow, slower, veryslow。
+
+preset 越慢，编码器就会花费越多的时间去分析视频帧，寻找更好的压缩方法。这意味着在 相同的CRF值（即相同的质量）下，使用更慢的 preset 会得到更小的文件。
 
