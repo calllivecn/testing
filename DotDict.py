@@ -107,3 +107,33 @@ dd2.k4 = list(range(5))
 print(dd2)
 
 print(dd2.dumps(ensure_ascii=False))
+
+
+print("从2层深度加载")
+
+js="""
+{
+    "l1_k1": "这是第一层",
+    "l1_k2": "还是1层",
+    "l1_k3": {
+        "l2_k1": "这是第二层",
+        "l2_k2": 123456
+    }
+}
+"""
+
+print(f"原来的json: {json.loads(js)}")
+
+dd3 = DotDict()
+dd3.loads(js)
+
+print(f"{dd3.l1_k1=}")
+print(f"{dd3.l1_k3.l2_k1=}")
+print(f"{dd3.l1_k3.l2_k9=}")
+
+print(dd3.dumps(ensure_ascii=False))
+
+# 这个就会报错:
+# AttributeError: 'NoneType' object has no attribute 'l2_k9'
+print(f"{dd3.l1_k4.l2_k9=}")
+
