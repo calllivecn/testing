@@ -30,7 +30,7 @@ if default_iface:
     for addr in ip.get_addr(label=default_iface, family=socket.AF_INET6):
         print(f"debug: {addr=}")
         address = addr.get_attr('IFA_ADDRESS')
-        flags = addr['flags']  # 直接用 flags 字段
+        flags = addr.get_attr('IFA_FLAGS')
         is_dynamic = bool(flags & 0x02)
         is_mngtmpaddr = bool(flags & 0x100)
 

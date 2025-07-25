@@ -36,7 +36,8 @@ addresses = ip.get_addr(index=default_oif, family=socket.AF_INET6)
 # 检查是否有带 mngtmpaddr 标志的地址
 for addr in addresses:
     ipv6 = addr.get_attr("IFA_ADDRESS")
-    flags = addr.get("flags", 0)
+    #flags = addr.get_attr("flags")
+    flags = addr["flags"]
     print(f"IPv6 地址：{ipv6}, flags: {flags:#x}")  # 16 进制输出更方便比对
 
     is_dynamic = bool(flags & IFA_F_DYNAMIC)
@@ -45,11 +46,11 @@ for addr in addresses:
     is_tentative = bool(flags & IFA_F_TENTATIVE)
 
     if is_tentative:
-        print(f"地址 {ipv6} 是 tentative 状态，可能正在进行重复地址检测（DAD）。稍后在试。")
+        print(f"\t地址 {ipv6} 是 tentative 状态，可能正在进行重复地址检测（DAD）。稍后在试。")
         break
 
     if is_mngtmpaddr:
-        print(f"找到符合条件的地址：{ipv6}")
-
+        print(f"\t找到符合条件的地址：{ipv6}")
 
 ip.close()
+

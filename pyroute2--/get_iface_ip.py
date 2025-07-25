@@ -19,7 +19,7 @@ if default_iface:
     # 获取该接口所有IPv6地址
     for addr in ip.get_addr(index=index, family=10):
         ipv6 = addr.get_attr('IFA_ADDRESS')
-        flags = addr['flags']  # 直接用 flags 字段
+        flags = addr.get_attr('IFA_FLAGS')
 
         print(f"IPv6 地址：{ipv6}, flags: {flags:#x}")  # 16 进制输出更方便比对
 
@@ -28,9 +28,10 @@ if default_iface:
         is_permanent = bool(flags & 0x80)
 
         if is_mngtmpaddr:
-            print(f"找到mngtmpaddr 地址: {ipv6}")
+            print(f"\t找到mngtmpaddr 地址: {ipv6}")
+
         if is_permanent:
-            print(f"找到permanent 地址: {ipv6}")
+            print(f"\t找到permanent 地址: {ipv6}")
 else:
     print("未找到默认 IPv6 出口接口。")
 
