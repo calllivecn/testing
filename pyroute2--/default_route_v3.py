@@ -36,8 +36,7 @@ addresses = ip.get_addr(index=default_oif, family=socket.AF_INET6)
 # 检查是否有带 mngtmpaddr 标志的地址
 for addr in addresses:
     ipv6 = addr.get_attr("IFA_ADDRESS")
-    #flags = addr.get_attr("flags")
-    flags = addr["flags"]
+    flags = addr.get_attr("IFA_FLAGS")
     print(f"IPv6 地址：{ipv6}, flags: {flags:#x}")  # 16 进制输出更方便比对
 
     is_dynamic = bool(flags & IFA_F_DYNAMIC)
