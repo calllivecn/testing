@@ -34,7 +34,7 @@ if default_iface:
         is_dynamic = bool(flags & 0x02)
         is_mngtmpaddr = bool(flags & 0x100)
 
-        if is_dynamic and is_mngtmpaddr:
+        if is_mngtmpaddr:
             print(f"找到 dynamic mngtmpaddr 地址: {address}")
 else:
     print("未找到默认 IPv6 出口接口。")
