@@ -69,7 +69,9 @@ ffmpeg -f pulse -i default -af "agate=threshold=0.1:attack=100:release=1000" -ac
 
 - libx265
 
+```shell
 ffmpeg -i input.mp4 -c:v libx265 -x265-params lossless=1 -c:a copy output.mp4
+```
 
 - hevc_nvenc
 
@@ -78,15 +80,15 @@ ffmpeg_command = [
     'ffmpeg',
     '-hwaccel', 'cuda',  # 启用CUDA硬件加速
     '-hwaccel_output_format', 'cuda',  # 指定硬件加速的输出格式
-    '-c:v', 'h264_cuvid',  # 使用NVIDIA的硬件解码器进行H.264解码
+    '-vcodec', 'h264_cuvid',  # 使用NVIDIA的硬件解码器进行H.264解码
     '-i', input_file,  # 输入文件
     '-vf', 'scale_cuda=1280:720',  # 使用NVIDIA硬件加速进行分辨率缩放
-    '-c:v', 'hevc_nvenc',  # 使用NVIDIA的硬件编码器进行HEVC编码
+    '-vcodec', 'hevc_nvenc',  # 使用NVIDIA的硬件编码器进行HEVC编码
     '-preset', 'slow',  # 编码预设，较慢的速度通常意味着更好的压缩，提高输出质量
     '-rc', 'vbr',  # 可变比特率控制
     '-cq', '0',  # 设置恒定质量因子为0以启用无损模式
     '-b:v', '0',  # 平均比特率设置为0，因为我们在使用恒定质量模式
-    '-c:a', 'copy',  # 音频复制，不转码
+    '-acodec', 'copy',  # 音频复制，不转码
     output_file  # 输出文件
 ]
 ```
