@@ -8,7 +8,7 @@ import numpy as np
 import av
 
 
-duration = 10
+duration = 20
 fps = 30
 total_frames = duration * fps
 
@@ -23,9 +23,9 @@ metadata['author'] = '我是作者'
 metadata['comment'] = 'This is a test'
 
 # stream = container.add_stream("mpeg4", rate=fps)
-stream = container.add_stream("libx265", rate=fps)
+#stream = container.add_stream("libx265", rate=fps)
 
-# ~~stream = container.add_stream("hevc_nvenc", rate=fps)~~
+stream = container.add_stream("hevc_nvenc", rate=fps)
 
 #stream.width = 480
 #stream.height = 320
