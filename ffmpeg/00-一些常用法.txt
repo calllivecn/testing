@@ -55,8 +55,52 @@ ffmpeg -i 1.mp4 -ss 0:0:29 -t 0:0:8 -r 16 -f image2 ./test/0_%05d.jpg
 - 5 转换成黑白视频 (使用nvidia gpu, 解码和编码都在GPU上。) 在编码器支持的情况下使用 -pix_fmt yuv400 
 ffmpeg [-hwaccel cuvid] [-hwaccel_output_format cuda] -i input.mp4 -vf hue=s=0 -codec hevc_nvenc output.mp4
 
+---
 
-- 6 使用 intel 核显
+# 6. 使用 intel 核显
+
+## 检测硬件解码
+- ffmpeg -hwaccel vaapi -hwaccel_output_format vaapi -vaapi_device /dev/dri/renderD128 -i input.mkv -f null - >/dev/null
+
+## 编码时使用*_vaapi (hevc_vaapi, h264_vaapi)
+- ffmpeg -hwaccel vaapi -hwaccel_output_format vaapi -vaapi_device /dev/dri/renderD128 -i input.mkv -f null -vcodec h264_vaapi -acodec copy - >/dev/null
+
+## 使用QSV
+
+- QSV 使用的编解码器名字：
+
+```text
+解码：h264_qsv、hevc_qsv、mpeg2_qsv、vc1_qsv
+
+编码：h264_qsv、hevc_qsv、mpeg2_qsv、vp9_qsv（取决于硬件和驱动）
+
+调用方式：QSV 不像 VAAPI 那样要 -vaapi_device，它只需要 -hwaccel qsv，然后直接指定 QSV 解码器或编码器。
+```
+
+
+### 📌 注意事项：
+
+- QSV 在 ffmpeg 编译时必须带 --enable-libmfx 或 --enable-onevpl，否则命令不可用。
+
+- 比 VAAPI 更适合转码场景，因为 QSV 支持 zero-copy pipeline（解码后直接交给编码，不走系统内存）。
+
+- 在 vainfo 看不到 QSV 的支持，因为它不是 VAAPI，而是 MediaSDK / oneVPL 的接口。
+
+```shell
+# 示例 1：QSV 解码 + 丢弃输出（测试解码是否成功）
+ffmpeg -hwaccel qsv -c:v h264_qsv -i input.mp4 -f null -
+
+# 示例 2：QSV 解码 + 软件编码
+ffmpeg -hwaccel qsv -c:v h264_qsv -i input.mp4 -c:v libx264 output.mp4
+
+# 示例 3：QSV 解码 + QSV 编码（全硬件链路）
+ffmpeg -hwaccel qsv -c:v h264_qsv -i input.mp4 -c:v hevc_qsv -b:v 5M output.mp4
+
+```
+
+
+---
+
 
 
 - 7. 查看指定编码器的参数  ffmpeg -h encoder=编码器名称
