@@ -24,7 +24,7 @@
 import os
 import sys
 import enum
-import errno
+# import errno
 import ctypes
 # import selectors
 
@@ -32,16 +32,13 @@ from ctypes import util
 from pathlib import Path
 
 from typing import (
-    List,
-    Tuple,
-    Dict,
     Union,
 )
 
 __all__ = (
     "IN_ALL_EVENTS",
     "E",
-    "Notify",
+    "INotify",
 )
 
 class E(enum.IntEnum):
@@ -120,6 +117,7 @@ class INotify:
         self._rm_watch.argtypes = [ctypes.c_int, ctypes.c_uint32]
 
         """
+        # 直接使用 os.read() 读取数据也是可以的
         self._read = self._libc.read
         self._read.restype = ctypes.c_ssize_t
         # self._read.restype = ctypes.POINTER(Event)
@@ -129,18 +127,18 @@ class INotify:
         self.fd = self._init()
 
         if self.fd == -1:
-            raise OSError(f"inotify_init() errno: {errno.errno}")
+            raise OSError(f"inotify_init() errno: {ctypes.get_errno()}")
         
         # 已经 watch 的路径
-        self.wd: Dict[int, Path] = {}
-        self.path2wd: Dict[Path, int] = {}
+        self.wd: dict[int, Path] = {}
+        self.path2wd: dict[Path, int] = {}
 
         # 如果是递归模式
         self._recursive = False
-        self.mask: Union[int, None] = None
+        self.mask: int
     
 
-    def inotify_add_watch(self, path: Union[Path, str], mask: int):
+    def inotify_add_watch(self, path: Path|str, mask: int):
 
         if isinstance(path, str):
             path_ptr = ctypes.create_string_buffer(path.encode("utf-8"))
@@ -150,7 +148,7 @@ class INotify:
             path_ptr = ctypes.create_string_buffer(str(path).encode("utf-8"))
 
         else:
-            raise TypeError("argument path: Union[Path, str]")
+            raise TypeError("argument path: [Path|str]")
 
         wd = self._add_watch(self.fd, path_ptr, mask)
 
@@ -167,27 +165,26 @@ class INotify:
             return -1
     
 
-    def __read1(self) -> Tuple[bytes, int]:
-        buf = ctypes.create_string_buffer(4096)
-        buf_len = 4096
-        nbytes = self._read(self.fd, buf, buf_len)
-
-        return buf, nbytes
-
-
-    def __read2(self) -> Tuple[bytes, int]:
+    def __read2(self) -> tuple[bytes, int]:
+        """
+        def __read1(self) -> tuple[bytes, int]:
+            buf = ctypes.create_string_buffer(4096)
+            buf_len = 4096
+            nbytes = self._read(self.fd, buf, buf_len)
+            return buf, nbytes
+        """
         buf = os.read(self.fd, 4096)
         nbytes = len(buf)
         return buf, nbytes
     
 
-    def read(self) -> List[Tuple[Event, str]]:
+    def read(self) -> list[tuple[Event, str]]:
 
         # buf, nbytes = self.__read1()
         buf, nbytes = self.__read2()
 
         if nbytes == -1:
-            raise OSError(f"inotify read() errno: {errno.errno}")
+            raise OSError(f"inotify read() errno: {ctypes.get_errno()}")
 
         e_size = ctypes.sizeof(Event) # 16byte
         es = []
@@ -230,20 +227,18 @@ class INotify:
         return es
     
 
-    def inotify_add_watch_recursive(self, path: Union[Path, str], mask: int):
+    def inotify_add_watch_recursive(self, path: Path, mask: int):
 
         self._recursive = True
         self.mask = mask
 
         if path.is_dir():
             self.inotify_add_watch(path, mask)
-            # print(f"添加监控目录：{path}")
 
         for dirpath, dirnames, filenames in os.walk(path):
             for dir2 in dirnames:
                 path2 = Path(dirpath) / dir2
                 self.inotify_add_watch(path2, mask)
-                # print(f"添加监控目录：{path2}")
 
 
     def close(self):
@@ -265,18 +260,16 @@ class INotify:
         self.wd[wd] = path
         self.path2wd[path] = wd
     
-    def __del_wd(self, wp: Union[Path, int]):
+    def __del_wd(self, wp: Path|int):
         if isinstance(wp, Path):
-            wd = self.path2wd[wp]
-            self.path2wd.pop(wd)
-            self.wd.pop(wp)
+            wd = self.path2wd.pop(wp)
+            self.wd.pop(wd)
 
         elif isinstance(wp, int):
-            path = self.wd[wp]
-            self.path2wd.pop(path)
-            self.wd.pop(wp)
+            wd = self.wd.pop(wp)
+            self.path2wd.pop(wd)
 
-    def __event_merge(self, mask) -> Tuple[Event]:
+    def __event_merge(self, mask) -> tuple[Event]:
         events = []
         for e in E:
             if mask & e:
@@ -356,7 +349,18 @@ def test2():
                 print(f"{name=}, {e}")
 
 
+def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="inotify test")
+    parser.add_argument("-r", "--recursive", action="store_true", help="递归监控的目录")
+    parser.add_argument("-e", "--event", action="store", help="要监控的事件，多个事件用|分隔，默认监控所有事件", default="IN_ALL_EVENTS")
+
+    parser.add_argument("path", type=Path, help="监控的目录或文件")
+    args = parser.parse_args()
+
+
 if __name__ == "__main__":
     # tail(sys.argv[1])
     # test1()
     test2()
+    # main()
