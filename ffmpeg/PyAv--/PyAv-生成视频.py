@@ -34,6 +34,11 @@ stream.width = 1920
 stream.height = 1080
 stream.pix_fmt = "yuv420p"
 
+stream.codec_context.options = {
+    #"crf": "22",
+    "rc": "constqp",
+}
+
 # 使用多线程编码? 解码时这么用
 # container.streams.video[0].thread_type = "AUTO"
 
@@ -56,10 +61,6 @@ try:
 
             for packet in stream.encode(frame):
                 container.mux(packet)
-
-            # packet = stream.encode(frame)
-            # container.mux(packet)
-
 
 except KeyboardInterrupt:
     print("停止生成")

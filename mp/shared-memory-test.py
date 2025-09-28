@@ -8,7 +8,6 @@ import os
 from multiprocessing.shared_memory import SharedMemory
 
 
-
 class MultiSharedMemory:
 
     def __init__(self, max_size: int=-1):
@@ -16,7 +15,6 @@ class MultiSharedMemory:
         self.cur_size = 0
 
         self._shared_memory: dict = {}
-
 
     
     def create(self, size: int) -> SharedMemory:

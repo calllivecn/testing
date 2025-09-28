@@ -13,11 +13,12 @@ def run():
     print("任务开始")
     time.sleep(5)
     print("任务结束")
+    return "ok"
 
 e = ProcessPoolExecutor()
 
 future = e.submit(run)
 
-future.result()
+print(f"{future.result()=}")
 
 e.shutdown()
