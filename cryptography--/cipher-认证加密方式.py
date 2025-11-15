@@ -71,6 +71,8 @@ def aesgcm():
     text = "1234567890"
     print("原文:", text)
 
+    mv = memoryview(text.encode("utf-8"))
+
     key = os.urandom(32)
     nonce = os.urandom(12)
     aad = b"authenticated but unencrypted data"
@@ -81,7 +83,8 @@ def aesgcm():
     
     encryptor = cipher.encryptor()
     encryptor.authenticate_additional_data(aad)
-    ct = encryptor.update(text.encode("utf-8")) + encryptor.finalize()
+    #ct = encryptor.update(text.encode("utf-8")) + encryptor.finalize()
+    ct = encryptor.update(mv) + encryptor.finalize() # 可以直接使用memoryview
     print("加密数据:", ct)
     tag = encryptor.tag
     print("标签 (tag):", tag)
@@ -90,7 +93,8 @@ def aesgcm():
     en_cipher = Cipher(algorithm, modes.GCM(nonce, tag))
     decryptor = en_cipher.decryptor()
     decryptor.authenticate_additional_data(aad)
-    t = decryptor.update(ct) + decryptor.finalize()
+    #t = decryptor.update(ct) + decryptor.finalize()
+    t = decryptor.update(memoryview(ct)) + decryptor.finalize()
     
     print("解密数据:", t.decode("utf-8"))
 
