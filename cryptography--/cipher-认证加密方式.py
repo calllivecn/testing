@@ -67,12 +67,44 @@ def aes():
     print("解密数据:", t.decode("utf-8"))
 
 
+def aesgcm():
+    text = "1234567890"
+    print("原文:", text)
+
+    key = os.urandom(32)
+    nonce = os.urandom(12)
+    aad = b"authenticated but unencrypted data"
+
+    algorithm = algorithms.AES(key)
+
+    cipher = Cipher(algorithm, mode=modes.GCM(nonce))
+    
+    encryptor = cipher.encryptor()
+    encryptor.authenticate_additional_data(aad)
+    ct = encryptor.update(text.encode("utf-8")) + encryptor.finalize()
+    print("加密数据:", ct)
+    tag = encryptor.tag
+    print("标签 (tag):", tag)
+    
+    # 解密
+    en_cipher = Cipher(algorithm, modes.GCM(nonce, tag))
+    decryptor = en_cipher.decryptor()
+    decryptor.authenticate_additional_data(aad)
+    t = decryptor.update(ct) + decryptor.finalize()
+    
+    print("解密数据:", t.decode("utf-8"))
+
+
 print("加密算法: chacha20")
 chacha20()
-
 print()
 
 print("加密算法: aes-256-cfb")
 aes()
+print()
+
+print("加密算法: aes-256-gcm")
+aesgcm()
+print()
 
 

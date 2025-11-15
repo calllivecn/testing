@@ -42,7 +42,8 @@ genkey = ChaCha20Poly1305.generate_key()
 text = "这是使用认证加密的数据。"
 print("原文：", text)
 
-aad = b"authenticated but unencrypted data"
+#aad = b"authenticated but unencrypted data"
+aad = "使用就使用中文当AAD".encode()
 
 # 和上面使用同一个私钥可行，但不应该，这里先实验。
 chacha20 = ChaCha20Poly1305(genkey)
@@ -56,7 +57,7 @@ nonce = os.urandom(12)
 
 cipher_text = chacha20.encrypt(nonce, text.encode("utf-8"), aad)
 
-print("密文：", base64.b64encode(cipher_text))
+print("密方长度：", len(cipher_text), "密文：", cipher_text)
 
 decipher_text = chacha20.decrypt(nonce, cipher_text, aad)
 
@@ -72,9 +73,10 @@ print("AESGCM 加解密测试===========")
 text = "这是 AESGCM 加密明文"
 
 data = text.encode("utf8")
-print("原文：", text, "lenght:", len(data))
+print("lenght:", len(data), "原文：", text)
 
-aad = b"authenticated but unencrypted data"
+#aad = b"authenticated but unencrypted data"
+aad = "使用就使用中文当AAD".encode()
 
 #key = AESGCM.generate_key(bit_length=128)
 key = AESGCM.generate_key(256)
