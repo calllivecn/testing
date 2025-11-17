@@ -22,9 +22,9 @@ trap "rm $tmp_unlock $tmp_unlock_ok" EXIT
 
 
 A(){
-	(
+	{
 		echo "执行 A pid: $$"
-		flock 200
+		flock 20
 		
 
 		while :;
@@ -38,6 +38,7 @@ A(){
 			echo "A 的解锁过程..."
 			# udevadm wait -t 10 "/dev/disk/by-uuid/XXXX-XXXX"
 			# systemd-cryptsetup attach test-luks /dev/sdaX pw-file
+			sleep 5
 			if $?;then
 				:>"$tmp_unlock_ok"
 				echo "B 的解锁过程... done"
@@ -50,13 +51,13 @@ A(){
 		done
 		echo "A 的解锁过程... done"
 
-	) 200>"$tmp_unlock"
+	} 20>"$tmp_unlock"
 }
 
 B(){
 	{
 		echo "执行 B pid: $$"
-		flock 200
+		flock 20
 
 
 		echo "B 的解锁过程..."
@@ -73,6 +74,7 @@ B(){
 
 			if [ -n "$pw" ];then
 				# systemd-cryptsetup attach test-luks /dev/sdaX pw-file
+				sleep 1
 				if $?;then
 					:>"$tmp_unlock_ok"
 					echo "B 的解锁过程... done"
@@ -83,7 +85,7 @@ B(){
 			fi
 		done
 
-	} 200>"$tmp_unlock"
+	} 20>"$tmp_unlock"
 }
 
 
