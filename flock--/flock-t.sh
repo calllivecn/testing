@@ -20,54 +20,76 @@ tmp_unlock_ok="${tmp_unlock}-ok"
 
 trap "rm $tmp_unlock $tmp_unlock_ok" EXIT
 
-disk_unlock(){
-	if [ -f "$tmp_unlock_ok" ];then
-		return 0
-	fi
-	
-	# A, B 两个操作
-	if [ "$1"x = Ax ];then
-		echo "A 的解锁过程..."
-		# 执行耗时
-		read -p "用户输入：" pw
-		# 模拟执行成功，或者失败
-		:>"$tmp_unlock_ok"
-		echo "A 的解锁过程... done"
-	else
-		echo "B 的解锁过程..."
-		# 执行耗时
-		sleep 30
-		:>"$tmp_unlock_ok"
-		#echo "B 的解锁过程... failed"
-		echo "B 的解锁过程... done"
-	fi
-}
-
 
 A(){
-	{
-		echo "A pid: $$"
-		flock -n 200
-		echo "A 执行..."
-		disk_unlock A
-	} 200>"$tmp_unlock"
+	(
+		echo "执行 A pid: $$"
+		flock 200
+		
+
+		while :;
+		do
+			#disk_unlock A
+			if [ -f "$tmp_unlock_ok" ];then
+				echo "A 检测到已经解锁成功，退出当前操作。"
+				return 0
+			fi
+
+			echo "A 的解锁过程..."
+			# udevadm wait -t 10 "/dev/disk/by-uuid/XXXX-XXXX"
+			# systemd-cryptsetup attach test-luks /dev/sdaX pw-file
+			if $?;then
+				:>"$tmp_unlock_ok"
+				echo "B 的解锁过程... done"
+				return 0
+			else
+				echo "解锁失败，请重试："
+			fi
+			# 模拟执行成功，或者失败
+			#:>"$tmp_unlock_ok"
+		done
+		echo "A 的解锁过程... done"
+
+	) 200>"$tmp_unlock"
 }
 
 B(){
-	(
-		echo "B pid: $$"
-		flock -n 200
-		echo "B 执行..."
-		disk_unlock B
-	) 200>"$tmp_unlock"
+	{
+		echo "执行 B pid: $$"
+		flock 200
 
+
+		echo "B 的解锁过程..."
+		echo -n "请输入解锁密码："
+		while :;
+		do
+			read -t 3 pw
+
+			# 每次等待用户输入密码时，检测是否已经解锁成功
+			if [ -f "$tmp_unlock_ok" ];then
+				echo "B 检测到已经解锁成功，退出当前操作。"
+				return 0
+			fi
+
+			if [ -n "$pw" ];then
+				# systemd-cryptsetup attach test-luks /dev/sdaX pw-file
+				if $?;then
+					:>"$tmp_unlock_ok"
+					echo "B 的解锁过程... done"
+					return 0
+				else
+					echo "解锁失败，请重试："
+				fi
+			fi
+		done
+
+	} 200>"$tmp_unlock"
 }
 
 
 A & 
 pid_a=$1
-B &
-pid_b=$1
+B
 
-wait $pid_a $pid_b
+wait $pid_a
 
