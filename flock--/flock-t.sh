@@ -38,8 +38,7 @@ A(){
 			echo "A 的解锁过程..."
 			# udevadm wait -t 10 "/dev/disk/by-uuid/XXXX-XXXX"
 			# systemd-cryptsetup attach test-luks /dev/sdaX pw-file
-			sleep 5
-			if $?;then
+			if sleep 5;then
 				:>"$tmp_unlock_ok"
 				echo "B 的解锁过程... done"
 				return 0
@@ -74,8 +73,7 @@ B(){
 
 			if [ -n "$pw" ];then
 				# systemd-cryptsetup attach test-luks /dev/sdaX pw-file
-				sleep 1
-				if $?;then
+				if sleep 1 ;then
 					:>"$tmp_unlock_ok"
 					echo "B 的解锁过程... done"
 					return 0
