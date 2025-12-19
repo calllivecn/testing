@@ -13,7 +13,13 @@ ffmpeg -i 001.mkv -i /tmp/zx-2.ass -map 0:v -vcodec copy -metadata:g title="第0
 -disposition:a:0 default 设置输出文件默认音频
 -disposition:s:0 default 设置输出文件默认字幕
 
+-disposition:s:0 default    # 第1个字幕流设为默认
+-disposition:a:1 default    # 第2个音频流设为默认
+-disposition:v:1 attached_pic  # 第2个视频流设为封面图
+
+
 # 在输出选项中添加上: `-map_metadata -1` 删除所有的 metadata. 如：title 之类的。
+# `-map_chapters -1` 去掉章节信息
 
 # 参考
 man ffmpeg /-map_metadata
