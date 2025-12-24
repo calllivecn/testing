@@ -6,6 +6,7 @@ import logging
 from fractions import Fraction
 
 import av
+from av.video.codeccontext import VideoCodecContext
 
 def get_logger(name=None):
     logger = logging.getLogger(name)
@@ -42,19 +43,20 @@ def get_public_attributes(obj):
 
 
 TCP_HOST = '192.168.1.10'
-TCP_HOST = '192.168.1.3'
+TCP_HOST = '192.168.131.18'
 TCP_PORT = 58888
 OUTPUT_FILE = 'output.mkv'
 RATE = 30  # 视频帧率
 
 output = av.open(OUTPUT_FILE, mode='w')
-stream = output.add_stream('hevc', rate=RATE)
-stream.width = 1920
-stream.height = 1080
-stream.pix_fmt = 'yuv420p'
+# stream = output.add_stream('hevc', rate=RATE)
+stream = output.add_stream('libx265')
+# stream.width = 1920
+# stream.height = 1080
+# stream.pix_fmt = 'yuv420p'
 
 logger.debug(f"stram: {stream=}, {get_public_attributes(stream)=}")
-stream.time_base = Fraction(1, RATE)  # 设置时间基准
+stream.time_base = Fraction(1, RATE) # 设置时间基准
 
 BUFFER_SIZE = 1 << 15
 buffer = bytearray()
@@ -77,7 +79,7 @@ def get_packet(sock: socket.socket, size: int) -> bytes:
         data.extend(chunk)
     return bytes(data)
 
-def get_video_packet(sock) -> tuple[int, int, bytes, bytes]:
+def get_video_packet(sock) -> tuple[int, int, int, bytes]:
     """从socket中获取一个视频数据包"""
     HEADER_LEN = 14
     buffer = get_packet(sock, HEADER_LEN)
@@ -91,55 +93,49 @@ def get_video_packet(sock) -> tuple[int, int, bytes, bytes]:
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.connect((TCP_HOST, TCP_PORT))
 
-def main():
 
-    hevc_extradata = None
-    extradata_set = False  # 标记extradata是否已设置
-    pts = 0
+def main2():
+    codec = av.Codec('hevc', 'r')
+    # 强制转换类型或添加标注
+    context: VideoCodecContext = av.CodecContext.create(codec)
 
+    start_pts = 0
     while running:
         pkt_type, pkt_len, pts_us, pkt_data = get_video_packet(sock)
-        logger.debug(f"收到包: pkt_type={pkt_type}, pkt_len={pkt_len}, pts_us={pts_us}")
+        packets = context.parse(pkt_data)
+        print(f"{packets=}")
+        for packet in packets:
+            # print(f"{stream.time_base=}")
+            # print(f"{packet=}")
 
-        if pkt_type == 101:  # 参数集 (VPS/SPS/PPS)
-            logger.debug(f"接收到参数集 {pkt_type=}, size={pkt_len}, 前32字节={pkt_data[:32].hex()}")
-            # 可选：打印全部参数集内容
-            logger.debug(f"参数集完整hex: {pkt_data.hex()}")
-            hevc_extradata = pkt_data
-            # 只设置一次 extradata
-            if stream and hevc_extradata and not extradata_set:
-                logger.debug("设置 stream.codec_context.extradata")
-                stream.codec_context.extradata = hevc_extradata
-                stream.codec_context.open()  # 显式初始化解码器
-                extradata_set = True
+            # 1. 换算 PTS (从微秒 us 到 90kHz 单位)
+            # 使用 int() 确保是整数，避免播放器解析错误
+            if start_pts == 0:
+                start_pts = pts_us
 
-        elif pkt_type == 1 or pkt_type == 100:  # 普通视频帧或关键视频帧
-            packet = av.Packet(pkt_data)
+            calculated_pts = int((pts_us - start_pts) * stream.time_base)
+
+            # 2. 赋值给 packet (裸流通常 PTS = DTS)
+            packet.pts = calculated_pts
+            packet.dts = calculated_pts
+            # 输出到文件
             packet.stream = stream
-            # 用 Java 端传来的 pts_us，转换为帧序号
-            # 假设 Java 端 pts_us 单调递增，单位为微秒
-            packet.pts = packet.dts = int(pts_us * RATE / 1_000_000)
-            logger.debug(f"接收到视频帧: {pkt_type=}, {pkt_len=}, {pts_us=}, len(pkt_data)={len(pkt_data)}")
-
-            packet.is_keyframe = (pkt_type == 100)
-            if packet.is_keyframe:
-                logger.debug(f"处理一个关键帧 (type={pkt_type}): {get_public_attributes(packet)}")
-                # 不再重复设置 extradata
-                logger.debug("尝试解码关键帧...")
-                try:
-                    for vframe in packet.decode():
-                        logger.debug(f"解码帧: {vframe}, {get_public_attributes(vframe)=}")
-                except av.error.ValueError as e:
-                    logger.debug(f"解码失败: {e}")
-                    raise e
-
             output.mux(packet)
 
-        else:
-            logger.debug(f"忽略未知帧类型: {pkt_type=}")
+            # 当 context 收到前面的 SPS/PPS 后，
+            # 这里的 decode 遇到第一个 I 帧就能成功产生图像
+            # packet.stream.codec_context = context
+            try:
+                frames = context.decode(packet)
+                for frame in frames:
+                    print(f"{frame=}")
+
+            except av.FFmpegError as e:
+                # 在没有收到 SPS/PPS 之前，可能会报 "Invalid Data" 错误，这是正常的
+                print(f"等待配置包... {e}")
 
 try:
-    main()
+    main2()
 finally:
     output.close()
     sock.close()
