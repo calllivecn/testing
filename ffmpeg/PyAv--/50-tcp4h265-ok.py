@@ -8,6 +8,7 @@ from fractions import Fraction
 import av
 from av.video.codeccontext import VideoCodecContext
 
+
 def get_logger(name=None):
     logger = logging.getLogger(name)
     handler = logging.StreamHandler(sys.stdout)
@@ -50,13 +51,12 @@ RATE = 30  # 视频帧率
 
 output = av.open(OUTPUT_FILE, mode='w')
 # stream = output.add_stream('hevc', rate=RATE)
-stream = output.add_stream('libx265')
-# stream.width = 1920
-# stream.height = 1080
-# stream.pix_fmt = 'yuv420p'
-
-logger.debug(f"stram: {stream=}, {get_public_attributes(stream)=}")
+stream: av.VideoStream = output.add_stream('libx265', rate=RATE)
+stream.width = 1920
+stream.height = 1080
+stream.pix_fmt = 'yuv420p'
 stream.time_base = Fraction(1, RATE) # 设置时间基准
+logger.debug(f"stram: {stream=}, {get_public_attributes(stream)=}")
 
 BUFFER_SIZE = 1 << 15
 buffer = bytearray()
@@ -68,6 +68,9 @@ def signal_handler(sig, frame):
     running = False
 
 signal.signal(signal.SIGINT, signal_handler)
+
+
+Header = struct.Struct('!HIQ')  # 确保数据格式正确
 
 def get_packet(sock: socket.socket, size: int) -> bytes:
     """从socket中读取指定大小的数据包"""
@@ -84,7 +87,7 @@ def get_video_packet(sock) -> tuple[int, int, int, bytes]:
     HEADER_LEN = 14
     buffer = get_packet(sock, HEADER_LEN)
 
-    pkt_type, data_len, pts = struct.unpack('!HIQ', buffer)  # 确保数据格式正确
+    pkt_type, data_len, pts = Header.unpack(buffer)
 
     buffer = get_packet(sock, data_len)
     return pkt_type, data_len, pts, buffer
