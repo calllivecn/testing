@@ -153,7 +153,13 @@ def main2():
 
         pkt_type, pkt_len, pts_us, pkt_data = get_video_packet(sock)
 
-        if pkt_type in (1, 100, 101):
+            # 处理SPS/PPS（只处理一次）
+        if pkt_type == 101:
+            sps_pps = pkt_data
+            stream.codec_context.extradata = sps_pps  # 关键修复！
+            logger.debug(f"SPS/PPS已设置到extradata: {len(sps_pps)} bytes")
+
+        elif pkt_type in (1, 100):
             # --- v16 兼容的时间戳换算 ---
             # (当前us - 起始us) * 90000 / 1000000
             if recording_state["video_pts_us"] == 0:
@@ -176,9 +182,10 @@ def main2():
             # 这里简单判断：NAL unit type 16~21 是关键帧（VCL IDR）
             # nal_unit_type = data[4] >> 1 & 0x3F  # 假设 4字节 start code
             # if nal_unit_type in (16, 17, 18):  # IDR_W_RADL, IDR_N_LP, CRA_NUT
-                # packet.is_keyframe = True
+            #     packet.is_keyframe = True
+            #     print("这里能找到一个它漏掉的关键帧？") # 这根本找不到呀
             # else:
-                # packet.is_keyframe = False
+            #     packet.is_keyframe = False
             
             packet.is_keyframe = (pkt_type == 100)
             if packet.is_keyframe:

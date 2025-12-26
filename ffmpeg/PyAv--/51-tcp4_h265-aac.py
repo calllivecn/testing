@@ -107,14 +107,13 @@ def main2():
     stream.width = 1920
     stream.height = 1080
     stream.pix_fmt = 'yuv420p'
-    time_base = Fraction(1, VIDEO_TIME_BASE) # 设置时间基准
-    stream.time_base = time_base
+    stream.time_base = av.time_base  # 通常为1/90000
+    stream.codec_context.flags |= av.codec.context.Flags.global_header
     logger.debug(f"stram: {stream=}, {get_public_attributes(stream)=}")
 
 
     astream: av.AudioStream = output.add_stream("aac", rate=44100)
-    a_time_base = Fraction(1, 441000)
-    astream.time_base = a_time_base
+    astream.time_base = stream.time_base # 和视频相同
     # astream.codec_context.extradata = make_aac_extradata(44100, 2)
 
 
@@ -139,10 +138,23 @@ def main2():
         pkt_type, pkt_len, pts_us, pkt_data = get_video_packet(sock)
         # 视频
         if pkt_type in (PacketType.VideoConfig, PacketType.VideoNormal, PacketType.VideoKeyFrame):
-
             packet = av.Packet(pkt_data)
 
-            packet.is_keyframe = (pkt_type == PacketType.VideoKeyFrame)
+            # 判断是否为关键帧 (IDR + VPS/SPS/PPS)
+            # 这里简单判断：NAL unit type 16~21 是关键帧（VCL IDR）
+            # data = bytes(packet)
+            # nal_unit_type = data[4] >> 1 & 0x3F  # 假设 4字节 start code
+            # if nal_unit_type in (16, 17, 18):  # IDR_W_RADL, IDR_N_LP, CRA_NUT
+            #     is_keyframe = True
+            #     print(f"{pts_us}: nal_unit_type 判断是一个关键帧")
+            # else:
+            #     is_keyframe = False
+
+            if(pkt_type == PacketType.VideoKeyFrame):
+                print(f"{pts_us}: PacketType 判断是一个关键帧")
+                # is_keyframe = True
+                packet.is_keyframe = True
+
 
             #要在视频帧是关键帧时退出
             if (not running) and packet.is_keyframe:
@@ -152,23 +164,19 @@ def main2():
 
             # 1. 换算 PTS (从微秒 us 到 90kHz 单位)
             # 使用 int() 确保是整数，避免播放器解析错误
-            # if start_pts == 0:
-            #     start_pts = pts_us
+            if start_pts == 0:
+                start_pts = pts_us
 
-            # calculated_pts = int((pts_us - start_pts) * stream.time_base / 1000000)
+            calculated_pts = (pts_us - start_pts) * stream.time_base
+            print(f"视频PTS: {calculated_pts}")
 
             # # 2. 赋值给 packet (裸流通常 PTS = DTS)
-            # packet.pts = calculated_pts
-            # packet.dts = calculated_pts
+            packet.pts = calculated_pts
+            packet.dts = calculated_pts
             # 输出到文件
-            packet.pts = start_pts
-            packet.dts = start_pts
-            packet.time_base = time_base
-            packet.duration = 1
+      
             packet.stream = stream
             output.mux(packet)
-
-            start_pts += 1
 
         # 音频
         elif pkt_type == 200:
@@ -178,25 +186,26 @@ def main2():
                 fisrt_audio = False
                 astream.codec_context.extradata = pkt_data[:2]
             
+            # 以视频的pts为准 视频没有开始时，音频也不要开始
+            if start_pts == 0:
+                print("视频还没开始! 收到的音频都丢掉。")
+                continue
+            
             apacket = av.Packet(pkt_data[2:])
             # print(f"音频流：{apacket=}")
+            apacket.is_keyframe = True
 
             # 音频可以不用？
-            # if a_start_pts == 0:
-            #     a_start_pts = pts_us
-            # pts = calculated_pts = int((pts_us - start_pts) * stream.time_base)
-            # apacket.pts = pts
-            # apacket.dts = pts
+            if a_start_pts == 0:
+                a_start_pts = start_pts
 
-            apacket.pts = a_start_pts
-            apacket.dts = a_start_pts
-            apacket.time_base = a_time_base
-            apacket.duration = 1
-            apacket.stream = astream
-            apacket.stream = astream
+            pts = (pts_us - a_start_pts) * stream.time_base
+            print(f"音频PTS: {pts}")
+            apacket.pts = pts
+            apacket.dts = pts
 
+            apacket.stream = astream
             output.mux(apacket)
-            a_start_pts += 1
         
         else:
             print(f"错误的包类型: {pkt_type=} {pkt_len=} {pts_us=} {pkt_data=}")
