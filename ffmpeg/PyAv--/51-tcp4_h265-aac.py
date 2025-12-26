@@ -132,7 +132,6 @@ def main2():
 
     start_pts = 0
     a_start_pts = 0
-    fisrt_audio = True
     safe_exit = True
     while safe_exit:
         pkt_type, pkt_len, pts_us, pkt_data = get_video_packet(sock)
@@ -178,20 +177,20 @@ def main2():
             packet.stream = stream
             output.mux(packet)
 
-        # 音频
+        # 音频配置extradat
         elif pkt_type == 200:
+            # 每一帧音频里带有 CSD数据 AAC 2字节
+            astream.codec_context.extradata = pkt_data
 
-            # 每一帧音频里带有 CSD数据
-            if fisrt_audio:
-                fisrt_audio = False
-                astream.codec_context.extradata = pkt_data[:2]
-            
+        # 音频
+        elif pkt_type == 2:
+
             # 以视频的pts为准 视频没有开始时，音频也不要开始
             if start_pts == 0:
                 print("视频还没开始! 收到的音频都丢掉。")
                 continue
             
-            apacket = av.Packet(pkt_data[2:])
+            apacket = av.Packet(pkt_data)
             # print(f"音频流：{apacket=}")
             apacket.is_keyframe = True
 
