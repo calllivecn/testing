@@ -5,7 +5,6 @@ import socket
 import signal
 import struct
 import logging
-from fractions import Fraction
 
 import av
 
@@ -93,8 +92,127 @@ class PacketType(enum.IntEnum):
     AudioConfig = 2
 
 
-def main2():
-    TCP_HOST = '192.168.1.10'
+def h264():
+    TCP_HOST = '192.168.131.18'
+    TCP_PORT = 58888
+    OUTPUT_FILE = 'output.mkv'
+    RATE = 30  # 视频帧率
+
+    output = av.open(OUTPUT_FILE, mode='w')
+    stream: av.VideoStream = output.add_stream('libx264', rate=RATE)
+    stream.width = 1920
+    stream.height = 1080
+    stream.pix_fmt = 'yuv420p'
+    stream.time_base = av.time_base  # 通常为1/90000
+    # stream.codec_context.flags |= av.codec.context.Flags.global_header
+    logger.debug(f"stram: {stream=}, {get_public_attributes(stream)=}")
+
+
+    astream: av.AudioStream = output.add_stream("aac", rate=44100)
+    astream.time_base = stream.time_base # 和视频相同
+
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((TCP_HOST, TCP_PORT))
+
+
+    codec = av.Codec('hevc', 'r')
+    # 强制转换类型或添加标注
+    context: av.VideoCodecContext = av.CodecContext.create(codec)
+
+
+    acodec = av.Codec("aac", "r")
+    acontext: av.AudioCodecContext = av.CodecContext.create(acodec)
+    # 音频暂时还不需要解码
+
+    start_pts = 0
+    a_start_pts = 0
+    safe_exit = True
+    sps_pps_data = b""
+    while safe_exit:
+        pkt_type, pkt_len, pts_us, pkt_data = get_video_packet(sock)
+        # 视频
+        if pkt_type == PacketType.VideoConfig:
+            sps_pps_data = pkt_data
+
+        elif pkt_type in (PacketType.VideoNormal, PacketType.VideoKeyFrame):
+
+            if pkt_type == PacketType.VideoKeyFrame:
+                if sps_pps_data:
+                    pkt_data = sps_pps_data + pkt_data
+                    sps_pps_data = b'' # 写入后清空（或者不清空，取决于你是否想让每个关键帧都带参数）
+
+                print(f"{pts_us}: PacketType 判断是一个关键帧")
+                packet = av.Packet(pkt_data)
+                packet.is_keyframe = True
+
+            else:
+
+                packet = av.Packet(pkt_data)
+
+            #要在视频帧是关键帧时退出
+            if (not running) and packet.is_keyframe:
+                safe_exit = False
+                print("="*20,"正常退出.", "="*20)
+                break
+
+            # 1. 换算 PTS (从微秒 us 到 90kHz 单位)
+            # 使用 int() 确保是整数，避免播放器解析错误
+            if start_pts == 0:
+                start_pts = pts_us
+
+            calculated_pts = (pts_us - start_pts) * stream.time_base
+            print(f"视频PTS: {calculated_pts}")
+
+            # # 2. 赋值给 packet (裸流通常 PTS = DTS)
+            packet.pts = calculated_pts
+            packet.dts = calculated_pts
+            # 输出到文件
+      
+            packet.stream = stream
+            output.mux(packet)
+
+        # 音频配置extradat
+        elif pkt_type == 200:
+            # 每一帧音频里带有 CSD数据 AAC 2字节
+            astream.codec_context.extradata = pkt_data
+
+        # 音频
+        elif pkt_type == 2:
+
+            # 以视频的pts为准 视频没有开始时，音频也不要开始
+            if start_pts == 0:
+                print("视频还没开始! 收到的音频都丢掉。")
+                continue
+            
+            apacket = av.Packet(pkt_data)
+            # print(f"音频流：{apacket=}")
+            apacket.is_keyframe = True
+
+            # 音频可以不用？
+            if a_start_pts == 0:
+                a_start_pts = start_pts
+
+            pts = (pts_us - a_start_pts) * stream.time_base
+            print(f"音频PTS: {pts}")
+            apacket.pts = pts
+            apacket.dts = pts
+
+            apacket.stream = astream
+            output.mux(apacket)
+        
+        else:
+            print(f"错误的包类型: {pkt_type=} {pkt_len=} {pts_us=} {pkt_data=}")
+
+
+    output.close()
+    sock.close()
+
+    logger.debug(f"写入完成: {OUTPUT_FILE}")
+
+
+def h265():
+
     TCP_HOST = '192.168.131.18'
     TCP_PORT = 58888
     OUTPUT_FILE = 'output.mkv'
@@ -114,7 +232,6 @@ def main2():
 
     astream: av.AudioStream = output.add_stream("aac", rate=44100)
     astream.time_base = stream.time_base # 和视频相同
-    # astream.codec_context.extradata = make_aac_extradata(44100, 2)
 
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -133,10 +250,12 @@ def main2():
     start_pts = 0
     a_start_pts = 0
     safe_exit = True
+    sps_pps_data = b""
     while safe_exit:
         pkt_type, pkt_len, pts_us, pkt_data = get_video_packet(sock)
         # 视频
         if pkt_type in (PacketType.VideoConfig, PacketType.VideoNormal, PacketType.VideoKeyFrame):
+
             packet = av.Packet(pkt_data)
 
             # 判断是否为关键帧 (IDR + VPS/SPS/PPS)
@@ -149,7 +268,7 @@ def main2():
             # else:
             #     is_keyframe = False
 
-            if(pkt_type == PacketType.VideoKeyFrame):
+            if pkt_type in (PacketType.VideoKeyFrame, PacketType.VideoConfig):
                 print(f"{pts_us}: PacketType 判断是一个关键帧")
                 # is_keyframe = True
                 packet.is_keyframe = True
@@ -216,4 +335,6 @@ def main2():
     logger.debug(f"写入完成: {OUTPUT_FILE}")
 
 
-main2()
+if __name__ == "__main__":
+    h264()
+    # h265()
