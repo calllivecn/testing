@@ -5,6 +5,7 @@ import socket
 import signal
 import struct
 import logging
+import argparse
 
 import av
 
@@ -76,12 +77,6 @@ def get_video_packet(sock) -> tuple[int, int, int, bytes]:
     buffer = get_packet(sock, data_len)
     return pkt_type, data_len, pts, buffer
 
-# 2. 添加 AAC 流 + extradata
-def make_aac_extradata(sr=44100, ch=2):
-    sr_idx = {44100: 4, 48000: 3}.get(sr, 4)
-    asc = (1 << 11) | (sr_idx << 7) | (ch << 3)
-    return asc.to_bytes(2, 'big')
-
 
 class PacketType(enum.IntEnum):
     VideoNormal = 1
@@ -92,16 +87,28 @@ class PacketType(enum.IntEnum):
     AudioConfig = 2
 
 
-def h264():
-    TCP_HOST = '192.168.131.18'
-    TCP_PORT = 58888
-    OUTPUT_FILE = 'output.mkv'
-    RATE = 30  # 视频帧率
+def h264(args: argparse.Namespace):
+
+    enable_video: bool = args.video
+
+    TCP_ADDR: str = args.tcp_addr
+    TCP_PORT: int = args.tcp_port
+    OUTPUT_FILE: str = args.filename
+    ENCODER: str = args.encoder
+
+    w, h = args.size.split("x")
+    width, height = int(w), int(h)
+    FPS: int = args.fps  # 视频帧率
+
+    enable_audio: bool = args.audio
+
 
     output = av.open(OUTPUT_FILE, mode='w')
-    stream: av.VideoStream = output.add_stream('libx264', rate=RATE)
-    stream.width = 1920
-    stream.height = 1080
+
+    stream: av.VideoStream = output.add_stream(ENCODER, rate=FPS)
+
+    stream.width = width
+    stream.height = height
     stream.pix_fmt = 'yuv420p'
     stream.time_base = av.time_base  # 通常为1/90000
     # stream.codec_context.flags |= av.codec.context.Flags.global_header
@@ -111,10 +118,8 @@ def h264():
     astream: av.AudioStream = output.add_stream("aac", rate=44100)
     astream.time_base = stream.time_base # 和视频相同
 
-
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((TCP_HOST, TCP_PORT))
-
+    sock.connect((TCP_ADDR, TCP_PORT))
 
     codec = av.Codec('hevc', 'r')
     # 强制转换类型或添加标注
@@ -173,7 +178,7 @@ def h264():
             output.mux(packet)
 
         # 音频配置extradat
-        elif pkt_type == 200:
+        elif pkt_type == 201:
             # 每一帧音频里带有 CSD数据 AAC 2字节
             astream.codec_context.extradata = pkt_data
 
@@ -211,62 +216,64 @@ def h264():
     logger.debug(f"写入完成: {OUTPUT_FILE}")
 
 
-def h265():
+def h265(args: argparse.Namespace):
 
-    TCP_HOST = '192.168.131.18'
-    TCP_PORT = 58888
-    OUTPUT_FILE = 'output.mkv'
-    RATE = 30  # 视频帧率
+    enable_video: bool = args.video
 
-    VIDEO_TIME_BASE = 90000
+    TCP_ADDR: str = args.tcp_addr
+    TCP_PORT: int = args.tcp_port
+    OUTPUT_FILE: str = args.filename
+    ENCODER: str = args.encoder
+
+    w, h = args.size.split("x")
+    width, height = int(w), int(h)
+    FPS: int = args.fps  # 视频帧率
+
+    enable_audio: bool = args.audio
+
     output = av.open(OUTPUT_FILE, mode='w')
-    # stream = output.add_stream('hevc', rate=RATE)
-    stream: av.VideoStream = output.add_stream('libx265', rate=RATE)
-    stream.width = 1920
-    stream.height = 1080
-    stream.pix_fmt = 'yuv420p'
-    stream.time_base = av.time_base  # 通常为1/90000
-    stream.codec_context.flags |= av.codec.context.Flags.global_header
-    logger.debug(f"stram: {stream=}, {get_public_attributes(stream)=}")
 
+    if enable_video:
+        stream: av.VideoStream = output.add_stream(ENCODER, rate=FPS)
+        stream.width = width
+        stream.height = height
+        stream.pix_fmt = 'yuv420p'
+        stream.time_base = av.time_base  # 通常为1/90000
+        stream.codec_context.flags |= av.codec.context.Flags.global_header
+        logger.debug(f"stram: {stream=}, {get_public_attributes(stream)=}")
+    
 
-    astream: av.AudioStream = output.add_stream("aac", rate=44100)
-    astream.time_base = stream.time_base # 和视频相同
+    if enable_audio:
+        astream: av.AudioStream = output.add_stream("aac", rate=44100)
+        if enable_video:
+            astream.time_base = stream.time_base # 和视频相同
+        else:
+            astream.time_base = stream.time_base # 和视频相同
+
 
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((TCP_HOST, TCP_PORT))
+    sock.connect((TCP_ADDR, TCP_PORT))
 
 
     codec = av.Codec('hevc', 'r')
     # 强制转换类型或添加标注
-    context: av.VideoCodecContext = av.CodecContext.create(codec)
+    context: av.CodecContext = av.CodecContext.create(codec)
 
 
     acodec = av.Codec("aac", "r")
-    acontext: av.AudioCodecContext = av.CodecContext.create(acodec)
+    acontext: av.CodecContext = av.CodecContext.create(acodec)
     # 音频暂时还不需要解码
 
     start_pts = 0
     a_start_pts = 0
     safe_exit = True
-    sps_pps_data = b""
     while safe_exit:
         pkt_type, pkt_len, pts_us, pkt_data = get_video_packet(sock)
         # 视频
         if pkt_type in (PacketType.VideoConfig, PacketType.VideoNormal, PacketType.VideoKeyFrame):
 
             packet = av.Packet(pkt_data)
-
-            # 判断是否为关键帧 (IDR + VPS/SPS/PPS)
-            # 这里简单判断：NAL unit type 16~21 是关键帧（VCL IDR）
-            # data = bytes(packet)
-            # nal_unit_type = data[4] >> 1 & 0x3F  # 假设 4字节 start code
-            # if nal_unit_type in (16, 17, 18):  # IDR_W_RADL, IDR_N_LP, CRA_NUT
-            #     is_keyframe = True
-            #     print(f"{pts_us}: nal_unit_type 判断是一个关键帧")
-            # else:
-            #     is_keyframe = False
 
             if pkt_type in (PacketType.VideoKeyFrame, PacketType.VideoConfig):
                 print(f"{pts_us}: PacketType 判断是一个关键帧")
@@ -297,7 +304,7 @@ def h265():
             output.mux(packet)
 
         # 音频配置extradat
-        elif pkt_type == 200:
+        elif pkt_type == 201:
             # 每一帧音频里带有 CSD数据 AAC 2字节
             astream.codec_context.extradata = pkt_data
 
@@ -335,6 +342,55 @@ def h265():
     logger.debug(f"写入完成: {OUTPUT_FILE}")
 
 
+
+def main():
+    parse = argparse.ArgumentParser(
+        usage="%(prog)s [参数 ...]",
+        )
+    
+    parse.add_argument("--no-video", dest="video", action="store_false", default=True, help="禁用录制视频")
+    parse.add_argument("--filename", help="输出视频文件名，当前只支持mkv。(.mkv 后缀可以省略)")
+    parse.add_argument("--tcp_addr", help="安卓端tcp地址")
+    parse.add_argument("--tcp_port", default=58888, type=int, help="安卓端tcp端口(默认：58888)")
+    parse.add_argument("--encoder", default="h264", choices=["h264", "h265"], help="视频编码器(h264 or h265) 需要和安卓端配置一致")
+    parse.add_argument("--size", default="1280x720", help="视频分辨率默认: 1280x1720 需要和安卓端配置一致")
+    parse.add_argument("--fps", default=30, type=int, help="视频帧率 默认: 30 需要和安卓端配置一致")
+
+    parse.add_argument("--no-audio", dest="audio", action="store_false", default=True, help="禁用录制视频")
+
+    parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
+
+    args = parse.parse_args()
+
+    if args.parse:
+        print(args)
+        sys.exit(0)
+
+    # 处理编码器名称
+    encoders = {
+        "h264": "libx264", # avc
+        "h265": "libx265" # hecv
+    }
+
+    if args.filename:
+        if not args.filename.endswith(".mkv"):
+            args.filename += ".mkv"
+    else:
+        print("需要指定输出文件")
+        sys.exit(1)
+    
+    if not args.tcp_addr:
+        print("需要指定安卓端地址")
+        sys.exit(1)
+
+    if args.encoder == "h264":
+        args.encoder = encoders[args.encoder]
+        h264(args)
+    if args.encoder == "h265":
+        args.encoder = encoders[args.encoder]
+        h264(args)
+
+
+
 if __name__ == "__main__":
-    h264()
-    # h265()
+    main()
