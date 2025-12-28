@@ -94,7 +94,7 @@ def h264(args: argparse.Namespace):
     TCP_ADDR: str = args.tcp_addr
     TCP_PORT: int = args.tcp_port
     OUTPUT_FILE: str = args.filename
-    ENCODER: str = args.encoder
+    CODEC: str = args.codec
 
     w, h = args.size.split("x")
     width, height = int(w), int(h)
@@ -105,7 +105,7 @@ def h264(args: argparse.Namespace):
 
     output = av.open(OUTPUT_FILE, mode='w')
 
-    stream: av.VideoStream = output.add_stream(ENCODER, rate=FPS)
+    stream: av.VideoStream = output.add_stream(CODEC, rate=FPS)
 
     stream.width = width
     stream.height = height
@@ -223,7 +223,7 @@ def h265(args: argparse.Namespace):
     TCP_ADDR: str = args.tcp_addr
     TCP_PORT: int = args.tcp_port
     OUTPUT_FILE: str = args.filename
-    ENCODER: str = args.encoder
+    CODEC: str = args.codec
 
     w, h = args.size.split("x")
     width, height = int(w), int(h)
@@ -234,7 +234,7 @@ def h265(args: argparse.Namespace):
     output = av.open(OUTPUT_FILE, mode='w')
 
     if enable_video:
-        stream: av.VideoStream = output.add_stream(ENCODER, rate=FPS)
+        stream: av.VideoStream = output.add_stream(CODEC, rate=FPS)
         stream.width = width
         stream.height = height
         stream.pix_fmt = 'yuv420p'
@@ -352,7 +352,7 @@ def main():
     parse.add_argument("--filename", help="输出视频文件名，当前只支持mkv。(.mkv 后缀可以省略)")
     parse.add_argument("--tcp_addr", help="安卓端tcp地址")
     parse.add_argument("--tcp_port", default=58888, type=int, help="安卓端tcp端口(默认：58888)")
-    parse.add_argument("--encoder", default="h264", choices=["h264", "h265"], help="视频编码器(h264 or h265) 需要和安卓端配置一致")
+    parse.add_argument("--codec", default="h264", choices=["h264", "h265"], help="视频编码器(h264 or h265) 需要和安卓端配置一致")
     parse.add_argument("--size", default="1280x720", help="视频分辨率默认: 1280x1720 需要和安卓端配置一致")
     parse.add_argument("--fps", default=30, type=int, help="视频帧率 默认: 30 需要和安卓端配置一致")
 
@@ -383,11 +383,11 @@ def main():
         print("需要指定安卓端地址")
         sys.exit(1)
 
-    if args.encoder == "h264":
-        args.encoder = encoders[args.encoder]
+    if args.codec == "h264":
+        args.codec = encoders[args.codec]
         h264(args)
-    if args.encoder == "h265":
-        args.encoder = encoders[args.encoder]
+    if args.codec == "h265":
+        args.codec = encoders[args.codec]
         h264(args)
 
 
