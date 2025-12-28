@@ -262,12 +262,29 @@ def h265(args: argparse.Namespace):
 
     codec = av.Codec('hevc', 'r')
     # 强制转换类型或添加标注
-    context: av.VideoCodecContext = av.CodecContext.create(codec)
-    context.open()
+    # context: av.VideoCodecContext = av.CodecContext.create(codec)
+    # 如果硬解支持 启用硬件解码
+    # hw_codec = "cuda"
+    hw_codec = "vaapi"
+    if hw_codec in hwdevices_available():
+        print("启用了硬件解码")
+        match hw_codec:
+            case "cuda":
+                hwaccel = HWAccel(device_type=hw_codec, allow_software_fallback=False)
 
+            case "vaapi":
+                hwaccel = HWAccel(device_type=hw_codec, device="/dev/dri/renderD128", allow_software_fallback=False)
+            
+            case _:
+                print("目前只支持了 [cuda vaapi] 硬件解码了。")
+
+        context: av.VideoCodecContext = av.VideoCodecContext.create(codec, hwaccel)
+    else:
+        context: av.VideoCodecContext = av.VideoCodecContext.create(codec)
+    
 
     acodec = av.Codec("aac", "r")
-    acontext: av.CodecContext = av.CodecContext.create(acodec)
+    acontext: av.AudioCodecContext = av.AudioCodecContext.create(acodec)
     # 音频暂时还不需要解码
 
     start_pts = 0
