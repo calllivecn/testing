@@ -388,7 +388,7 @@ def main():
         h264(args)
     if args.codec == "h265":
         args.codec = encoders[args.codec]
-        h264(args)
+        h265(args)
 
 
 
