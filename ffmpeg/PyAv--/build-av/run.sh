@@ -1,6 +1,7 @@
 apt -y update
 apt -y install python3 python3-pip python3-venv pkg-config \
-	ffmpeg ca-certificates vim locales \
+	ca-certificates vim locales \
+	ffmpeg vainfo intel-media-va-driver \
 	libavformat-dev libavcodec-dev libavdevice-dev \
 	libavutil-dev libswscale-dev libswresample-dev libavfilter-dev
 	
