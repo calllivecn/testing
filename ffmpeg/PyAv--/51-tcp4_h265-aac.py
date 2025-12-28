@@ -8,7 +8,7 @@ import logging
 import argparse
 
 import av
-
+from av.codec.hwaccel import HWAccel, hwdevices_available
 
 def get_logger(name=None):
     logger = logging.getLogger(name)
@@ -123,11 +123,15 @@ def h264(args: argparse.Namespace):
 
     codec = av.Codec('hevc', 'r')
     # 强制转换类型或添加标注
-    context: av.VideoCodecContext = av.CodecContext.create(codec)
-
+    # context: av.VideoCodecContext = av.CodecContext.create(codec)
+    # 如果硬解支持 启用硬件解码
+    if "cuda" in hwdevices_available():
+        hwaccel = HWAccel(device_type='cuda', allow_software_fallback=False)
+    context: av.VideoCodecContext = av.VideoCodecContext.create(codec, hwaccel)
+    
 
     acodec = av.Codec("aac", "r")
-    acontext: av.AudioCodecContext = av.CodecContext.create(acodec)
+    acontext: av.AudioCodecContext = av.AudioCodecContext.create(acodec)
     # 音频暂时还不需要解码
 
     start_pts = 0
@@ -258,7 +262,8 @@ def h265(args: argparse.Namespace):
 
     codec = av.Codec('hevc', 'r')
     # 强制转换类型或添加标注
-    context: av.CodecContext = av.CodecContext.create(codec)
+    context: av.VideoCodecContext = av.CodecContext.create(codec)
+    context.open()
 
 
     acodec = av.Codec("aac", "r")
@@ -270,6 +275,7 @@ def h265(args: argparse.Namespace):
     safe_exit = True
     while safe_exit:
         pkt_type, pkt_len, pts_us, pkt_data = get_video_packet(sock)
+        decode_usage = pkt_data[:]
         # 视频
         if pkt_type in (PacketType.VideoConfig, PacketType.VideoNormal, PacketType.VideoKeyFrame):
 
@@ -299,9 +305,16 @@ def h265(args: argparse.Namespace):
             packet.pts = calculated_pts
             packet.dts = calculated_pts
             # 输出到文件
-      
             packet.stream = stream
             output.mux(packet)
+
+            # 解码后 检测
+            frame_sum = 0
+            frames = context.decode(packet)
+            frame_sum += len(frames)
+            for frame in frames:
+                print(f"{frame=}")
+                print("已经解码到：{frame_sum}帧")
 
         # 音频配置extradat
         elif pkt_type == 201:
