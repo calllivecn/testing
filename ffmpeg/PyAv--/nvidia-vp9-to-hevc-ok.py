@@ -37,7 +37,7 @@ def hardware_vp9_to_hevc(input_path: str, output_path: str):
 
     # 5. 创建 HEVC 硬件编码流
     # encoder = output_container.add_stream('hevc_nvenc', template=video_stream)
-    encoder = output_container.add_stream('hevc_nvenc', rate=fps)
+    encoder: av.VideoStream = output_container.add_stream('hevc_nvenc', rate=fps)
     encoder.width = width
     encoder.height = height
     encoder.pix_fmt = 'nv12'  # NVENC 只接受 nv12
@@ -63,6 +63,7 @@ def hardware_vp9_to_hevc(input_path: str, output_path: str):
     for packet in input_container.demux():
         if packet.stream.type == 'video':
             # 解码（可能返回 GPU 帧）
+            frame: av.VideoFrame
             for frame in packet.decode():
                 frame_count += 1
                 if frame_count % 30 == 0:
