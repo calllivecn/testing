@@ -14,7 +14,7 @@ av.logging.set_level(av.logging.DEBUG)
 def validate_Vaapi_decoding(frame):
     # 检查帧格式是否为VAAPI硬件格式
     print(f"帧格式: {frame.format.name}")
-    if frame.format.name.startswith("vaapi") or frame.format.name.startswitch("nv12"):
+    if frame.format.name.startswith("vaapi") or frame.format.name.startswith("nv12"):
         # print(f"解码器类型: {frame.codec.name}")
         print("是否使用硬件加速: True")
         return True
@@ -23,11 +23,26 @@ def validate_Vaapi_decoding(frame):
         print("是否使用硬件加速: False")
         return False
 
+def method0():
+    """使用软件解码，做为加速参数"""
+    in_container = av.open(video_file, "r")
+
+    frame_count = 0
+    for packet in in_container.demux():
+        if packet.stream.type == "video":
+            for frame in packet.decode():
+                frame_count += 1
+    print("CPU 软件解码完成")
+
 
 # 可以！
 def method1():
     """这是方式一，从容器开始创建，添加硬件加速"""
-    hw_vaapi = hwaccel.HWAccel(device_type=hwaccel.HWDeviceType.vaapi, device="/dev/dri/renderD128", allow_software_fallback=False)
+    #如果我没记错的话，除非明确指定 -hwaccel_output_format cuda，否则 FFmpeg CLI 会自动执行硬件到软件的传输（hwdownload），将帧从 VRAM 移动到系统 RAM。
+    opt = {
+        "hwaccel_output_foramt": "vaapi" # 当前PyAv v16版本, 有效果但不太，它本来就调用效率不高。不如ffmpeg cli
+    }
+    hw_vaapi = hwaccel.HWAccel(device_type=hwaccel.HWDeviceType.vaapi, device="/dev/dri/renderD128", allow_software_fallback=False, options=opt)
 
 
     in_container = av.open(video_file, "r", hwaccel=hw_vaapi)
@@ -39,12 +54,14 @@ def method1():
             for frame in packet.decode():
                 frame_count += 1
                 # 此时frame应为VAAPI硬件帧
-                validate_Vaapi_decoding(frame)
+                # validate_Vaapi_decoding(frame)
                 # 可选：如需CPU访问，将硬件帧转换为软件帧
                 if frame.format.name.startswith("vaapi"):
-                    sw_frame = frame.to_ndarray()  # 自动转换
+                    pass
+                    # sw_frame = frame.to_ndarray()  # 自动转换
                 elif frame.format.name.startswith("nv12"):
-                    print(f"解码出来了帖: {frame_count}")
+                    pass
+                    # print(f"解码出来了帖: {frame_count}")
                     # 或者使用显式转换
                     # sw_frame = frame.reformat(format="nv12").to_ndarray()
                 else:
@@ -120,7 +137,8 @@ video_file = sys.argv[1]
 
 
 if __name__ == "__main__":
-    # method1() # ok
+    # method0() # ok
+    method1() # ok
     # method2() # no
     # method3() # no
-    method4() # ok
+    #method4() # ok
