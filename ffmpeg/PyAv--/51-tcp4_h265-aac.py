@@ -140,10 +140,12 @@ class ReTimeline:
         timestamp: 是原始时间戳 安卓的 纳秒:1000000
         return: packet
         """
-        
-        logger.debug(f"时间戳 ：{timestamp=} {timestamp=}")
+        logger.debug(f"时间戳 ：{timestamp=}")
 
-        if self.first_time:
+        # 安卓9. 第一帧输出配置文件时，timestamp会是0
+        # 安卓14. 第一帧输出配置文件时，timestamp会是和接下来的视频帧相同。
+
+        if self.first_time and timestamp != 0:
             self.first_time = False
             self.first_timestamp = timestamp
         
@@ -361,33 +363,36 @@ def h265(args: argparse.Namespace):
         v_s.height = height
         v_s.time_base = video_time_base
         logger.debug(f"stram: {v_s=}, {get_public_attributes(v_s)=}")
+        # 如果硬解支持 启用硬件解码
+        # hw_codec = "cuda" or "vaapi"
+        hw_codec = "vaapi"
+        if hw_codec in hwdevices_available():
+            logger.debug("启用了硬件解码")
+            match hw_codec:
+                case "cuda":
+                    hwaccel = HWAccel(device_type=hw_codec, allow_software_fallback=False)
+
+                case "vaapi":
+                    hwaccel = HWAccel(device_type=hw_codec, device="dev/dri/renderD128", allow_software_fallback=False)
+
+                case _:
+                    logger.debug("目前只支持了 [cuda vaapi] 硬件解码了。")
+
+            v_ctx: av.VideoCodecContext = av.VideoCodecContext.create(VCODEC, "r", hwaccel)
+        else:
+            v_ctx: av.VideoCodecContext = av.VideoCodecContext.create("hevc", "r")
+    
+
 
     if enable_audio:
-        a_s: av.AudioStream = output.add_stream(ACODEC, rate=sample_rate)
+        # a_s: av.AudioStream = output.add_stream(ACODEC, rate=sample_rate, layout=args.audio_channel)
+        a_s: av.AudioStream = output.add_stream(ACODEC, rate=sample_rate, layout="stereo")
+        logger.debug(f"配置的音频流：{a_s}")
         a_s.time_base = audio_time_base
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((TCP_ADDR, TCP_PORT))
 
-    # 如果硬解支持 启用硬件解码
-    # hw_codec = "cuda"
-    hw_codec = "vaapi"
-    if hw_codec in hwdevices_available():
-        logger.debug("启用了硬件解码")
-        match hw_codec:
-            case "cuda":
-                hwaccel = HWAccel(device_type=hw_codec, allow_software_fallback=False)
-
-            case "vaapi":
-                hwaccel = HWAccel(device_type=hw_codec, device="dev/dri/renderD128", allow_software_fallback=False)
-            
-            case _:
-                logger.debug("目前只支持了 [cuda vaapi] 硬件解码了。")
-
-        v_ctx: av.VideoCodecContext = av.VideoCodecContext.create(VCODEC, "r", hwaccel)
-    else:
-        v_ctx: av.VideoCodecContext = av.VideoCodecContext.create("hevc", "r")
-    
 
     if enable_video:
         video_pts = ReTimeline()
@@ -424,10 +429,8 @@ def h265(args: argparse.Namespace):
 
             # 解码后 检测
             frames = v_ctx.decode(packet)
-            frame_sum = len(frames)
             for frame in frames:
                 logger.debug(f"{frame=}")
-                logger.debug(f"一次解码了：{frame_sum}帧")
 
         # 音频配置extradat
         elif pkt_type == 201:
@@ -482,6 +485,7 @@ def main():
 
     parse.add_argument("--no-audio", dest="audio", action="store_false", default=True, help="禁用录制视频")
     parse.add_argument("--audio-sample-rate", dest="sample_rate", default=16000, type=int, help="音频采样率 默认: 16000 需要和安卓端配置一致")
+    # parse.add_argument("--audio-channel", dest="audio_channel", default="1", help="音频声道(1 or 2) 默认: 1 单声道 需要和安卓端配置一致")
 
     parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
 
@@ -495,6 +499,10 @@ def main():
     encoders = {
         "h264": "h264", # avc
         "h265": "hevc" # hecv
+    }
+    aencoders = {
+        "1": "mono",
+        "2": "stereo"
     }
 
     if args.filename:
@@ -511,9 +519,15 @@ def main():
     if args.codec == "h264":
         args.codec = encoders[args.codec]
         h264(args)
-    if args.codec == "h265":
+
+    elif args.codec == "h265":
         args.codec = encoders[args.codec]
         h265(args)
+    
+    # if args.audio_channel == "1":
+    #     args.audio_channel = aencoders["1"]
+    # elif args.audio_channel == "2":
+    #     args.audio_channel = aencoders["2"]
 
 
 
