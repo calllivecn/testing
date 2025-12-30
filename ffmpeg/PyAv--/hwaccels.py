@@ -56,10 +56,8 @@ sw_fps = frame_count / sw_time
 assert frame_count == container.streams.video[0].frames
 container.close()
 
-print(
-    f"Decoded with software in {sw_time:.2f}s ({sw_fps:.2f} fps).\n"
-    f"Decoding with {HW_DEVICE}"
-)
+print(f"Decoded with software in {sw_time:.2f}s ({sw_fps:.2f} fps).\n")
+print(f"Decoding with {HW_DEVICE}")
 
 hwaccel = HWAccel(device_type=HW_DEVICE, allow_software_fallback=False)
 

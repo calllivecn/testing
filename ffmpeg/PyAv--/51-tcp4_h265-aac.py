@@ -370,15 +370,15 @@ def h265(args: argparse.Namespace):
             logger.debug("启用了硬件解码")
             match hw_codec:
                 case "cuda":
-                    hwaccel = HWAccel(device_type=hw_codec, allow_software_fallback=False)
+                    hw = HWAccel(device_type=hw_codec, allow_software_fallback=False)
 
                 case "vaapi":
-                    hwaccel = HWAccel(device_type=hw_codec, device="dev/dri/renderD128", allow_software_fallback=False)
+                    hw = HWAccel(device_type=hw_codec, device="/dev/dri/renderD128", allow_software_fallback=False)
 
                 case _:
                     logger.debug("目前只支持了 [cuda vaapi] 硬件解码了。")
 
-            v_ctx: av.VideoCodecContext = av.VideoCodecContext.create(VCODEC, "r", hwaccel)
+            v_ctx: av.VideoCodecContext = av.VideoCodecContext.create(VCODEC, "r", hw)
         else:
             v_ctx: av.VideoCodecContext = av.VideoCodecContext.create("hevc", "r")
     
