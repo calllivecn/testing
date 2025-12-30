@@ -63,6 +63,11 @@ Open GOP (CRA 帧): Android 硬件编码器（HEVC 模式）为了追求高压�
     | Duration | 1/FPS (例如 3000) | 1024 (AAC 固定帧大小) |
 
 
+# mkv 容器的坑
+
+## 在输出到mkv 容器时。time_base 只会是 Fraction(1, 1000)，你自己在设置 pts dts 时。只能是以 1/1000 为时间基。
+
+
 
 ## 坑：手动构造 Packet 时，FFmpeg 不会自动转换基准。 当使用 v_ctx.parse(raw_data) 时又会自动转换基准。
 
