@@ -1,3 +1,7 @@
+"""
+
+方法1 和 方法4 ok
+"""
 
 import sys
 
@@ -9,15 +13,14 @@ av.logging.set_level(av.logging.DEBUG)
 
 def validate_Vaapi_decoding(frame):
     # 检查帧格式是否为VAAPI硬件格式
-    if frame.format.name.startswith("vaapi"):
-        print(f"帧格式: {frame.format.name}")
+    print(f"帧格式: {frame.format.name}")
+    if frame.format.name.startswith("vaapi") or frame.format.name.startswitch("nv12"):
         # print(f"解码器类型: {frame.codec.name}")
-        print(f"是否使用硬件加速: True")
+        print("是否使用硬件加速: True")
         return True
     else:
-        print(f"帧格式: {frame.format.name}")
         # print(f"解码器类型: {frame.codec.name}")
-        print(f"是否使用硬件加速: False")
+        print("是否使用硬件加速: False")
         return False
 
 
@@ -92,23 +95,24 @@ def method3():
         if frame.format.name.startswith("vaapi"):
             print("使用VAAPI硬件加速")
 
-
+# ok
 def method4():
     hw_vaapi = hwaccel.HWAccel(device_type=hwaccel.HWDeviceType.vaapi, device="/dev/dri/renderD128", allow_software_fallback=False)
 
     ctx = av.VideoCodecContext.create("hevc", "r", hw_vaapi)
 
     in_container = av.open(video_file, "r")
+    v_s = in_container.streams.video[0]
+    print(f"{v_s.codec_context.extradata=}")
+    ctx.extradata = v_s.codec_context.extradata
 
     frame_count = 0
     for packet in in_container.demux():
-
         if packet.stream.type == "video":
             for frame in ctx.decode(packet):
+            # for frame in packet.decode():
                 frame_count += 1
                 print(f"解码出来了帖: {frame_count}")
-                # 此时frame应为VAAPI硬件帧
-                # 可选：如需CPU访问，将硬件帧转换为软件帧
                 if frame.format.name.startswith("vaapi"):
                     sw_frame = frame.to_ndarray()  # 自动转换
 
@@ -119,4 +123,4 @@ if __name__ == "__main__":
     # method1() # ok
     # method2() # no
     # method3() # no
-    method4() # no
+    method4() # ok
