@@ -140,11 +140,7 @@ class ReTimeline:
         timestamp: 是原始时间戳 安卓的 纳秒:1000000
         return: packet
         """
-        if timestamp == 0:
-            packet.pts = 0
-            self.first_timestamp = -1
-            return packet
-
+        
         logger.debug(f"时间戳 ：{timestamp=} {timestamp=}")
 
         if self.first_time:
@@ -485,7 +481,7 @@ def main():
     parse.add_argument("--fps", default=30, type=int, help="视频帧率 默认: 30 需要和安卓端配置一致")
 
     parse.add_argument("--no-audio", dest="audio", action="store_false", default=True, help="禁用录制视频")
-    parse.add_argument("--audio-sample-rate", dest="sample_rate", default=44100, type=int, help="音频采样率 默认: 44100Hz 需要和安卓端配置一致")
+    parse.add_argument("--audio-sample-rate", dest="sample_rate", default=16000, type=int, help="音频采样率 默认: 16000 需要和安卓端配置一致")
 
     parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
 

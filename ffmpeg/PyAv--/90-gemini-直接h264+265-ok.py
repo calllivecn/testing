@@ -1,3 +1,12 @@
+
+"""
+这个做法测试完是可以同时录制h265 hevc的。
+但是，播放时拖动进度条，会有报错：`[ffmpeg/video] hevc: Could not find ref with POC 28`
+一步步debug, 应该是Paketck.VideoConfig 数据没有写入容器。
+"""
+
+
+
 import sys
 import enum
 import socket
