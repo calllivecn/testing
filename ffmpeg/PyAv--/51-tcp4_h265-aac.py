@@ -233,8 +233,7 @@ def h264(args: argparse.Namespace):
     astream: av.AudioStream = output.add_stream("aac", rate=44100)
     astream.time_base = stream.time_base # 和视频相同
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((TCP_ADDR, TCP_PORT))
+    sock = socket.create_connection((TCP_ADDR, TCP_PORT))
 
     codec = av.Codec('hevc', 'r')
     # 强制转换类型或添加标注
@@ -390,9 +389,7 @@ def h265(args: argparse.Namespace):
         logger.debug(f"配置的音频流：{a_s}")
         a_s.time_base = audio_time_base
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((TCP_ADDR, TCP_PORT))
-
+    sock = socket.create_connection((TCP_ADDR, TCP_PORT))
 
     if enable_video:
         video_pts = ReTimeline()
@@ -479,7 +476,7 @@ def main():
     parse.add_argument("--filename", help="输出视频文件名，当前只支持mkv。(.mkv 后缀可以省略)")
     parse.add_argument("--tcp-addr", dest="tcp_addr", help="安卓端tcp地址")
     parse.add_argument("--tcp-port", dest="tcp_port", default=58888, type=int, help="安卓端tcp端口(默认：58888)")
-    parse.add_argument("--codec", default="h264", choices=["h264", "h265"], help="视频编码器(h264 or h265) 需要和安卓端配置一致, 如果是h264只需要多配置下fps就行。")
+    parse.add_argument("--codec", default="h265", choices=["h264", "h265"], help="视频编码器(h264 or h265) 需要和安卓端配置一致, 如果是h264只需要多配置下fps就行。")
     parse.add_argument("--size", help="视频分辨率 [h265]时需要指定 需要和安卓端配置一致")
     parse.add_argument("--fps", default=30, type=int, help="视频帧率 默认: 30 需要和安卓端配置一致")
 
