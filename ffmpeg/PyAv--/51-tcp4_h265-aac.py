@@ -440,9 +440,17 @@ def h265(args: argparse.Namespace):
             output.mux(packet)
 
             # 解码后 检测
+            """
             frames = v_ctx.decode(packet)
             for frame in frames:
                 logger.debug(f"{frame=}")
+            """
+
+            # 测试只解码关键帧 测试是ok的
+            if packet.is_keyframe:
+                frames = v_ctx.decode(packet)
+                for frame in frames:
+                    logger.debug(f"# 测试只解码关键帧: {frame=}")
 
         # 音频配置extradat
         elif pkt_type == 201:
