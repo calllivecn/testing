@@ -5,9 +5,6 @@ from datetime import datetime
 import av
 
 
-in_vidoe="auto-split-30m_0001.mkv"
-out_vidoe="auto-split-30m_0001-metadata.mkv"
-
 if len(sys.argv) < 3:
     print("用法: python script.py <输入文件> <输出文件>")
     sys.exit(1)
@@ -36,6 +33,11 @@ with (
     # 在新文件里打开新的流
     stream_map = {}
     for s in in_container.streams:
+        # 仅处理视频、音频和字幕
+        if s.type not in ("video", "audio", "subtitle"):
+            print(f"跳过流 {s.index} ({s.type})")
+            continue
+
         print(f"stream: {s} type:{s.type}")
         # 这是新版的写法 v16.1.0
         # 关键：将输入流 index 映射到输出流对象
@@ -49,8 +51,12 @@ with (
             print(f"跳过无 pts 的包: {packet=}")
             continue  # 跳过无效的包
 
-        packet.stream = stream_map[packet.stream.index]
+        s = stream_map.get(packet.stream.index)
+        if s is None:
+            print(f"跳过未处理的流包: {packet.stream.index=}")
+            continue  # 跳过未处理的流包
 
+        packet.stream = s
         out_container.mux(packet)
 
 print("处理完成，已保存到:", out_vidoe)
