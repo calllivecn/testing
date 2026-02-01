@@ -380,7 +380,7 @@ def h265(args: argparse.Namespace):
             v_ctx: av.VideoCodecContext = av.VideoCodecContext.create(VCODEC, "r", hw)
         else:
             v_ctx: av.VideoCodecContext = av.VideoCodecContext.create("hevc", "r")
-    
+
 
 
     if enable_audio:

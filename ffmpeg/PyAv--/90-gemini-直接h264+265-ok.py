@@ -135,12 +135,15 @@ class MediaCodecProcessor:
         # --- 修正点 1: 无论是不是 Config，都要先给解码器 Parse ---
         # 这一步极其重要！parse 会分析数据中的 SPS/PPS 并存储在 dec_ctx 内部
         packets = self.dec_ctx.parse(data)
-        
+        print(f"解析第一帧时的：{packets=}")
+
         if typ == PacketType.VideoConfig:
             print(f"捕获到 Config 数据: {len(data)} bytes")
             # 【核心修复】将 Config 数据赋值给输出流的 extradata
             # 这会让 MP4/MKV 在文件头生成 avcC/hvcC 原子
+            # 说新版中 直接对 流设置
             self.out_stream.codec_context.extradata = data
+            # self.out_stream.extradata = data
             self.extradata_set = True
             return  # Config 帧通常不需要作为 Packet 写入轨道，除非是 In-Band 模式
 
@@ -213,8 +216,8 @@ class MediaCodecProcessor:
                 if self.opencv_show:
                     img = frame.to_ndarray(format='bgr24')
                     # 在这里做你的 OpenCV 处理
-                    cv2.imshow("Preview", img)
-                    cv2.waitKey(1)
+                    # cv2.imshow("Preview", img)
+                    # cv2.waitKey(1)
                 
 
     def close(self):
@@ -224,8 +227,8 @@ class MediaCodecProcessor:
             for frame in frames:
                 if self.opencv_show:
                     img = frame.to_ndarray(format='bgr24')
-                    cv2.imshow("Preview", img)
-                    cv2.waitKey(1)
+                    # cv2.imshow("Preview", img)
+                    # cv2.waitKey(1)
                 
         # 写入文件尾部
         self.out_container.close()
@@ -237,13 +240,12 @@ class MediaCodecProcessor:
 
 
 def test():
-    TCP_ADDR = '192.168.1.8'
+    TCP_ADDR = '192.168.114.75'
     TCP_PORT = 58888
     OUTPUT_FILE = 'output.mkv'
     FPS = 30  # 视频帧率
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((TCP_ADDR, TCP_PORT))
+    sock = socket.create_connection((TCP_ADDR, TCP_PORT))
 
     MCP = MediaCodecProcessor(OUTPUT_FILE, fps=FPS, opencv_show=False)
 
