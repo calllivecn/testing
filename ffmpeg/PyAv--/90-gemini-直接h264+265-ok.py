@@ -114,6 +114,13 @@ class MediaCodecProcessor:
         # --- 2. 初始化封装器 (用于保存文件) ---
         self.out_container = av.open(output_file, 'w')
         self.out_stream = self.out_container.add_stream(self.codec_name, rate=fps)
+        # 在 v12+ 中，flags 被移动到了 context 的属性中，但部分版本通过这种方式设置：
+        self.out_stream.codec_context.options['flags'] = '+global_header'
+
+        # 如果可能，先获取流对象
+        # self.out_stream.codec_context.extradata = extradata
+        self.out_stream.codec_context.options['x265-params'] = 'info=0' # 即使被重算，也要禁掉文本
+
         self.out_stream.time_base = Fraction(1, 90000) # 强制 H.264 标准 TimeBase
         
         # --- 3. 时间戳管理状态 ---
@@ -121,6 +128,13 @@ class MediaCodecProcessor:
         # 估算每帧的 DTS 增量 (90000 / 30 = 3000)
         self.dts_step = int(1 / fps / self.out_stream.time_base)
         self.first_pts_us = None
+    
+    def set_extradata(self, extradata: bytes):
+        """设置解码器和封装器的 extradata (SPS/PPS)"""
+        self.dec_ctx.extradata = extradata
+        self.out_stream.codec_context.extradata = extradata
+        self.extradata_set = True
+        logger.debug(f"设置 extradata，长度: {len(extradata)} bytes")
 
     def process(self, data: bytes, pts_us: int, typ: int):
         """
@@ -137,6 +151,7 @@ class MediaCodecProcessor:
         packets = self.dec_ctx.parse(data)
         print(f"解析第一帧时的：{packets=}")
 
+        """
         if typ == PacketType.VideoConfig:
             print(f"捕获到 Config 数据: {len(data)} bytes")
             # 【核心修复】将 Config 数据赋值给输出流的 extradata
@@ -146,11 +161,12 @@ class MediaCodecProcessor:
             # self.out_stream.extradata = data
             self.extradata_set = True
             return  # Config 帧通常不需要作为 Packet 写入轨道，除非是 In-Band 模式
+        """
 
         # 2. 如果还没有收到过 Config，但来了关键帧 (这种情况比较少见，但在某些流里可能发生)
         # 如果是 HEVC，没有 extradata 基本上没法播放
         if not self.extradata_set and (typ == PacketType.VideoKeyFrame):
-             print("警告：关键帧来了，但还没有收到 Config 数据！")
+            raise ValueError("警告：关键帧来了，但还没有收到 Config 数据！")
         
         if not packets:
             return
@@ -249,11 +265,16 @@ def test():
 
     MCP = MediaCodecProcessor(OUTPUT_FILE, fps=FPS, opencv_show=False)
 
+
     safe_exit = True
     while safe_exit:
         pkt_type, pkt_len, pts_us, pkt_data = get_video_packet(sock)
+
+        if pkt_type == PacketType.VideoConfig:
+            MCP.set_extradata(pkt_data)
+
         # 视频
-        if pkt_type in (PacketType.VideoConfig, PacketType.VideoNormal, PacketType.VideoKeyFrame):
+        if pkt_type in (PacketType.VideoNormal, PacketType.VideoKeyFrame):
 
             #要在视频帧是关键帧时退出
             if (not running) and PacketType.VideoKeyFrame:

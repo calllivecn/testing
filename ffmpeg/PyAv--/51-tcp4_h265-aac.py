@@ -87,8 +87,7 @@ def get_packet(sock: socket.socket, size: int) -> bytes:
 
 def get_video_packet(sock) -> tuple[int, int, int, bytes]:
     """从socket中获取一个视频数据包"""
-    HEADER_LEN = 14
-    buffer = get_packet(sock, HEADER_LEN)
+    buffer = get_packet(sock, Header.size)
 
     pkt_type, data_len, pts = Header.unpack(buffer)
 
@@ -226,11 +225,17 @@ def h264(args: argparse.Namespace):
 
     stream: av.VideoStream = output.add_stream(CODEC, rate=FPS)
     stream.time_base = av.time_base  # 如果是MP4容器 通常为1/90000
-    # stream.codec_context.flags |= av.codec.context.Flags.global_header
+    # 在 v12+ 中，flags 被移动到了 context 的属性中，但部分版本通过这种方式设置：
+    stream.codec_context.options['flags'] = '+global_header'
+
+    # 如果可能，先获取流对象
+    # stream.codec_context.extradata = extradata
+    stream.codec_context.options['x265-params'] = 'info=0' # 即使被重算，也要禁掉文本
+
     logger.debug(f"stram: {stream=}, {get_public_attributes(stream)=}")
 
 
-    astream: av.AudioStream = output.add_stream("aac", rate=44100)
+    astream: av.AudioStream = output.add_stream("aac", rate=16000, layout="stereo")
     astream.time_base = stream.time_base # 和视频相同
 
     sock = socket.create_connection((TCP_ADDR, TCP_PORT))
@@ -295,10 +300,6 @@ def h264(args: argparse.Namespace):
             packet.stream = stream
             output.mux(packet)
 
-        # 音频配置extradat
-        elif pkt_type == 201:
-            # 每一帧音频里带有 CSD数据 AAC 2字节
-            astream.codec_context.extradata = pkt_data
 
         # 音频
         elif pkt_type == 2:
@@ -324,6 +325,10 @@ def h264(args: argparse.Namespace):
             apacket.stream = astream
             output.mux(apacket)
         
+        # 音频配置extradat
+        elif pkt_type == 201:
+            # 每一帧音频里带有 CSD数据 AAC 2字节
+            astream.codec_context.extradata = pkt_data
         else:
             print(f"错误的包类型: {pkt_type=} {pkt_len=} {pts_us=} {pkt_data=}")
 
@@ -358,6 +363,14 @@ def h265(args: argparse.Namespace):
 
     if enable_video:
         v_s: av.VideoStream = output.add_stream(VCODEC, rate=FPS)
+
+        # 在 v12+ 中，flags 被移动到了 context 的属性中，但部分版本通过这种方式设置：
+        v_s.codec_context.options['flags'] = '+global_header'
+
+        # 如果可能，先获取流对象
+        # v_s.codec_context.extradata = extradata
+        v_s.codec_context.options['x265-params'] = 'info=0' # 即使被重算，也要禁掉文本
+
         v_s.width = width
         v_s.height = height
         v_s.time_base = video_time_base
@@ -375,6 +388,7 @@ def h265(args: argparse.Namespace):
                     hw = HWAccel(device_type=hw_codec, device="/dev/dri/renderD128", allow_software_fallback=False)
 
                 case _:
+                    raise ValueError("目前只支持了 [cuda vaapi] 硬件解码了。")
                     logger.debug("目前只支持了 [cuda vaapi] 硬件解码了。")
 
             v_ctx: av.VideoCodecContext = av.VideoCodecContext.create(VCODEC, "r", hw)
@@ -418,7 +432,8 @@ def h265(args: argparse.Namespace):
                 logger.debug(f"{"="*20} 正常退出. {"="*20}")
                 break
 
-            video_pts.video(packet, pts_us)
+            if enable_video:
+                video_pts.video(packet, pts_us)
 
             # 输出到文件
             packet.stream = v_s
@@ -473,11 +488,11 @@ def main():
         )
     
     parse.add_argument("--no-video", dest="video", action="store_false", default=True, help="禁用录制视频")
-    parse.add_argument("--filename", help="输出视频文件名，当前只支持mkv。(.mkv 后缀可以省略)")
-    parse.add_argument("--tcp-addr", dest="tcp_addr", help="安卓端tcp地址")
+    parse.add_argument("--filename", required=True, help="输出视频文件名，当前只支持mkv。(.mkv 后缀可以省略)")
+    parse.add_argument("--tcp-addr", dest="tcp_addr", required=True, help="安卓端tcp地址")
     parse.add_argument("--tcp-port", dest="tcp_port", default=58888, type=int, help="安卓端tcp端口(默认：58888)")
     parse.add_argument("--codec", default="h265", choices=["h264", "h265"], help="视频编码器(h264 or h265) 需要和安卓端配置一致, 如果是h264只需要多配置下fps就行。")
-    parse.add_argument("--size", help="视频分辨率 [h265]时需要指定 需要和安卓端配置一致")
+    parse.add_argument("--size", default="1920x1080", help="视频分辨率 [h265]时需要指定 需要和安卓端配置一致")
     parse.add_argument("--fps", default=30, type=int, help="视频帧率 默认: 30 需要和安卓端配置一致")
 
     parse.add_argument("--no-audio", dest="audio", action="store_false", default=True, help="禁用录制视频")
