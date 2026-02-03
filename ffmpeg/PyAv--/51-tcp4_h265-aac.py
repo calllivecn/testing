@@ -111,8 +111,8 @@ class PacketType(enum.IntEnum):
     VideoKeyFrame = 100
     VideoConfig = 101
 
-    AudioNormal = 200
-    AudioConfig = 2
+    AudioNormal = 2
+    AudioConfig = 201
 
 
 ANDROID_TIMESTAMP_UNIT = 1000000 # 和输入源相同 这里是安卓的 时间戳 单位
@@ -184,7 +184,7 @@ class ReTimeline:
         # 设置 duration (有助于播放器 seek)
         # packet.duration = self.dts_step
 
-        logger.debug(f"处理后 PTS DTS：{packet.pts=} {packet.dts=} {pts=} {running=}")
+        # logger.debug(f"处理后 PTS DTS：{packet.pts=} {packet.dts=} {pts=} {running=}")
         return packet
     
     def audio(self, packet: av.Packet, timestamp: int) -> av.Packet:
@@ -225,8 +225,6 @@ class ReTimeline:
 
 def h264(args: argparse.Namespace):
 
-    enable_video: bool = args.video
-
     TCP_ADDR: str = args.tcp_addr
     TCP_PORT: int = args.tcp_port
     OUTPUT_FILE: str = args.filename
@@ -240,6 +238,9 @@ def h264(args: argparse.Namespace):
     output = av.open(OUTPUT_FILE, mode='w')
 
     stream: av.VideoStream = output.add_stream(CODEC, rate=FPS)
+    # h.264 需要指定宽高
+    stream.width = args.whidth
+    stream.height = args.height
     stream.time_base = av.time_base  # 如果是MP4容器 通常为1/90000
     # 在 v12+ 中，flags 被移动到了 context 的属性中，但部分版本通过这种方式设置：
     stream.codec_context.options['flags'] = '+global_header'
@@ -332,7 +333,6 @@ def h264(args: argparse.Namespace):
             if a_start_pts == 0:
                 a_start_pts = start_pts
 
-        
             apacket.stream = astream
             output.mux(apacket)
         
@@ -357,7 +357,8 @@ def h265(args: argparse.Namespace):
     TCP_ADDR: str = args.tcp_addr
     TCP_PORT: int = args.tcp_port
     OUTPUT_FILE: str = args.filename
-    VCODEC = args.codec
+    # VCODEC = args.codec
+    VCODEC = "h264"
 
     w, h = args.size.split("x")
     width, height = int(w), int(h)
@@ -370,7 +371,6 @@ def h265(args: argparse.Namespace):
     audio_time_base = Fraction(1, sample_rate)
 
     output = av.open(OUTPUT_FILE, mode='w')
-    
 
     if enable_video:
         v_s: av.VideoStream = output.add_stream(VCODEC, rate=FPS)
@@ -423,13 +423,26 @@ def h265(args: argparse.Namespace):
     if enable_audio:
         video_pts.set_audio()
 
+    # 兼容h.264
+    sps_pps_data = b""
+
     safe_exit = True
     while safe_exit:
         pkt_type, pkt_len, pts_us, pkt_data = get_video_packet(sock)
         # 视频
         if pkt_type in (PacketType.VideoNormal, PacketType.VideoKeyFrame):
 
-            packet = av.Packet(pkt_data)
+            if VCODEC == "h264" and pkt_type == PacketType.VideoKeyFrame:
+                if sps_pps_data:
+                    pkt_data = sps_pps_data + pkt_data
+                    sps_pps_data = b'' # 写入后清空（或者不清空，取决于你是否想让每个关键帧都带参数）
+
+                packet = av.Packet(pkt_data)
+                packet.is_keyframe = True
+
+            else:
+                packet = av.Packet(pkt_data)
+
             # logger.info(f"packet 的属性：{get_public_attributes(packet)}")
 
             if pkt_type == PacketType.VideoKeyFrame:
@@ -459,31 +472,8 @@ def h265(args: argparse.Namespace):
             # 需要先解码，在mux()
             output.mux(packet)
 
-        
-        elif pkt_type == PacketType.VideoConfig:
-            logger.info("收到视频配置包")
-
-            # 【动作 1】给 Muxer (写在文件头)
-            v_s.codec_context.extradata = pkt_data
-        
-            # 【动作 2】给 Decoder (让解码器初始化)
-            # 这一步至关重要！没有它，解码器解不出第一个关键帧。
-            v_ctx.extradata = pkt_data
-        
-            # Config 帧通常不需要 decode，也不需要 mux 到轨道里，直接跳过。
-            packet = av.Packet(pkt_data)
-            video_pts.video(packet, pts_us)
-            packet.stream = v_s
-            output.mux(packet)
-
-        # 音频配置extradat
-        elif pkt_type == 201:
-            # 每一帧音频里带有 CSD数据 AAC 2字节
-            if enable_audio:
-                a_s.codec_context.extradata = pkt_data
-
         # 音频
-        elif pkt_type == 2:
+        elif pkt_type == PacketType.AudioNormal:
 
             if enable_audio:
 
@@ -496,9 +486,45 @@ def h265(args: argparse.Namespace):
                 apacket.is_keyframe = True
                 video_pts.audio(apacket, pts_us)
 
+                logger.debug(f"音频流：{apacket=}")
                 apacket.stream = a_s
                 output.mux(apacket)
         
+        
+        elif pkt_type == PacketType.VideoConfig:
+            logger.info("收到 视频 配置包")
+
+            if VCODEC == "h264":
+                logger.info("视频编码器是 H264")
+                sps_pps_data = pkt_data
+
+            elif VCODEC == "hevc":
+                logger.info("视频编码器是 H265")
+
+                # 【动作 1】给 Muxer (写在文件头)
+                v_s.codec_context.extradata = pkt_data
+        
+                # 【动作 2】给 Decoder (让解码器初始化)
+                # 这一步至关重要！没有它，解码器解不出第一个关键帧。
+                v_ctx.extradata = pkt_data
+        
+                # Config 帧通常不需要 decode，也不需要 mux 到轨道里，直接跳过。
+                packet = av.Packet(pkt_data)
+                video_pts.video(packet, pts_us)
+                packet.stream = v_s
+                output.mux(packet)
+
+            else:
+                # logger.warning(f"未知的视频编码器类型: {VCODEC}")
+                raise ValueError(f"未知的视频编码器类型: {VCODEC}")
+
+        # 音频配置extradat
+        elif pkt_type == PacketType.AudioConfig:
+            logger.info("收到 音频 配置包")
+            # 每一帧音频里带有 CSD数据 AAC 2字节
+            if enable_audio:
+                a_s.codec_context.extradata = pkt_data
+
         else:
             logger.warning(f"错误的包类型: {pkt_type=} {pkt_len=} {pts_us=} {pkt_data=}")
 
