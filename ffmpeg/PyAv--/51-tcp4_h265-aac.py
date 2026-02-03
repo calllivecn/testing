@@ -470,7 +470,7 @@ def h265(args: argparse.Namespace):
             # 这一步至关重要！没有它，解码器解不出第一个关键帧。
             v_ctx.extradata = pkt_data
         
-            # Config 帧通常不需要 decode，也不需要 mux 到轨道里，直接跳过?好像不对
+            # Config 帧通常不需要 decode，也不需要 mux 到轨道里，直接跳过。
             packet = av.Packet(pkt_data)
             video_pts.video(packet, pts_us)
             packet.stream = v_s
