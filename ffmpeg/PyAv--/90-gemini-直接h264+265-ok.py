@@ -239,7 +239,7 @@ class MediaCodecProcessor:
     def close(self):
         # 刷新解码器缓冲 (获取最后几帧 B 帧)
         if self.dec_ctx:
-            frames = self.dec_ctx.decode(None)
+            frames = self.dec_ctx.decode()
             for frame in frames:
                 if self.opencv_show:
                     img = frame.to_ndarray(format='bgr24')
