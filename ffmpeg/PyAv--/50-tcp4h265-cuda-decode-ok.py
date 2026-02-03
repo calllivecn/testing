@@ -15,8 +15,8 @@ def get_logger(name=None):
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    # logger.setLevel(logging.INFO)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
+    # logger.setLevel(logging.DEBUG)
     return logger
 
 logger = get_logger(__name__)
@@ -44,23 +44,31 @@ def get_public_attributes(obj):
 
 
 TCP_HOST = '192.168.1.10'
-TCP_HOST = '192.168.131.18'
+TCP_HOST = '192.168.114.75'
 TCP_PORT = 58888
 OUTPUT_FILE = 'output.mkv'
 RATE = 30  # 视频帧率
 
+
 output = av.open(OUTPUT_FILE, mode='w')
-# stream = output.add_stream('hevc', rate=RATE)
-stream: av.VideoStream = output.add_stream('libx265', rate=RATE)
+stream: av.VideoStream = output.add_stream('hevc', rate=RATE)
+# stream: av.VideoStream = output.add_stream('libx265', rate=RATE)
+
 stream.width = 1920
 stream.height = 1080
-stream.pix_fmt = 'yuv420p'
-stream.time_base = Fraction(1, RATE) # 设置时间基准
+# stream.pix_fmt = 'yuv420p'
+# stream.time_base = Fraction(1, RATE) # 设置时间基准
+
+stream.codec_context.options['flags'] = '+global_header'
+# stream.codec_context.extradata = extradata
+stream.codec_context.options['x265-params'] = 'info=0' # 即使被重算，也要禁掉文本
+
 logger.debug(f"stram: {stream=}, {get_public_attributes(stream)=}")
 
 BUFFER_SIZE = 1 << 15
 buffer = bytearray()
 running = True
+
 
 def signal_handler(sig, frame):
     global running
@@ -102,26 +110,57 @@ def main2():
     # 强制转换类型或添加标注
     context: VideoCodecContext = av.CodecContext.create(codec)
 
+    # 用于手动计算时间戳的计数器
+    frame_count = 0
+    stream_time_base = Fraction(1, RATE) # 设置时间基准
+
     start_pts = 0
     while running:
         pkt_type, pkt_len, pts_us, pkt_data = get_video_packet(sock)
+
+        if pkt_type not in (1, 100, 101):  # 普通帧或关键帧
+            logger.debug(f"跳过非视频帧数据包: {pkt_type=}")
+            continue
+
+        # 只会解析出，0或 1 个 Packet
         packets = context.parse(pkt_data)
-        print(f"{packets=}")
+        logger.debug(f"{len(packets)=} {packets=}")
+
         for packet in packets:
-            # print(f"{stream.time_base=}")
             # print(f"{packet=}")
 
-            # 1. 换算 PTS (从微秒 us 到 90kHz 单位)
-            # 使用 int() 确保是整数，避免播放器解析错误
-            if start_pts == 0:
-                start_pts = pts_us
+            if pkt_type == 1:  # 关键帧
+                packet.is_keyframe = True
+            
 
-            calculated_pts = int((pts_us - start_pts) * stream.time_base)
+            if (not running) and packet.is_keyframe:
+                logger.debug("收到退出信号，且当前为关键帧，准备退出循环...")
+                break
 
-            # 2. 赋值给 packet (裸流通常 PTS = DTS)
-            packet.pts = calculated_pts
-            packet.dts = calculated_pts
-            # 输出到文件
+            # =================================================
+            # 动作 C: 手动计算时间戳 (对表)
+            # =================================================
+            # 裸流 packet 通常没有有效的时间戳，必须手动根据帧率计算
+            # 计算公式：PTS = 帧序号 * (流的时间基分母 / 帧率)
+            # 例如：MKV 的 time_base 通常是 1/1000 (1ms)
+            # 25fps 意味着每帧间隔 40ms (1000/25 = 40)
+        
+            # 获取每一帧的持续时长（以流的 time_base 为单位）
+            # 如果 out_stream.time_base 是 None (初始化时可能还没定)，通常 MKV 默认是 1/1000
+            # 我们可以先假定一个通用的逻辑，或者让 PyAV 自动转换
+        
+            # 简单粗暴且有效的方法：
+            # 我们手动把时间戳设置为： frame_count
+            # 然后告诉 packet 我们的时间基是 1/fps
+            # 最后让 PyAV 自动 rescale 到 output stream 的 time_base
+        
+            packet.dts = frame_count
+            packet.pts = frame_count
+            packet.duration = 1
+            # 设置这个 packet 原本的“时间单位”是 1/fps (即一帧是一个单位)
+            packet.time_base = stream_time_base
+            frame_count += 1
+
             packet.stream = stream
             output.mux(packet)
 
@@ -130,12 +169,29 @@ def main2():
             # packet.stream.codec_context = context
             try:
                 frames = context.decode(packet)
+                print(f"{len(frames)=}")
                 for frame in frames:
-                    print(f"{frame=}")
+                    pass
 
             except av.FFmpegError as e:
                 # 在没有收到 SPS/PPS 之前，可能会报 "Invalid Data" 错误，这是正常的
                 print(f"等待配置包... {e}")
+    
+    # 善后
+    # 刷新 buffer，确保最后几帧写进去
+    packets = context.parse() # 传入 None 冲刷解析器
+    for packet in packets:
+        # 同样的逻辑处理剩余帧...
+
+        packet.dts = frame_count
+        packet.pts = frame_count
+        packet.duration = 1
+        # 设置这个 packet 原本的“时间单位”是 1/fps (即一帧是一个单位)
+        packet.time_base = stream_time_base
+        frame_count += 1
+
+        packet.stream = stream
+        output.mux(packet)
 
 try:
     main2()
