@@ -18,6 +18,7 @@ ffmpeg.PyAv--.50-tcp4h265-cuda-decode-ok 的 Docstring
 
 import sys
 import enum
+import time
 import socket
 import signal
 import struct
@@ -25,6 +26,7 @@ import logging
 import argparse
 from fractions import Fraction
 
+import cv2
 import av
 from av.codec.hwaccel import HWAccel, hwdevices_available
 
@@ -42,6 +44,14 @@ logger = get_logger(__name__)
 
 # 开启底层 ffmpeg 的 debug
 av.logging.set_level(av.logging.DEBUG)
+
+
+def cv2_imwrite(img: av.VideoFrame):
+    """将 av.VideoFrame 保存为图像文件"""
+    array = img.to_ndarray(format='bgr24')
+    filename = f"frame_{time.time()*10}.png"
+    cv2.imwrite(filename, array)
+
 
 def get_public_attributes(obj):
     """
@@ -67,10 +77,11 @@ def get_public_attributes(obj):
 running = True
 def signal_handler(sig, frame):
     global running
-    logger.debug("\n收到中断信号，准备退出...")
     running = False
 
 signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+logger.info("按 Ctrl+C 停止录制...")
 
 
 Header = struct.Struct('!HIQ')  # 确保数据格式正确
@@ -154,7 +165,7 @@ class ReTimeline:
         # 这里的计算公式： us * (time_base.den) / (1,000,000 * time_base.num)
         # 简化后: us * 90000 / 1000000 = us * 0.09
         pts = int(rel_us * self.time_base.denominator / (ANDROID_TIMESTAMP_UNIT * self.time_base.numerator))
-        
+
         packet.pts = pts
         packet.dts = pts # 对于无B帧的情况
 
@@ -173,7 +184,7 @@ class ReTimeline:
         # 设置 duration (有助于播放器 seek)
         # packet.duration = self.dts_step
 
-        logger.debug(f"处理后 PTS DTS：{packet.pts=} {packet.dts=} {pts=}")
+        logger.debug(f"处理后 PTS DTS：{packet.pts=} {packet.dts=} {pts=} {running=}")
         return packet
     
     def audio(self, packet: av.Packet, timestamp: int) -> av.Packet:
@@ -194,7 +205,6 @@ class ReTimeline:
 
         # 化简为下公式
         pts =  int(rel_us * self.time_base.denominator / ANDROID_TIMESTAMP_UNIT)
-
 
         # 4. 修正单调性 (音频虽然没有B帧，但 MediaCodec 有时也会抖动)
         if pts <= self.last_audio_pts:
@@ -306,7 +316,6 @@ def h264(args: argparse.Namespace):
             packet.stream = stream
             output.mux(packet)
 
-
         # 音频
         elif pkt_type == 2:
 
@@ -323,11 +332,7 @@ def h264(args: argparse.Namespace):
             if a_start_pts == 0:
                 a_start_pts = start_pts
 
-            pts = (pts_us - a_start_pts) * stream.time_base
-            print(f"音频PTS: {pts}")
-            apacket.pts = pts
-            apacket.dts = pts
-
+        
             apacket.stream = astream
             output.mux(apacket)
         
@@ -422,20 +427,19 @@ def h265(args: argparse.Namespace):
     while safe_exit:
         pkt_type, pkt_len, pts_us, pkt_data = get_video_packet(sock)
         # 视频
-        if pkt_type in (PacketType.VideoConfig, PacketType.VideoNormal, PacketType.VideoKeyFrame):
+        if pkt_type in (PacketType.VideoNormal, PacketType.VideoKeyFrame):
 
             packet = av.Packet(pkt_data)
             # logger.info(f"packet 的属性：{get_public_attributes(packet)}")
-            v_ctx.parse(pkt_data)
 
-            if pkt_type in (PacketType.VideoKeyFrame, PacketType.VideoConfig):
+            if pkt_type == PacketType.VideoKeyFrame:
                 logger.info(f"{packet=}: PacketType 判断是一个关键帧")
                 packet.is_keyframe = True
 
             #要在视频帧是关键帧时退出
             if (not running) and packet.is_keyframe:
                 safe_exit = False
-                logger.debug(f"{"="*20} 正常退出. {"="*20}")
+                logger.info(f"{"="*20} 正常退出. {"="*20}")
                 break
 
             if enable_video:
@@ -443,20 +447,34 @@ def h265(args: argparse.Namespace):
 
             # 输出到文件
             packet.stream = v_s
-            output.mux(packet)
-
-            # 解码后 检测
-            """
-            frames = v_ctx.decode(packet)
-            for frame in frames:
-                logger.debug(f"{frame=}")
-            """
 
             # 测试只解码关键帧 测试是ok的
             if packet.is_keyframe:
                 frames = v_ctx.decode(packet)
+                logger.debug(f"# 测试只解码关键帧: {len(frames)=}")
                 for frame in frames:
-                    logger.debug(f"# 测试只解码关键帧: {frame=}")
+                    logger.debug(f"解码成功: 格式={frame.format.name} 尺寸={frame.width}x{frame.height} PTS={frame.pts}")
+                    cv2_imwrite(frame)
+
+            # 需要先解码，在mux()
+            output.mux(packet)
+
+        
+        elif pkt_type == PacketType.VideoConfig:
+            logger.info("收到视频配置包")
+
+            # 【动作 1】给 Muxer (写在文件头)
+            v_s.codec_context.extradata = pkt_data
+        
+            # 【动作 2】给 Decoder (让解码器初始化)
+            # 这一步至关重要！没有它，解码器解不出第一个关键帧。
+            v_ctx.extradata = pkt_data
+        
+            # Config 帧通常不需要 decode，也不需要 mux 到轨道里，直接跳过?好像不对
+            packet = av.Packet(pkt_data)
+            video_pts.video(packet, pts_us)
+            packet.stream = v_s
+            output.mux(packet)
 
         # 音频配置extradat
         elif pkt_type == 201:
@@ -471,7 +489,7 @@ def h265(args: argparse.Namespace):
 
                 # 以视频的pts为准 视频没有开始时，音频也不要开始
                 if video_pts.first_time:
-                    logger.debug("视频还没开始! 收到的音频都丢掉。")
+                    logger.info("视频还没开始! 收到的音频都丢掉。")
                     continue
             
                 apacket = av.Packet(pkt_data)

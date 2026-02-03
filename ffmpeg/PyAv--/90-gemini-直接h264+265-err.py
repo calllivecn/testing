@@ -19,7 +19,7 @@ from fractions import Fraction
 import av
 from av.codec.hwaccel import HWAccel, hwdevices_available
 
-# import cv2
+import cv2
 import numpy as np
 
 
@@ -114,20 +114,24 @@ class MediaCodecProcessor:
         # --- 2. 初始化封装器 (用于保存文件) ---
         self.out_container = av.open(output_file, 'w')
         self.out_stream = self.out_container.add_stream(self.codec_name, rate=fps)
-        # 在 v12+ 中，flags 被移动到了 context 的属性中，但部分版本通过这种方式设置：
+        # 在 v12+ 中，flags 被移动到了 context 的属性中
         self.out_stream.codec_context.options['flags'] = '+global_header'
 
         # 如果可能，先获取流对象
         # self.out_stream.codec_context.extradata = extradata
         self.out_stream.codec_context.options['x265-params'] = 'info=0' # 即使被重算，也要禁掉文本
 
-        self.out_stream.time_base = Fraction(1, 90000) # 强制 H.264 标准 TimeBase
+        self.out_stream.time_base = Fraction(1, 1000) # 强制 H.264 标准 TimeBase
         
         # --- 3. 时间戳管理状态 ---
         self.last_dts = -1
         # 估算每帧的 DTS 增量 (90000 / 30 = 3000)
         self.dts_step = int(1 / fps / self.out_stream.time_base)
         self.first_pts_us = None
+    
+        # show
+        if self.opencv_show:
+            cv2.namedWindow('android Camera2 API', cv2.WINDOW_AUTOSIZE)
     
     def set_extradata(self, extradata: bytes):
         """设置解码器和封装器的 extradata (SPS/PPS)"""
@@ -149,7 +153,7 @@ class MediaCodecProcessor:
         # --- 修正点 1: 无论是不是 Config，都要先给解码器 Parse ---
         # 这一步极其重要！parse 会分析数据中的 SPS/PPS 并存储在 dec_ctx 内部
         packets = self.dec_ctx.parse(data)
-        print(f"解析第一帧时的：{packets=}")
+        # print(f"解析第一帧时的：{packets=}")
 
         """
         if typ == PacketType.VideoConfig:
@@ -169,10 +173,12 @@ class MediaCodecProcessor:
             raise ValueError("警告：关键帧来了，但还没有收到 Config 数据！")
         
         if not packets:
+            print("没有解析出任何 Packet，跳过此帧")
             return
 
         # 通常 MediaCodec 一次输出对应一个 Packet，但 parse 返回的是列表，所以要遍历
         for packet in packets:
+            # print(f"解析得到的: {packet=}")
             # [步骤 2] 计算 PTS (基于 Microseconds -> 1/90000)
             if self.first_pts_us is None:
                 self.first_pts_us = pts_us
@@ -226,14 +232,15 @@ class MediaCodecProcessor:
             
             # 这里的 packet 已经有了正确的 PTS/DTS，这有助于 dec_ctx 正确排序
             frames = self.dec_ctx.decode(packet)
+            # print(f"解码得到的: {len(frames)=}")
             
             for frame in frames:
                 # 转换为 OpenCV 格式 (YUV -> BGR)
                 if self.opencv_show:
                     img = frame.to_ndarray(format='bgr24')
                     # 在这里做你的 OpenCV 处理
-                    # cv2.imshow("Preview", img)
-                    # cv2.waitKey(1)
+                    cv2.imshow("Preview", img)
+                    cv2.waitKey(1)
                 
 
     def close(self):
@@ -243,9 +250,12 @@ class MediaCodecProcessor:
             for frame in frames:
                 if self.opencv_show:
                     img = frame.to_ndarray(format='bgr24')
-                    # cv2.imshow("Preview", img)
-                    # cv2.waitKey(1)
+                    cv2.imshow("Preview", img)
+                    cv2.waitKey(1)
                 
+        if self.opencv_show:
+            cv2.destroyAllWindows()
+
         # 写入文件尾部
         self.out_container.close()
         print("处理完成")
@@ -264,14 +274,18 @@ def test():
     sock = socket.create_connection((TCP_ADDR, TCP_PORT))
 
     MCP = MediaCodecProcessor(OUTPUT_FILE, fps=FPS, opencv_show=False)
+    # MCP = MediaCodecProcessor(OUTPUT_FILE, fps=FPS, opencv_show=True)
 
 
     safe_exit = True
     while safe_exit:
         pkt_type, pkt_len, pts_us, pkt_data = get_video_packet(sock)
 
+        # print(f"收到数据包: {pkt_type=}, {pkt_len=}, {pts_us=}")
+
         if pkt_type == PacketType.VideoConfig:
             MCP.set_extradata(pkt_data)
+            continue
 
         # 视频
         if pkt_type in (PacketType.VideoNormal, PacketType.VideoKeyFrame):
