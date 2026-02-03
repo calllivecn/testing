@@ -1,19 +1,4 @@
-"""
-ffmpeg.PyAv--.50-tcp4h265-cuda-decode-ok 的 Docstring
-
-问题：
-1. 从摄像头
-
-总结
-在摄像头录制场景下，"信任摄像头的时间戳" 是大忌。
-
-核心思路
-直接拷贝 (Stream Copy)：不进行 Decode/Encode，直接搬运 Packet。
-基准转换 (Rescale)：将时间戳从输入流的时间基（如 1/90000）转换到输出流的时间基（如 1/12800）。
-单调性修正 (Monotonicity Fix)：这是解决你报错的关键。如果转换后的时间戳重复或回退，强制让它比上一帧 +1。
-零点偏移 (Offset)：网络流进来的第一帧时间戳可能是任意巨大的数字，需要减去起始时间，让 MP4 从 0 秒开始。
-
-"""
+"""从安卓通过 TCP 接收 H.264/H.265 + AAC 流并保存为 MKV 文件"""
 
 
 import sys
@@ -223,142 +208,14 @@ class ReTimeline:
         return packet
 
 
-def h264(args: argparse.Namespace):
-
-    TCP_ADDR: str = args.tcp_addr
-    TCP_PORT: int = args.tcp_port
-    OUTPUT_FILE: str = args.filename
-    CODEC: str = args.codec
-
-    FPS: int = args.fps  # 视频帧率
-
-    enable_audio: bool = args.audio
-
-
-    output = av.open(OUTPUT_FILE, mode='w')
-
-    stream: av.VideoStream = output.add_stream(CODEC, rate=FPS)
-    # h.264 需要指定宽高
-    stream.width = args.whidth
-    stream.height = args.height
-    stream.time_base = av.time_base  # 如果是MP4容器 通常为1/90000
-    # 在 v12+ 中，flags 被移动到了 context 的属性中，但部分版本通过这种方式设置：
-    stream.codec_context.options['flags'] = '+global_header'
-
-    # 如果可能，先获取流对象
-    # stream.codec_context.extradata = extradata
-    stream.codec_context.options['x265-params'] = 'info=0' # 即使被重算，也要禁掉文本
-
-    logger.debug(f"stram: {stream=}, {get_public_attributes(stream)=}")
-
-
-    astream: av.AudioStream = output.add_stream("aac", rate=16000, layout="stereo")
-    astream.time_base = stream.time_base # 和视频相同
-
-    sock = socket.create_connection((TCP_ADDR, TCP_PORT))
-
-    codec = av.Codec('hevc', 'r')
-    # 强制转换类型或添加标注
-    # context: av.VideoCodecContext = av.CodecContext.create(codec)
-    # 如果硬解支持 启用硬件解码
-    if "cuda" in hwdevices_available():
-        hwaccel = HWAccel(device_type='cuda', allow_software_fallback=False)
-    context: av.VideoCodecContext = av.VideoCodecContext.create(codec, hwaccel)
-    
-
-    acodec = av.Codec("aac", "r")
-    acontext: av.AudioCodecContext = av.AudioCodecContext.create(acodec)
-    # 音频暂时还不需要解码
-
-    start_pts = 0
-    a_start_pts = 0
-    safe_exit = True
-    sps_pps_data = b""
-    while safe_exit:
-        pkt_type, pkt_len, pts_us, pkt_data = get_video_packet(sock)
-        # 视频
-        if pkt_type == PacketType.VideoConfig:
-            sps_pps_data = pkt_data
-
-        elif pkt_type in (PacketType.VideoNormal, PacketType.VideoKeyFrame):
-
-            if pkt_type == PacketType.VideoKeyFrame:
-                if sps_pps_data:
-                    pkt_data = sps_pps_data + pkt_data
-                    sps_pps_data = b'' # 写入后清空（或者不清空，取决于你是否想让每个关键帧都带参数）
-
-                print(f"{pts_us}: PacketType 判断是一个关键帧")
-                packet = av.Packet(pkt_data)
-                packet.is_keyframe = True
-
-            else:
-
-                packet = av.Packet(pkt_data)
-
-            #要在视频帧是关键帧时退出
-            if (not running) and packet.is_keyframe:
-                safe_exit = False
-                print("="*20,"正常退出.", "="*20)
-                break
-
-            # 1. 换算 PTS (从微秒 us 到 90kHz 单位)
-            # 使用 int() 确保是整数，避免播放器解析错误
-            if start_pts == 0:
-                start_pts = pts_us
-
-            calculated_pts = (pts_us - start_pts) * stream.time_base
-            print(f"视频PTS: {calculated_pts}")
-
-            # # 2. 赋值给 packet (裸流通常 PTS = DTS)
-            packet.pts = calculated_pts
-            packet.dts = calculated_pts
-            # 输出到文件
-      
-            packet.stream = stream
-            output.mux(packet)
-
-        # 音频
-        elif pkt_type == 2:
-
-            # 以视频的pts为准 视频没有开始时，音频也不要开始
-            if start_pts == 0:
-                print("视频还没开始! 收到的音频都丢掉。")
-                continue
-            
-            apacket = av.Packet(pkt_data)
-            # print(f"音频流：{apacket=}")
-            apacket.is_keyframe = True
-
-            # 音频可以不用？
-            if a_start_pts == 0:
-                a_start_pts = start_pts
-
-            apacket.stream = astream
-            output.mux(apacket)
-        
-        # 音频配置extradat
-        elif pkt_type == 201:
-            # 每一帧音频里带有 CSD数据 AAC 2字节
-            astream.codec_context.extradata = pkt_data
-        else:
-            print(f"错误的包类型: {pkt_type=} {pkt_len=} {pts_us=} {pkt_data=}")
-
-
-    output.close()
-    sock.close()
-
-    logger.debug(f"写入完成: {OUTPUT_FILE}")
-
-
-def h265(args: argparse.Namespace):
+def h264_h265(args: argparse.Namespace):
 
     enable_video: bool = args.video
 
     TCP_ADDR: str = args.tcp_addr
     TCP_PORT: int = args.tcp_port
     OUTPUT_FILE: str = args.filename
-    # VCODEC = args.codec
-    VCODEC = "h264"
+    VCODEC = args.codec
 
     w, h = args.size.split("x")
     width, height = int(w), int(h)
@@ -545,7 +402,7 @@ def main():
     parse.add_argument("--filename", required=True, help="输出视频文件名，当前只支持mkv。(.mkv 后缀可以省略)")
     parse.add_argument("--tcp-addr", dest="tcp_addr", required=True, help="安卓端tcp地址")
     parse.add_argument("--tcp-port", dest="tcp_port", default=58888, type=int, help="安卓端tcp端口(默认：58888)")
-    parse.add_argument("--codec", default="h265", choices=["h264", "h265"], help="视频编码器(h264 or h265) 需要和安卓端配置一致, 如果是h264只需要多配置下fps就行。")
+    parse.add_argument("--codec", default="hevc", choices=["h264", "h265","hevc"], help="视频编码器(h264 or h265) 需要和安卓端配置一致, 如果是h264只需要多配置下fps就行。")
     parse.add_argument("--size", default="1920x1080", help="视频分辨率 [h265]时需要指定 需要和安卓端配置一致")
     parse.add_argument("--fps", default=30, type=int, help="视频帧率 默认: 30 需要和安卓端配置一致")
 
@@ -563,7 +420,7 @@ def main():
 
     # 处理编码器名称
     encoders = {
-        "h264": "h264", # avc
+        "h264": "h264",
         "h265": "hevc" # hecv
     }
     aencoders = {
@@ -582,13 +439,8 @@ def main():
         print("需要指定安卓端地址")
         sys.exit(1)
 
-    if args.codec == "h264":
-        args.codec = encoders[args.codec]
-        h264(args)
-
-    elif args.codec == "h265":
-        args.codec = encoders[args.codec]
-        h265(args)
+    args.codec = encoders.get(args.codec, "hevc")
+    h264_h265(args)
     
     # if args.audio_channel == "1":
     #     args.audio_channel = aencoders["1"]
