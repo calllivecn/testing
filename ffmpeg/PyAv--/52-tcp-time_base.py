@@ -21,8 +21,8 @@ def get_logger(name=None):
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    # logger.setLevel(logging.INFO)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
+    # logger.setLevel(logging.DEBUG)
     return logger
 
 logger = get_logger(__name__)
@@ -214,7 +214,6 @@ def h264_h265(args: argparse.Namespace):
     w, h = args.size.split("x")
     width, height = int(w), int(h)
     FPS: int = args.fps  # 视频帧率
-    video_time_base = Fraction(1, 1000)
 
     enable_audio: bool = args.audio
     ACODEC = "aac"
@@ -235,7 +234,6 @@ def h264_h265(args: argparse.Namespace):
 
         v_s.width = width
         v_s.height = height
-        # v_s.time_base = video_time_base
         logger.debug(f"stram: {v_s=}, {get_public_attributes(v_s)=}")
         # 如果硬解支持 启用硬件解码
         # hw_codec = "cuda" or "vaapi"
@@ -298,7 +296,7 @@ def h264_h265(args: argparse.Namespace):
             # logger.info(f"packet 的属性：{get_public_attributes(packet)}")
 
             if pkt_type == PacketType.VideoKeyFrame:
-                logger.info(f"{packet=}: PacketType 判断是一个关键帧")
+                logger.debug(f"{packet=}: PacketType 判断是一个关键帧")
                 packet.is_keyframe = True
 
             #要在视频帧是关键帧时退出
@@ -321,6 +319,8 @@ def h264_h265(args: argparse.Namespace):
                     logger.debug(f"解码成功: 格式={frame.format.name} 尺寸={frame.width}x{frame.height} PTS={frame.pts}")
                     cv2_imwrite(frame)
 
+            if packet.is_keyframe:
+                logger.info(f"output.mux()前 {packet=}: 一个关键帧")
             # 需要先解码，在mux()
             output.mux(packet)
 
@@ -362,7 +362,7 @@ def h264_h265(args: argparse.Namespace):
         
                 # Config 帧通常不需要 decode，也不需要 mux 到轨道里，直接跳过。
                 packet = av.Packet(pkt_data)
-                # video_pts.video(packet, pts_us) # 不需要
+                video_pts.video(packet, pts_us) # 不需要?
                 packet.stream = v_s
                 output.mux(packet)
 
