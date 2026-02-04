@@ -123,8 +123,9 @@ class ReTimeline:
         self.time_base = Fraction(1, ANDROID_TIMESTAMP_UNIT)
 
         self.last_dts = -1
-        # 估算每帧的 DTS 增量 (90000 / 30 = 3000)
-        self.dts_step = int(self.time_base / fps)
+        # 估算每帧的 DTS 增量
+        self.dts_step = int(1 / self.time_base / fps)
+        logger.debug(f"{self.dts_step=}")
 
     # def set_audio(self, sample_rate: int):
     def set_audio(self):
@@ -172,6 +173,7 @@ class ReTimeline:
         
         # 设置 duration (有助于播放器 seek)
         # packet.duration = self.dts_step
+        logger.debug(f"这里查看：{self.dts_step=} {calc_dts=} 处理之后的: {packet=}")
 
         packet.time_base = self.time_base
         # logger.debug(f"处理后 PTS DTS：{packet.pts=} {packet.dts=} {pts=} {running=}")
