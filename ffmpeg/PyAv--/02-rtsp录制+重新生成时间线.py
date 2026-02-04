@@ -23,6 +23,7 @@ from av.container import Flags
 
 from libcommon import (
     VideoFile,
+    ReTimeline,
 )
 
 # video = "rtsp://192.168.0.103:5554" # 使用rtsp 还是有问题，在有音频时，还是报退出。
@@ -38,12 +39,23 @@ options={
 in_v = av.open(video, options=options, buffer_size=8<<20)
 
 print(f"{dir(in_v)=}")
-print(f"{in_v.flags=}")
-# in_v.flags |= Flags.IGNDTS
-# in_v.flags = Flags.AUTO_BSF
 # print(f"{in_v.flags=}")
 
+fps = 30
+# 拿到平均帧率
+v_s = in_v.streams.video[0]
+if v_s.average_rate is None:
+    if fps is None:
+        raise ValueError("视频流 stream.average_rate为None, 需要手动指定fps.")
+
+print(f"{fps=}")
+
+a_s = in_v.streams.audio[0]
+
 out_v = av.open("test.mkv", mode="w")
+
+out_v_s = out_v.add_stream_from_template(v_s)
+out_a_s = out_v.add_stream_from_template(a_s)
 
 time_ = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
 out_v.metadata["title"] = "从rtsp录制: {time_}"
@@ -54,18 +66,17 @@ EXIT = False
 def exit_signal(sig, frame):
     global EXIT
     EXIT = True
-    # print("使用信号退出")
-    # print(f"signal: {frame=}")
-
 
 
 signal.signal(signal.SIGINT, exit_signal)
 
 def main():
 
+    retimeline = ReTimeline()
 
-    vf = VideoFile(in_v)
-    vf.new_output()
+    retimeline.set_video(v_s.time_base, fps)
+
+    retimeline.set_audio(a_s.time_base)
 
     for packet in in_v.demux():
 
@@ -74,15 +85,24 @@ def main():
 
         print(f"当前流：{packet=} {packet.time_base=}")
 
-        vf.write3(packet)
+        if packet.stream.type == "video":
+            retimeline.video(packet)
+            packet.stream = out_v_s
+        elif packet.stream.type == "audio":
+            retimeline.audio(packet)
+            packet.stream = out_a_s
+        
+        else:
+            print(f"当前不支持流类型：{packet.stream.type=}")
 
-        if EXIT:
+        if EXIT and packet.is_keyframe:
             break
+
+        out_v.mux(packet)
 
 
     print("停止录制，写入数据...")
     in_v.close()
-    vf.close()
 
 
 main()

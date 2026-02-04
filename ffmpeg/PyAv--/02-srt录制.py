@@ -37,9 +37,11 @@ def record(url_srt: str, filename: str):
 
     options={
         "loglevel": "debug",
+        "rtsp_tranport": "tcp"
         }
 
-    in_v = av.open(url_srt, options=options, buffer_size=8<<20)
+    # in_v = av.open(url_srt, options=options, buffer_size=8<<20)
+    in_v = av.open(url_srt, options=options)
 
     # print(f"{dir(in_v)=}")
     # print(f"{in_v.flags=}")
@@ -47,6 +49,7 @@ def record(url_srt: str, filename: str):
     # in_v.flags = Flags.AUTO_BSF
     # print(f"{in_v.flags=}")
 
+    print("只执行到这？")
     out_v = av.open(filename, mode="w")
 
     time_ = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
@@ -60,6 +63,7 @@ def record(url_srt: str, filename: str):
 
     vf = VideoFile(in_v)
     vf.new_output()
+
 
     try:
         demuxs = in_v.demux()
