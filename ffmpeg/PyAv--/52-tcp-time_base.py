@@ -150,11 +150,7 @@ class ReTimeline:
             self.first_timestamp = timestamp
         
         # 归零并转换单位
-        rel_us = timestamp - self.first_timestamp
-        # 这里的计算公式： us * (time_base.den) / (1,000,000 * time_base.num)
-        # 简化后: us * 90000 / 1000000 = us * 0.09
-        # pts = int(rel_us * self.time_base.denominator / (ANDROID_TIMESTAMP_UNIT * self.time_base.numerator))
-        pts = rel_us
+        pts = timestamp - self.first_timestamp
 
         packet.pts = pts
         packet.dts = pts # 对于无B帧的情况
@@ -185,19 +181,7 @@ class ReTimeline:
             self.first_audio_time = False
             self.first_audio_timestamp = timestamp
 
-        rel_us = timestamp - self.first_audio_timestamp
-
-        # 1. 公式差异】视频乘 90000，音频乘 sample_rate (44100)
-        # PTS = seconds * time_base.den
-        # PTS = (rel_us / 1000000.0) * 44100
-        # pts = int(rel_us * self.audio_time_base.denominator / ANDROID_TIMESTAMP_UNIT)
-
-        # 2. 转换为mkv容器的时间基。
-        # pts = int(rel_us / self.time_base / ANDROID_TIMESTAMP_UNIT)
-
-        # 化简为下公式
-        # pts =  int(rel_us * self.time_base.denominator / ANDROID_TIMESTAMP_UNIT)
-        pts = rel_us
+        pts = timestamp - self.first_audio_timestamp
 
         # 4. 修正单调性 (音频虽然没有B帧，但 MediaCodec 有时也会抖动)
         if pts <= self.last_audio_pts:
@@ -378,7 +362,7 @@ def h264_h265(args: argparse.Namespace):
         
                 # Config 帧通常不需要 decode，也不需要 mux 到轨道里，直接跳过。
                 packet = av.Packet(pkt_data)
-                video_pts.video(packet, pts_us)
+                # video_pts.video(packet, pts_us) # 不需要
                 packet.stream = v_s
                 output.mux(packet)
 
