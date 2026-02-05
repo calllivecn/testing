@@ -30,13 +30,12 @@ logger = get_logger(__name__)
 # 开启底层 ffmpeg 的 debug
 av.logging.set_level(av.logging.DEBUG)
 
-
 def cv2_imwrite(img: av.VideoFrame):
     """将 av.VideoFrame 保存为图像文件"""
     array = img.to_ndarray(format='bgr24')
-    filename = f"frame_{time.time()*10}.png"
+    t = int(time.time()*10)
+    filename = f"frame_{t}.png"
     cv2.imwrite(filename, array)
-
 
 def get_public_attributes(obj):
     """

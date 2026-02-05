@@ -34,14 +34,16 @@ av.logging.set_level(av.logging.DEBUG)
 def cv2_imwrite(img: av.VideoFrame):
     """将 av.VideoFrame 保存为图像文件"""
     array = img.to_ndarray(format='bgr24')
-    filename = f"frame_{time.time()}.png"
+    t = int(time.time()*10)
+    filename = f"frame_{t}.png"
     cv2.imwrite(filename, array)
 
 # 这个需要PIL包
 def to_png(vf: av.VideoFrame):
     """将 av.VideoFrame 保存为图像文件"""
     img = vf.to_image()
-    filename = f"frame_{time.time()*10}.png"
+    t = int(time.time()*10)
+    filename = f"frame_{t}.png"
     img.save(filename)
 
 

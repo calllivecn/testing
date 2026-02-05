@@ -2,11 +2,9 @@
 """
 VAAPI 编解码测试工具
 此脚本使用lavfi过滤器生成测试视频，然后通过VA-API进行编码和解码测试
-修复了PyAV v16.1.0 API变化导致的问题
 """
 
 import sys
-import os
 import logging
 from fractions import Fraction
 from pathlib import Path
@@ -20,8 +18,8 @@ def get_logger(name=None):
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    # logger.setLevel(logging.INFO)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
+    # logger.setLevel(logging.DEBUG)
     return logger
 
 logger = get_logger(__name__)
@@ -222,13 +220,8 @@ def test_hardware_decoding(codec_name, input_file):
                 frames = packet.decode()
                 for frame in frames:
                     decoded_frame_count += 1
-                    logger.info(f"成功解码第 {decoded_frame_count} 帧 (格式: {frame.format})")
+                    logger.debug(f"成功解码第 {decoded_frame_count} 帧 (格式: {frame.format})")
                     
-                    # 只解码前几帧用于测试
-                    if decoded_frame_count >= 10:
-                        break
-                if decoded_frame_count >= 10:
-                    break
             except Exception as e:
                 logger.warning(f"解码包时出错: {e}", exc_info=True)
                 continue
@@ -266,10 +259,6 @@ def main():
         print("- 已正确配置VA-API环境")
         return 1
     
-    # 创建临时测试文件
-    test_video_path = "test_input.mkv"
-    encoded_video_path = "test_encoded.mkv"
-
     # codec_name_map_codec
     CNMC = {
         "libx264": "h264",
@@ -305,17 +294,19 @@ def main():
         for codec in codecs:
             print(f"\n {"="*20} 测试编码器: {codec} {"="*20}")
             
-            encoded_path = Path(f"test_input_{CNMC[codec]}.mkv")
+            input_path = Path(f"test_input_{CNMC[codec]}.mkv")
             # 测试解码
-            decode_success = test_hardware_decoding(codec, encoded_path)
-            
-            if decode_success:
-                # 测试编码
-                test_hardware_encoding(codec, test_video_path, encoded_path)
-                result = "成功" if decode_success else "失败"
-                print(f"  解码测试: {result}")
+            if test_hardware_decoding(codec, input_path):
+                print(f"测试 {codec} 解码 成功。")
             else:
-                print("  编码测试失败，跳过解码测试")
+                print(f"测试 {codec} 解码 失败。")
+            
+            # 测试编码
+            if test_hardware_encoding(codec, input_path, f"test_encode_{CNMC[codec]}.mkv"):
+                print(f"测试 {codec} 编码 成功。")
+            else:
+                print(f"测试 {codec} 编码 失败。")
+
         
         """
         # 清理临时文件
