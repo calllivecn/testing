@@ -41,10 +41,8 @@ def test2():
     out_stream = output_container.add_stream("hevc")
     out_stream.time_base = time_base
 
-    # 可选但强烈建议：拷贝参数
-    out_stream.codec_context.width = in_stream.codec_context.width
-    out_stream.codec_context.height = in_stream.codec_context.height
-    out_stream.codec_context.pix_fmt = in_stream.codec_context.pix_fmt
+    # 复制流参数
+    output_container.add_stream_from_template(in_stream)
 
     pts = 0
     for packet in input_container.demux(in_stream):

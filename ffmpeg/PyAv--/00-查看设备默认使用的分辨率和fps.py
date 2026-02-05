@@ -1,7 +1,14 @@
 
+import sys
+
 import av
 
-cap = av.open('/dev/video0')
+try:
+    video = sys.argv[1]
+except IndexError:
+    video = "/dev/video0"
+
+cap = av.open(video)
 print(f"{dir(cap)=} \n{cap=}")
 stream = cap.streams[0]
 
