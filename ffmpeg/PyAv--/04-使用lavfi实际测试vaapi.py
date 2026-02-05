@@ -12,6 +12,7 @@ from fractions import Fraction
 from pathlib import Path
 
 import av
+from av.codec.hwaccel import HWAccel, HWConfig, hwdevices_available
 
 def get_logger(name=None):
     logger = logging.getLogger(name)
@@ -182,86 +183,6 @@ def test_hardware_encoding(codec_name, input_file, output_file):
         
         logger.info(f"硬件编码测试成功: {codec_name}")
         return True
-
-        """
-        frame_count = 0
-        for frame in input_stream.decode():
-            logger.debug(f"从测试文件编码：{frame=}")
-            frame_count += 1
-            
-            # 设置帧的时间戳
-            frame.pts = frame_count
-            frame.time_base = Fraction(1, fps)
-            
-            try:
-                # 确保帧格式正确
-                target_format = 'nv12'
-                if frame.format.name != target_format:
-                    converted_frame = frame.reformat(width=frame.width, height=frame.height, format=target_format)
-                    converted_frame.pts = frame.pts
-                    converted_frame.time_base = frame.time_base
-                    packets = output_stream.encode(converted_frame)
-                else:
-                    packets = output_stream.encode(frame)
-
-                logger.debug(f"{len(packets)=}")
-
-                if packets:
-                    logger.debug(f"output_stream.encode(frame) 编码成功：{packets[0]=}")
-                    # 处理返回的可能是列表或单个packet的情况
-                    if isinstance(packets, list):
-                        for packet in packets:
-                            if packet:
-                                output_container.mux(packet)
-                    else:
-                        output_container.mux(packets)
-            except Exception as e:
-                logger.warning(f"编码帧时出错: {e}", exc_info=True)
-                # 如果编码失败，尝试使用原始帧
-                try:
-                    packets = output_stream.encode(frame)
-                    if packets:
-                        if isinstance(packets, list):
-                            for packet in packets:
-                                if packet:
-                                    output_container.mux(packet)
-                        else:
-                            output_container.mux(packets)
-                except Exception as e2:
-                    logger.error(f"编码失败: {e2}")
-                    break
-            
-            # 只处理前几帧用于测试
-            if frame_count >= 30:  # 处理1秒的帧（假设30fps）
-                break
-        
-        # 冲刷编码器 - 使用正确的异常类型
-        try:
-            for packets in output_stream.encode(None):  # 使用None作为冲刷信号
-                if isinstance(packets, list):
-                    for packet in packets:
-                        if packet:
-                            output_container.mux(packet)
-                        else:
-                            break
-                else:
-                    if packets:
-                        output_container.mux(packets)
-                    else:
-                        break
-        except (av.EOFError, av.InvalidDataError) as e:
-            # 忽略EOF错误，这是正常的冲刷结束
-            logger.warning(f"忽略EOF错误，这是正常的冲刷结束: {e}", exc_info=True)
-        except Exception as e:
-            logger.warning(f"冲刷编码器时出现其他错误: {e}", exc_info=True)
-            # raise e
-        
-        output_container.close()
-        input_container.close()
-        
-        logger.info(f"硬件编码测试成功: {codec_name}")
-        return True
-        """        
         
     except Exception as e:
         logger.error(f"硬件编码测试失败 {codec_name}: {e}")
@@ -274,26 +195,21 @@ def test_hardware_decoding(codec_name, input_file):
     测试硬件解码
     """
     logger.info(f"开始测试硬件解码: {codec_name}")
+
+    hw = HWAccel(device_type="vaapi", allow_software_fallback=False)
     
     try:
-        container = av.open(input_file)
+        container = av.open(input_file, hwaccel=hw)
         
         # 获取视频流 - 修复：使用正确的方法获取流
-        video_stream = None
-        for stream in container.streams:
-            if stream.type == 'video':
-                video_stream = stream
-                break
-        
-        if video_stream is None:
-            logger.error("未找到视频流")
-            return False
+        video_stream = container.streams.video[0]
         
         # 尝试配置硬件解码
         codec_context = video_stream.codec_context
         try:
             # 设置解码器像素格式为VAAPI兼容格式
-            codec_context.pix_fmt = 'vaapi_vld'
+            # codec_context.pix_fmt = 'vaapi_vld'
+            codec_context.pix_fmt = 'vaapi'
         except AttributeError:
             logger.debug("解码器上下文不支持pix_fmt属性")
         except Exception as e:
@@ -306,7 +222,7 @@ def test_hardware_decoding(codec_name, input_file):
                 frames = packet.decode()
                 for frame in frames:
                     decoded_frame_count += 1
-                    logger.info(f"成功解码第 {decoded_frame_count} 帧 (格式: {frame.format}, width: {frame.width}, height: {frame.height})")
+                    logger.info(f"成功解码第 {decoded_frame_count} 帧 (格式: {frame.format})")
                     
                     # 只解码前几帧用于测试
                     if decoded_frame_count >= 10:
