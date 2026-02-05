@@ -66,6 +66,16 @@ ffmpeg -f lavfi -i testsrc -c:v hevc_qsv -f null -
 # 可能需要使用vaapi
 ffmpeg -vaapi_device /dev/dri/renderD128 -f lavfi -i testsrc -vf "format=nv12,hwupload" -c:v hevc_vaapi -f null -
 
+# 使用 Hex 值 (注意：在 Bash 中 # 号可能需要转义或加引号)
+ffmpeg -f lavfi -i "color=color=#ff5733:size=1280x720" -t 5 out.mp4
+
+3. 常见虚拟源的用法除了 color，你可能还会用到 testsrc（测试卡）或 smptebars：
+
+滤镜名称,说明,示例命令
+color,纯色填充,color=c=black:s=640x480
+testsrc,标准测试图案,testsrc=size=1280x720:rate=30
+smptebars,SMPTE 彩条,smptebars=s=1920x1080
+
 
 - 4
 # 视频图片提取
