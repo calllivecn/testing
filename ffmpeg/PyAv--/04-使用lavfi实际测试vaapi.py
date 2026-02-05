@@ -215,22 +215,19 @@ def test_hardware_encoding(codec_name, input_file, output_file):
         
         # 冲刷编码器 - 使用正确的异常类型
         try:
-            while True:
-                packets = output_stream.encode(None)  # 使用None作为冲刷信号
-                if packets:
-                    if isinstance(packets, list):
-                        for packet in packets:
-                            if packet:
-                                output_container.mux(packet)
-                            else:
-                                break
-                    else:
-                        if packets:
-                            output_container.mux(packets)
+            # for packets in output_stream.encode(None):  # 使用None作为冲刷信号
+            for packets in output_stream.encode():  # 使用None作为冲刷信号
+                if isinstance(packets, list):
+                    for packet in packets:
+                        if packet:
+                            output_container.mux(packet)
                         else:
                             break
                 else:
-                    break
+                    if packets:
+                        output_container.mux(packets)
+                    else:
+                        break
         except (av.EOFError, av.InvalidDataError) as e:
             # 忽略EOF错误，这是正常的冲刷结束
             logger.warning(f"忽略EOF错误，这是正常的冲刷结束: {e}", exc_info=True)
