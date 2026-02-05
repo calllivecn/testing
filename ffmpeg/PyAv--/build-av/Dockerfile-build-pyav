@@ -1,7 +1,7 @@
 # 需要挂载一个目录，把编码好的av-xxxx.whl包输出到主机上：
 # TMPDIR=$(pwd) podman build -v $(pwd):/build --build-arg AV_VERSION=14.4.0 -t ffmpeg-pyav .
 
-FROM ubuntu-core:25.10
+FROM ubuntu-core:24.04
 
 ARG AV_VERSION
 
