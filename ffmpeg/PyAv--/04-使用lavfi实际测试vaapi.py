@@ -164,7 +164,26 @@ def test_hardware_encoding(codec_name, input_file, output_file):
         except Exception:
             # 如果设置失败，使用默认格式
             logger.warning("设置pix_fmt = 'nv12'失败 退回默认格式")
+
+        for packet in input_container.demux(video=0):
+            logger.debug("有demux() 出 packet")
+            for frame in packet.decode():
+
+                for packet_encode in output_stream.encode(frame):
+                    output_container.mux(packet_encode)
         
+        # 结尾
+        for packet_encode in output_stream.encode():
+            logger.debug(f"结尾：编码器：{packet_encode}")
+            output_container.mux(packet_encode)
+
+        output_container.close()
+        input_container.close()
+        
+        logger.info(f"硬件编码测试成功: {codec_name}")
+        return True
+
+        """
         frame_count = 0
         for frame in input_stream.decode():
             logger.debug(f"从测试文件编码：{frame=}")
@@ -242,6 +261,7 @@ def test_hardware_encoding(codec_name, input_file, output_file):
         
         logger.info(f"硬件编码测试成功: {codec_name}")
         return True
+        """        
         
     except Exception as e:
         logger.error(f"硬件编码测试失败 {codec_name}: {e}")
