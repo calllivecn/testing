@@ -1,6 +1,6 @@
 FROM ubuntu-core:25.10
 
-ARG VA_VERSION
+ARG AV_VERSION
 
 COPY run.sh /tmp/
 

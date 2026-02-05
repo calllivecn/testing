@@ -7,7 +7,7 @@
 # Dockerfile: 容器里使用的最新版本PyAv
 
 - 先修改 run.sh 里的 AV\_VERSION变量指定要安装的PyAv版本
-- TMPDIR=$(pwd) podman build -t ffmpeg-pyav .
+- TMPDIR=$(pwd) podman build -t ffmpeg-pyav --build-arg AV_VERSION=16.1.0 .
 
 
 ## 要使用 nvidia-gpu 硬件编码的，查看容器中使用cuda的方式。
