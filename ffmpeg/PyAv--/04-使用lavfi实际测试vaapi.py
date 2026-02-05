@@ -19,8 +19,8 @@ def get_logger(name=None):
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
-    # logger.setLevel(logging.DEBUG)
+    # logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     return logger
 
 logger = get_logger(__name__)
@@ -142,17 +142,16 @@ def test_hardware_encoding(codec_name, input_file, output_file):
         
         output_container = av.open(output_file, mode='w')
         
+        fps = 30
         # 创建硬件编码流
-        output_stream = output_container.add_stream(codec_name)
+        output_stream = output_container.add_stream(codec_name, rate=fps)
         output_stream.width = input_stream.width
         output_stream.height = input_stream.height
         output_stream.bit_rate = 2000000  # 2Mbps
         
         # 设置帧率和时间基
-        fps = 30
         output_stream.time_base = Fraction(1, fps)
         output_stream.codec_context.time_base = Fraction(1, fps)
-        output_stream.codec_context.framerate = fps
         
         # 配置编码器参数
         codec_context = output_stream.codec_context
@@ -168,6 +167,7 @@ def test_hardware_encoding(codec_name, input_file, output_file):
         
         frame_count = 0
         for frame in input_stream.decode():
+            logger.debug(f"从测试文件编码：{frame=}")
             frame_count += 1
             
             # 设置帧的时间戳
@@ -184,8 +184,11 @@ def test_hardware_encoding(codec_name, input_file, output_file):
                     packets = output_stream.encode(converted_frame)
                 else:
                     packets = output_stream.encode(frame)
-                
+
+                logger.debug(f"{len(packets)=}")
+
                 if packets:
+                    logger.debug(f"output_stream.encode(frame) 编码成功：{packets[0]=}")
                     # 处理返回的可能是列表或单个packet的情况
                     if isinstance(packets, list):
                         for packet in packets:
@@ -215,8 +218,7 @@ def test_hardware_encoding(codec_name, input_file, output_file):
         
         # 冲刷编码器 - 使用正确的异常类型
         try:
-            # for packets in output_stream.encode(None):  # 使用None作为冲刷信号
-            for packets in output_stream.encode():  # 使用None作为冲刷信号
+            for packets in output_stream.encode(None):  # 使用None作为冲刷信号
                 if isinstance(packets, list):
                     for packet in packets:
                         if packet:
@@ -275,7 +277,7 @@ def test_hardware_decoding(codec_name, input_file):
         except AttributeError:
             logger.debug("解码器上下文不支持pix_fmt属性")
         except Exception as e:
-            logger.debug(f"无法设置VAAPI解码格式: {e}")
+            logger.debug(f"无法设置VAAPI解码格式: {e}，退回默认格式。")
         
         decoded_frame_count = 0
         # 修复：使用demux方法
