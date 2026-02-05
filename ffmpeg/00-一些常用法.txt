@@ -60,6 +60,12 @@ file '02.mp4'
 
 ffmpeg -f lavfi -i color=black:s=1280x710 -t 1 empty.mkv
 
+# 测试当前系统是否支持一种编码
+ffmpeg -f lavfi -i testsrc -c:v hevc_qsv -f null -
+
+# 可能需要使用vaapi
+ffmpeg -vaapi_device /dev/dri/renderD128 -f lavfi -i testsrc -vf "format=nv12,hwupload" -c:v hevc_vaapi -f null -
+
 
 - 4
 # 视频图片提取
@@ -82,11 +88,12 @@ ffmpeg [-hwaccel cuvid] [-hwaccel_output_format cuda] -i input.mp4 -vf hue=s=0 -
 
 ## 使用QSV
 
+- 依赖非开源驱动库：intel-media-va-driver-non-free
+- 常见的linux发行版中默认是：intel-media-va-driver 会少 HEVC 之类的编码支持
+
 - QSV 使用的编解码器名字：
 
 ```text
-解码：h264_qsv、hevc_qsv、mpeg2_qsv、vc1_qsv
-
 编码：h264_qsv、hevc_qsv、mpeg2_qsv、vp9_qsv（取决于硬件和驱动）
 
 调用方式：QSV 不像 VAAPI 那样要 -vaapi_device，它只需要 -hwaccel qsv，然后直接指定 QSV 解码器或编码器。
