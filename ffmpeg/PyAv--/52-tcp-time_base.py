@@ -162,7 +162,7 @@ class ReTimeline:
         pts = timestamp - self.first_timestamp
 
         packet.pts = pts
-        packet.dts = pts # 对于无B帧的情况
+        # packet.dts = pts # 对于无B帧的情况
 
         calc_dts = self.last_dts + self.dts_step
         
