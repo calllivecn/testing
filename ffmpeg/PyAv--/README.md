@@ -101,3 +101,12 @@ D T S ≤ P T S DTS≤PTS 。
     PyAV/FFmpeg 的 MKV Muxer 非常聪明：
     它允许视频轨道使用 1/1000 的时间基，同时允许音频轨道使用 1/44100 的时间基。它们可以在同一个文件中和平共处。
     ```
+
+
+
+---
+
+# 查看 extradata 的前几个字节
+
+- ffprobe -v error -select_streams v:0 -show_entries stream=extradata -of default=noprint_wrappers=1 test.mkv
+

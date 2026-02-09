@@ -47,13 +47,16 @@ hdfs--/input/
 *.pid
 
 *.zip
+*.jpg
+*.png
+
 *.mp3
 *.mp4
 *.mkv
 *.aac
-*.jpg
-*.png
-
+*.srt
+*.ass
+*.ssa
 
 *.class
 *.jar
