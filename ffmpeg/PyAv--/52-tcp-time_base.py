@@ -154,7 +154,7 @@ class ReTimeline:
         # 安卓9. 第一帧输出配置文件时，timestamp会是0
         # 安卓14. 第一帧输出配置文件时，timestamp会是和接下来的视频帧相同。
 
-        if self.first_time and timestamp != 0:
+        if self.first_time:
             self.first_time = False
             self.first_timestamp = timestamp
         
@@ -241,6 +241,8 @@ def h264_h265(args: argparse.Namespace):
         # v_s.codec_context.extradata = extradata
         v_s.codec_context.options['x265-params'] = 'info=0' # 即使被重算，也要禁掉文本
 
+        # v_s.codec_tag = "hvc1"
+
         v_s.width = width
         v_s.height = height
         logger.debug(f"stram: {v_s=}, {get_public_attributes(v_s)=}")
@@ -262,7 +264,7 @@ def h264_h265(args: argparse.Namespace):
 
             v_ctx: av.VideoCodecContext = av.VideoCodecContext.create(VCODEC, "r", hw)
         else:
-            v_ctx: av.VideoCodecContext = av.VideoCodecContext.create("hevc", "r")
+            v_ctx: av.VideoCodecContext = av.VideoCodecContext.create(VCODEC, "r")
 
 
 
@@ -282,25 +284,20 @@ def h264_h265(args: argparse.Namespace):
     if enable_audio:
         video_pts.set_audio()
 
-    # 兼容h.264
-    sps_pps_data = b""
-
+    first = True
     safe_exit = True
     while safe_exit:
         pkt_type, pkt_len, pts_us, pkt_data = get_video_packet(sock)
         # 视频
         if pkt_type in (PacketType.VideoNormal, PacketType.VideoKeyFrame):
 
-            if VCODEC == "h264" and pkt_type == PacketType.VideoKeyFrame:
-                if sps_pps_data:
-                    pkt_data = sps_pps_data + pkt_data
-                    sps_pps_data = b'' # 写入后清空（或者不清空，取决于你是否想让每个关键帧都带参数）
+            if pkt_type == PacketType.VideoKeyFrame:
+                if first:
+                    first = False
+                    pkt_data = v_ctx.extradata + pkt_data
+            
 
-                packet = av.Packet(pkt_data)
-                packet.is_keyframe = True
-
-            else:
-                packet = av.Packet(pkt_data)
+            packet = av.Packet(pkt_data)
 
             # logger.info(f"packet 的属性：{get_public_attributes(packet)}")
 
@@ -326,7 +323,7 @@ def h264_h265(args: argparse.Namespace):
                 logger.debug(f"# 测试只解码关键帧: {len(frames)=}")
                 for frame in frames:
                     logger.debug(f"解码成功: 格式={frame.format.name} 尺寸={frame.width}x{frame.height} PTS={frame.pts}")
-                    cv2_imwrite(frame)
+                    # cv2_imwrite(frame)
 
             if packet.is_keyframe:
                 logger.info(f"output.mux()前 {packet=}: 一个关键帧")
@@ -357,7 +354,7 @@ def h264_h265(args: argparse.Namespace):
 
             if VCODEC == "h264":
                 logger.info("视频编码器是 H264")
-                sps_pps_data = pkt_data
+                v_ctx.extradata = pkt_data
 
             elif VCODEC == "hevc":
                 logger.info("视频编码器是 H265")
@@ -369,11 +366,6 @@ def h264_h265(args: argparse.Namespace):
                 # 这一步至关重要！没有它，解码器解不出第一个关键帧。
                 v_ctx.extradata = pkt_data
         
-                packet = av.Packet(pkt_data)
-                video_pts.video(packet, pts_us)
-                packet.stream = v_s
-                output.mux(packet)
-
             else:
                 # logger.warning(f"未知的视频编码器类型: {VCODEC}")
                 raise ValueError(f"未知的视频编码器类型: {VCODEC}")

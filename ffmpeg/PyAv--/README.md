@@ -106,7 +106,38 @@ D T S ≤ P T S DTS≤PTS 。
 
 ---
 
-# 查看 extradata 的前几个字节
+## mkv 验证命令（必做！）
 
-- ffprobe -v error -select_streams v:0 -show_entries stream=extradata -of default=noprint_wrappers=1 test.mkv
+```shell
+# 1. 检查 extradata 是否存在（MKV 关键！）
+ffprobe -v error -show_entries stream=codec_tag_string,extradata -of default=noprint_wrappers=1 output.mkv
 
+# codec_tag_string=[0][0][0][0]
+# codec_tag_string=[0][0][0][0]
+# 依然没有输出 extradata
+# 和上一个文件一样，输出里只有 codec_tag_string 而没有 extradata 字段，说明这两个流的 extradata 也是空的。
+
+# 2. 检查首帧时间戳（必须 > 0）
+ffprobe -select_streams v -show_packets output.mkv | grep -A 2 "pts_time=0"  # 应无输出
+
+# 3. 检查首帧是否为 IDR（POC=0）
+ffmpeg -i output.mkv -vf "showinfo" -f null - 2>&1 | grep "pict_type=I" | head -1
+
+# 4. 用 ffplay 严格模式测试
+ffplay output.mkv -loglevel debug 2>&1 | grep -E "POC|timestamp|extradata"
+```
+
+## 查看 视频文件内容是否是使用的 Annex-B 
+
+```
+根据你提供的 ffprobe JSON 结果，我们可以进行精准的“法医鉴定”。
+1. 鉴定结论：内部是 Length-Prefixed (hvcc/hev1) 格式
+你的视频流不是 Annex-B，而是标准的 MKV/MP4 长度前缀格式。
+2. 证据拆解
+看这段数据："data": "\n00000000: 0000 4b72 2601 ..."
+前 4 字节 (00 00 4b 72)：
+这是 NALU 的长度（Length Field）。
+十六进制 4b72 转换为十进制是 19314。
+它告诉播放器：“接下来的这块数据长度是 19314 字节。”
+如果是 Annex-B，这里必须是 00 00 00 01。既然不是，那就确定是长度前缀格式。
+```
