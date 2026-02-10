@@ -229,7 +229,30 @@ def h264_h265(args: argparse.Namespace):
     sample_rate = int(args.sample_rate)
     audio_time_base = Fraction(1, sample_rate)
 
-    output = av.open(OUTPUT_FILE, mode='w')
+
+    options_mp4 = {
+        # frag_keyframe: 在每个关键帧处切分分片，保证每一段都能独立解码
+        # empty_moov: 配合分片使用，使头部 moov 变小
+        # default_base_moof: 增强兼容性
+        # skip_trailer: 最关键的参数。默认情况下，MP4 结尾会有一个 mfra（随机访问索引）。如果崩溃，这个索引必坏。加上这个参数后，封装器不再依赖结尾索引
+        # 'movflags': 'frag_keyframe+empty_moov+default_base_moof'
+        'movflags': 'frag_keyframe+empty_moov+default_base_moof+skip_trailer'
+    }
+
+    # 对于 MKV，可以使用 dash 模式或者 live 模式，虽然 MKV 默认较稳
+    options_mkv = {'live': '1'}
+
+    # mp4 没有 mkv 好修复 。。。不过才能正常播放。
+    # mkv 断电后修复 ffmpeg -i in.mkv -c copy out.mkv
+
+    if OUTPUT_FILE.endswith(".mp4"):
+        options = options_mp4
+    elif OUTPUT_FILE.endswith(".mkv"):
+        options = options_mkv
+    else:
+        raise ValueError("视频格式名称错误")
+
+    output = av.open(OUTPUT_FILE, mode='w', options=options)
 
     if enable_video:
         v_s: av.VideoStream = output.add_stream(VCODEC, rate=FPS)
