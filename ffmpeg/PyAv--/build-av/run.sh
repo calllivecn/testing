@@ -17,6 +17,9 @@ apt -y install python3 python3-pip python3-venv pkg-config build-essential \
 sed -i '/zh_CN.UTF-8/s/^# //g' /etc/locale.gen
 locale-gen
 
+# 设置时区
+ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+
 pip3 config --global set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
 pip install --break-system-packages ipython cryptography
