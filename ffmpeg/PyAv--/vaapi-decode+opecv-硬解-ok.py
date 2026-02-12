@@ -229,8 +229,7 @@ def method4():
                     # pprint.pprint(frame_attr)
                     # print("="*20)
 
-                    img_gpu = pyav_frame_to_umat2(frame)
-                    img_bgr = cv2.cvtColor(img_gpu, cv2.COLOR_RGB2BGR)
+                    img_bgr = pyav_frame_to_umat2(frame)
                     fgmask = fgbg.apply(img_bgr)
                     result, binary_image = cv2.threshold(fgmask, 50.0, 255, cv2.THRESH_BINARY)
                     contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
