@@ -17,6 +17,8 @@ from datetime import (
 
 import av
 
+av.logging.set_level(av.logging.DEBUG)
+
 from libcommon import (
     VideoFile,
 )
@@ -36,7 +38,6 @@ signal.signal(signal.SIGTERM, exit_signal)
 def record(url_srt: str, filename: str):
 
     options={
-        "loglevel": "debug",
         "rtsp_tranport": "tcp"
         }
 

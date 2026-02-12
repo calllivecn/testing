@@ -66,10 +66,10 @@ def pyav_frame_to_umat(frame):
 def pyav_frame_to_umat2(frame):
     # 1. 直接导出 NV12 格式的 Numpy 数组
     # PyAV 会自动把 Y 和 UV 拼成一个大数组，并处理掉显卡内存里的无效填充数据
-    nv12_cpu = frame.to_ndarray(format='nv12')
+    nv12_gpu = frame.to_ndarray(format='nv12')
     
     # 2. 扔给 OpenCV UMat
-    umat_nv12 = cv2.UMat(nv12_cpu)
+    umat_nv12 = cv2.UMat(nv12_gpu)
     
     # 3. GPU 上转 BGR
     # 注意：nv12_cpu 的高度已经是 h * 1.5 了，OpenCV 能直接识别
