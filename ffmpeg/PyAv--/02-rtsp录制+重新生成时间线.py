@@ -130,10 +130,12 @@ video = sys.argv[1]
 options={
     # "loglevel": "debug", # 这个没有用呀
     "rtsp_transport": "tcp",
+    "use_wallclock_as_timestamps": "1",
     }
 
 
-in_v = av.open(video, options=options, buffer_size=8<<20)
+# in_v = av.open(video, options=options, buffer_size=8<<20)
+in_v = av.open(video, options=options)
 # pprint.pprint(f"{get_public_attributes(in_v)}")
 
 fps = Fraction(30, 1)
@@ -194,6 +196,7 @@ def main():
 
     # 直接丢掉开头的2秒钟内容
     for packet in in_v.demux():
+        print(f"{packet.stream.type} 流：{packet.dts=} {packet.pts=}")
         if first:
             first = False
             last_time = time.monotonic()
@@ -201,6 +204,8 @@ def main():
         now = time.monotonic()
         if (now - last_time) >= 2:
             break
+
+    print("="*40)
 
     started = False
     first_audio = True
