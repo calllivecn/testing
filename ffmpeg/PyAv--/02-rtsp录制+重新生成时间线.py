@@ -197,6 +197,12 @@ def main():
     # 直接丢掉开头的2秒钟内容
     for packet in in_v.demux():
         print(f"{packet.stream.type} 流：{packet.dts=} {packet.pts=}")
+
+        # 从解码的 videoframe 中拿到分辨率？
+        if packet.stream.type == "video" and packet.is_keyframe:
+            frame = packet.decode()[0]
+            # print(f"查看分辨率？{frame=} {frame.format=} {frame.format.imag=} {frame.format.imag}")
+
         if first:
             first = False
             last_time = time.monotonic()
