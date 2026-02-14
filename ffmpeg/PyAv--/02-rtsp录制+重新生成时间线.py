@@ -9,6 +9,9 @@
 update: 2024-05-25
 
 这个测试有问题，RTSP 会有PTS错误问题。现在使用新的RST协议 。
+
+update: 2026-02-13
+PyAv v16.1.0 新写法
 """
 
 
@@ -24,7 +27,6 @@ from datetime import (
 
 
 import av
-from av.container import Flags
 
 from libcommon import (
     VideoFile,
@@ -123,9 +125,6 @@ class RTSPReTimeline:
         return packet
 
 
-
-# video = "rtsp://192.168.0.103:5554" # 使用rtsp 还是有问题，在有音频时，还是报退出。
-
 video = sys.argv[1]
 
 options={
@@ -149,11 +148,10 @@ else:
 
 print(f"{fps=}")
 
+print(f"查看视频编码器上下文：{v_s.codec.name=} {v_s.codec_tag=}")
+
 a_s = in_v.streams.audio[0]
 pprint.pprint(f"音频流：{get_public_attributes(a_s)}")
-# 每帧采样数（AAC 通常会返回 1024）
-# 注意：有些 RTSP 流在未解码前此值为 0，如果是 0 则默认为 1024
-frame_size = a_s.codec_context.frame_size or 1024
 
 codec_context = a_s.codec_context
 # 1. 检查 extradata
@@ -161,10 +159,6 @@ if not codec_context.extradata:
     print("警告：音频流缺少 extradata，可能无法解码")
 else:
     print(f"Extradata 长度: {len(codec_context.extradata)}")
-
-# 2. 显式打开解码器
-if not codec_context.is_open:
-    codec_context.open()
 
 
 out_v = av.open("test.mkv", mode="w")
@@ -193,30 +187,64 @@ def main():
     retimeline = RTSPReTimeline()
 
     time_base = Fraction(1, 1000)
-    retimeline.set_video(time_base, fps)
+    retimeline.set_video(time_base, int(fps))
 
-    # retimeline.set_audio(a_s.time_base, frame_size)
+    first = True
+    last_time = time.monotonic()
 
-    last_pts = 0
-    last_dts = 0
+    # 直接丢掉开头的2秒钟内容
+    for packet in in_v.demux():
+        if first:
+            first = False
+            last_time = time.monotonic()
+        
+        now = time.monotonic()
+        if (now - last_time) >= 2:
+            break
 
+    started = False
     first_audio = True
-
     for packet in in_v.demux():
 
+        """
+        # 前丢掉2秒的时候已经过滤了
         # print(f"当前流：{packet=} {packet.time_base=}")
         if packet.pts is None:
             print(f"跳过无效时间戳包: {packet.stream.type} {packet.is_keyframe=} {packet=}")
+        """
 
         # 使用接收端的本地时间戳
         packet.pts = int(time.monotonic()*1000)
 
         if packet.stream.type == "video":
 
+            # 从拿到的第一个视频关键帧开始, 之前的都丢掉。
+            if not started:
+                if packet.is_keyframe:
+                    started = True
+                else:
+                    continue
+
             print(f"视频流：{packet.dts=} {packet.pts=}")
 
-            retimeline.video(packet)
+            # 只在视频流是关键帧时退出
+            if EXIT and packet.is_keyframe:
+                break
 
+            # 在每个关键帧前添加上extradata(VPS/SPS/PPS)信息
+            if packet.is_keyframe:
+                p = av.Packet(v_s.codec_context.extradata + bytes(packet))
+                p.is_keyframe = True
+                p.pts = packet.pts
+                # 后面 retimeline会重建 dts 和 time_base
+            else:
+                p = packet
+
+            print(f"{p.is_keyframe=}")
+            retimeline.video(p)
+            packet = p
+
+            """
             if last_pts > packet.pts:
                 # 实测好像也是没有B帧的
                 print(f"有pts倒流的情况: {packet.pts=}")
@@ -225,17 +253,22 @@ def main():
             if last_dts > packet.dts:
                 print(f"有dts倒流的情况: {packet.dts}")
                 last_dts = packet.dts
+            """
 
             packet.stream = out_v_s
 
-
         elif packet.stream.type == "audio":
+
+            if not started:
+                continue
 
             # print(f"视频流：{packet.dts=} {packet.pts=}")
 
+            """
             if bytes(packet) == a_s.codec_context.extradata:
                 print("好像首个音频流packet是 extradata!") # 是的
                 continue
+            """
 
             # print(f"当前包包含的采样数: {packet.duration}") # 为什么还是0
             if first_audio:
@@ -255,9 +288,8 @@ def main():
         else:
             print(f"当前不支持流类型：{packet.stream.type=}")
 
-        if EXIT and packet.is_keyframe:
-            break
-
+        if packet.stream.type == "video":
+            print(f"首写入的是关键帧吗？{packet.pts=} {packet.is_keyframe=}")
         out_v.mux(packet)
 
 
