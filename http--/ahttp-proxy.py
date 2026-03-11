@@ -5,7 +5,7 @@
 
 
 # import io
-import ipaddress
+# import ipaddress
 import asyncio
 import traceback
 import logging
@@ -47,6 +47,8 @@ class MethodError(RequestError):
 class HostPostError(RequestError):
     pass
 
+
+SWAP_BLOCK_SIZE=8192
 
 class Buffer(bytearray):
     def __init__(self, size: int = 4096, mv: Union[memoryview, None] = None):
@@ -107,7 +109,7 @@ class Header:
     async def getRequest(self):
 
         while True:
-            buffer = await self.reader.read(4096)
+            buffer = await self.reader.read(SWAP_BLOCK_SIZE)
 
             if buffer == b"":
                 raise RequestError("peer close connection")
@@ -224,38 +226,38 @@ class Header:
         
 
 
-async def swap(r1, w2):
+async def swap(r1: asyncio.StreamReader, w2: asyncio.StreamWriter):
     logger.debug(f"id: {id(r1)}")
 
     try:
         while True:
-            data = await asyncio.wait_for(r1.read(4096), timeout=TIMEOUT)
+            data = await asyncio.wait_for(r1.read(SWAP_BLOCK_SIZE), timeout=TIMEOUT)
 
             if not data:
                 break
 
-            i = w2.write(data)
+            w2.write(data)
             await asyncio.wait_for(w2.drain(), timeout=TIMEOUT)
 
     except ConnectionResetError as e:
         logger.debug(f"{e}")
     
     except asyncio.TimeoutError:
-        logger.warning(f"data swap Timeout close()")
+        logger.warning("data swap Timeout close()")
 
     finally:
         w2.close()
         await w2.wait_closed()
 
 
-async def handle_add_timeout(reader, writer):
+async def handle_add_timeout(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     addr = writer.get_extra_info("peername")
 
     head = Header(reader, writer)
     await asyncio.wait_for(head.getRequest(), timeout=TIMEOUT)
     head.get_Host_Port()
 
-    r2, w2 = await asyncio.wait_for(asyncio.open_connection(head.host, head.port, limit=4096), timeout=TIMEOUT)
+    r2, w2 = await asyncio.wait_for(asyncio.open_connection(head.host, head.port), timeout=TIMEOUT)
 
     if head.isHttps():
         writer.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
@@ -267,13 +269,19 @@ async def handle_add_timeout(reader, writer):
         await asyncio.wait_for(w2.drain(), timeout=TIMEOUT)
 
     # 我去， 这里必需是分开的 task 不然不是并发的....
-    task1 = asyncio.create_task(swap(reader, w2))
-    task2 = asyncio.create_task(swap(r2, writer))
-    await task1 
-    await task2 
+    # task1 = asyncio.create_task(swap(reader, w2))
+    # task2 = asyncio.create_task(swap(r2, writer))
+    # await task1 
+    # await task2
+
+    # 开始双向透传 (客户端 <-> 目标服务器)
+    await asyncio.gather(
+        swap(reader, w2),
+        swap(r2, writer)
+        )
 
 
-async def handle(reader, writer):
+async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     addr = writer.get_extra_info("peername")
 
     try:
@@ -311,7 +319,7 @@ async def proxy():
     else:
         logger.setLevel(logging.INFO)
 
-    sock_server = await asyncio.start_server(handle, args.addr, args.port, limit=4096, reuse_address=True, reuse_port=True)
+    sock_server = await asyncio.start_server(handle, args.addr, args.port, reuse_address=True, reuse_port=True)
 
     # addr, port = sock_server.sockets[0].getsockname()
     print("listen:", args.addr, "port:", args.port)
