@@ -1,4 +1,4 @@
-FROM ubuntu-core:25.10
+FROM ubuntu-devel:25.10
 
 ARG AV_VERSION
 
