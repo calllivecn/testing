@@ -1,7 +1,7 @@
 FROM docker.io/library/postgres:17
 
 RUN apt update \
-&& apt -y install locales \
+&& apt -y install locales vim \
 && echo 'zh_CN.UTF-8 UTF-8' > /etc/locale.gen \
 && locale-gen
 
