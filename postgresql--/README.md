@@ -21,3 +21,10 @@ engine = create_engine("postgresql+psycopg://user:pass@localhost/dbname")
 - https://www.pgadmin.org/
 - 容器名: docker.io/dpage/pgadmin4:latest
 
+
+
+# 使用+查看+运维
+
+- 查看当前使用的数据目录：SHOW data_directory;
+- 不想登录进 psql 交互界面，可以直接在终端运行：psql -t -c "SHOW data_directory;"
+

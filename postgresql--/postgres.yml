@@ -6,14 +6,7 @@ services:
     image: localhost/pgsql:17
     container_name: pgsql
     restart: unless-stopped
-    # set shared memory limit when using docker compose
     shm_size: 128mb
-    # or set shared memory limit when deploy via swarm stack
-    #volumes:
-    #  - type: tmpfs
-    #    target: /dev/shm
-    #    tmpfs:
-    #      size: 134217728 # 128*2^20 bytes = 128Mb
     networks:
       - postgres
     ports:
@@ -23,7 +16,7 @@ services:
       POSTGRES_INITDB_ARGS: "--locale=zh_CN.UTF-8 --encoding=UTF-8"
       #LANG: zh_CN.UTF-8
     volumes:
-      - ${HOME}/.volumes/postgresql:/var/lib/postgresql
+      - ${HOME}/.volumes/postgresql:/var/lib/postgresql/data
 
         #  adminer:
         #    image: docker.io/library/adminer:latest

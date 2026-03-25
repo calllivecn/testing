@@ -33,7 +33,7 @@ CREATE TABLE "玩家"(
     phone VARCHAR(20),
     
     -- 【地址信息】
-    "国家" VARCHAR(50) DEFAULT 'China',
+    "国家" VARCHAR(50) DEFAULT '中国',
     "城市" VARCHAR(50),
     "省" VARCHAR(50),
     "区/县" VARCHAR(50),
@@ -41,9 +41,9 @@ CREATE TABLE "玩家"(
     "邮编" VARCHAR(20),
     
     -- 【身份与证件】
-    id_card_type VARCHAR(20) DEFAULT 'ID_CARD',
-    id_card_number VARCHAR(50),
-    id_card_expiry_date DATE,
+    "证件类型" VARCHAR(20) DEFAULT '身份证',
+    "证件号" VARCHAR(50),
+    "证件到期时间" DATE,
     
     -- 【职业与教育】
     "职业" VARCHAR(100),
