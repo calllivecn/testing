@@ -1,0 +1,40 @@
+# Use postgres/example user/password credentials
+
+services:
+  pgsql:
+    #image: docker.io/library/postgres:17
+    image: localhost/pgsql:17
+    container_name: pgsql
+    restart: unless-stopped
+    # set shared memory limit when using docker compose
+    shm_size: 128mb
+    # or set shared memory limit when deploy via swarm stack
+    #volumes:
+    #  - type: tmpfs
+    #    target: /dev/shm
+    #    tmpfs:
+    #      size: 134217728 # 128*2^20 bytes = 128Mb
+    networks:
+      - postgres
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_PASSWORD: zx,pgsql
+      POSTGRES_INITDB_ARGS: "--locale=zh_CN.UTF-8 --encoding=UTF-8"
+      #LANG: zh_CN.UTF-8
+    volumes:
+      - ${HOME}/.volumes/postgresql:/var/lib/postgresql
+
+        #  adminer:
+        #    image: docker.io/library/adminer:latest
+        #    restart: always
+        #    networks:
+        #      - postgres
+        #    ports:
+        #      - 8080:8080
+
+
+networks:
+  postgres:
+    driver: bridge
+  
