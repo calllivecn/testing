@@ -43,21 +43,60 @@
 - 2. 执行基础备份 (pg_basebackup)
     使用 replica 用户同步主库数据：
     ```bash
-    pg_basebackup -h 192.168.1.10 -U replica -D /var/lib/postgresql/data -Fp -P -R -C -S "slot1"
+    pg_basebackup -h 192.168.1.10 -U replica -D /var/lib/postgresql/data -Fp -P -R -CS "slot1"
     # -R 选项会自动在 data 目录创建 standby.signal 和 postgresql.auto.conf (含恢复信息)
-    -- or ---
     # -h: 主库IP, -U: 复制用户, -D: 数据目录, -P: 显示进度, -R: 自动生成从库配置
-    sudo -u postgres pg_basebackup -h 192.168.1.10 -U replica_user -D /var/lib/postgresql/data/ -Fp -Xs -P -R
     ```
 
 - 3. 确认并启动从库
     确认从库 data 目录下存在 standby.signal 文件。然后重启从库。
 
 
-- 4. 四、 验证主从同步
+- 4. 验证主从同步
+
     在主库查看从库状态
     ```sql
-    select * from pg_stat_replication;
+    SELECT client_addr, state, sent_lsn, replay_lsn FROM pg_stat_replication;
     # 这行，说明正常
     state            | streaming
     ```
+
+    在从库查看: ✅ 成功的标准：
+    返回结果为 t (True)。
+    如果返回 f (False)，说明它认为自己是主库，复制未生效。
+    ```sql
+    > SELECT pg_is_in_recovery();
+     pg_is_in_recovery
+    -------------------
+     t 
+    (1 行记录)
+
+    ```
+
+    进阶检查（查看接收和回放进度）：✅ 成功的标准：
+    是否暂停 为 f。
+    接收位置 和 回放位置 都在实时变化（说明数据正在源源不断地进来）。
+
+    ```sql
+    SELECT 
+        pg_last_wal_receive_lsn() AS 接收位置, 
+        pg_last_wal_replay_lsn() AS 回放位置,
+        pg_is_wal_replay_paused() AS 是否暂停;
+    ```
+
+
+
+## 主从切换，手动：
+
+- 1. 
+
+- 在新主库上执行：
+
+```sql
+# SELECT pg_create_physical_replication_slot('slot1');
+ pg_create_physical_replication_slot
+-------------------------------------
+ (slot1,)
+(1 row)
+```
+

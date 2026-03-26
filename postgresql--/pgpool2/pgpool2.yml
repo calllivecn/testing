@@ -1,0 +1,44 @@
+versions: "3"
+
+services:
+  pgpool2-1:
+    image: localhost/pgpool2:v4.3
+    cpus: 4
+    container_name: pgpool2-1
+    restart: unless-stopped
+    networks:
+      - postgres
+    ports:
+      - 5432:5432
+    volumes:
+      - ${HOME}/.volumes/pgpool2-1:/etc/pgpool2
+
+  pgpool2-2:
+    image: localhost/pgpool2:v4.3
+    cpus: 4
+    container_name: pgpool2-2
+    restart: unless-stopped
+    networks:
+      - postgres
+    ports:
+      - 5433:5432
+    volumes:
+      - ${HOME}/.volumes/pgpool2-2:/etc/pgpool2
+
+  pgpool2-3:
+    image: localhost/pgpool2:v4.3
+    cpus: 4
+    container_name: pgpool2-3
+    restart: unless-stopped
+    networks:
+      - postgres
+    ports:
+      - 5434:5432
+    volumes:
+      - ${HOME}/.volumes/pgpool2-3:/etc/pgpool2
+
+networks:
+  postgres:
+    driver: bridge
+    external: true
+  
