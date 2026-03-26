@@ -28,3 +28,8 @@ engine = create_engine("postgresql+psycopg://user:pass@localhost/dbname")
 - 查看当前使用的数据目录：SHOW data_directory;
 - 不想登录进 psql 交互界面，可以直接在终端运行：psql -t -c "SHOW data_directory;"
 
+
+# pgpool-II 容器
+
+- podman build -f Dockerfile-pgpool-ii -t pgpool2 .
+

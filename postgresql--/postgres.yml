@@ -1,10 +1,10 @@
-# Use postgres/example user/password credentials
+versions: "3"
 
 services:
-  pgsql:
+  pgsql1:
     #image: docker.io/library/postgres:17
     image: localhost/pgsql:17
-    container_name: pgsql
+    container_name: pgsql1
     restart: unless-stopped
     shm_size: 128mb
     networks:

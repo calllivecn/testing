@@ -45,6 +45,9 @@
     ```bash
     pg_basebackup -h 192.168.1.10 -U replica -D /var/lib/postgresql/data -Fp -P -R -C -S "slot1"
     # -R 选项会自动在 data 目录创建 standby.signal 和 postgresql.auto.conf (含恢复信息)
+    -- or ---
+    # -h: 主库IP, -U: 复制用户, -D: 数据目录, -P: 显示进度, -R: 自动生成从库配置
+    sudo -u postgres pg_basebackup -h 192.168.1.10 -U replica_user -D /var/lib/postgresql/data/ -Fp -Xs -P -R
     ```
 
 - 3. 确认并启动从库
