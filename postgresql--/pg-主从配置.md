@@ -43,7 +43,7 @@
 - 2. 执行基础备份 (pg_basebackup)
     使用 replica 用户同步主库数据：
     ```bash
-    pg_basebackup -h 192.168.1.10 -U replica -D /var/lib/postgresql/data -Fp -P -R
+    pg_basebackup -h 192.168.1.10 -U replica -D /var/lib/postgresql/data -Fp -P -R -C -S "slot1"
     # -R 选项会自动在 data 目录创建 standby.signal 和 postgresql.auto.conf (含恢复信息)
     ```
 

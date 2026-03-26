@@ -5,4 +5,5 @@ RUN apt update \
 && echo 'zh_CN.UTF-8 UTF-8' > /etc/locale.gen \
 && locale-gen
 
-ENV LANG=zh_CN.UTF-8 LC_ALL=zh_CN.UTF-8
+#ENV LANG=zh_CN.UTF-8 LC_ALL=zh_CN.UTF-8
+ENV LANG=zh_CN.UTF-8
