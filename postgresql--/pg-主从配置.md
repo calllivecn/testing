@@ -23,6 +23,7 @@
     wal_level = replica          # 必须为replica或logical
     max_wal_senders = 10         # 最大流复制连接数
     wal_keep_size = 64GB # 我测试时没调整，默认为:0        # 避免从库因日志缺失断连，需根据磁盘空间调整
+    wal_log_hints = on # 方便以后主从切换后，使用pg_rewind快速恢复旧主库。
     ```
 
 - 4. 重载配置:
@@ -45,24 +46,28 @@
     ```bash
     pg_basebackup -h 192.168.1.10 -U replica -D /var/lib/postgresql/data -Fp -P -R -CS "slot1"
     # -R 选项会自动在 data 目录创建 standby.signal 和 postgresql.auto.conf (含恢复信息)
-    # -h: 主库IP, -U: 复制用户, -D: 数据目录, -P: 显示进度, -R: 自动生成从库配置
+    # -h: 主库IP, -U: 复制用户, -D: 数据目录, -P: 显示进度, -R: 自动生成从库配置, -C: 创建新槽位 -S: 槽位名称
     ```
 
 - 3. 确认并启动从库
     确认从库 data 目录下存在 standby.signal 文件。然后重启从库。
 
 
-- 4. 验证主从同步
+- 4. 验证主从同步 记住：从库日志的“正常”启动与主从复制成功与否毫无关系——主库的 pg_stat_replication 和日志才是唯一真相。
 
-    在主库查看从库状态
+    在主库查看从库状态: **需要超级用户(postgres)查看才行 pg_stat_replication**
     ```sql
     SELECT client_addr, state, sent_lsn, replay_lsn FROM pg_stat_replication;
     # 这行，说明正常
     state            | streaming
     ```
 
-    在从库查看: ✅ 成功的标准：
-    返回结果为 t (True)。
+
+    要主库当前已经有槽位：
+    ```sql
+    SELECT * FROM pg_replication_slots;
+    ```
+
     如果返回 f (False)，说明它认为自己是主库，复制未生效。
     ```sql
     > SELECT pg_is_in_recovery();
@@ -78,10 +83,7 @@
     接收位置 和 回放位置 都在实时变化（说明数据正在源源不断地进来）。
 
     ```sql
-    SELECT 
-        pg_last_wal_receive_lsn() AS 接收位置, 
-        pg_last_wal_replay_lsn() AS 回放位置,
-        pg_is_wal_replay_paused() AS 是否暂停;
+    SELECT pg_last_wal_receive_lsn() AS 接收位置, pg_last_wal_replay_lsn() AS 回放位置, pg_is_wal_replay_paused() AS 是否暂停;
     ```
 
 
