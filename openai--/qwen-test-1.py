@@ -53,7 +53,7 @@ def get_response(messages):
     completion = client.chat.completions.create(
         #model="qwen-plus",
         #model="qwen3.5-plus",
-        model="qwen3.5-plus-2026-02-15",
+        model="glm-5",
         messages=messages,
         tools=tools,
     )
@@ -65,7 +65,9 @@ response = get_response(messages)
 assistant_output = response.choices[0].message
 if assistant_output.content is None:
     assistant_output.content = ""
+
 messages.append(assistant_output)
+
 # 如果不需要调用工具，直接输出内容
 if assistant_output.tool_calls is None:
     print(f"无需调用天气查询工具，直接回复：{assistant_output.content}")
