@@ -3,6 +3,7 @@
 
 - hub.docker.com: https://hub.docker.com/r/onerahmet/openai-whisper-asr-webservice
 - 文档地址：https://ahmetoner.com/whisper-asr-webservice/
+- https://github.com/ahmetoner/whisper-asr-webservice
 
 ```shell
 docker run -d -p 9000:9000 \

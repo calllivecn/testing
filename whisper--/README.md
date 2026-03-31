@@ -8,6 +8,6 @@
 
 pip install openai-whisper
 
-pip install sounddevice soundfile numpy
+pip install sounddevice soundfile numpy httpx[http2]
 ``
 

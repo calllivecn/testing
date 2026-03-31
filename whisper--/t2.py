@@ -20,6 +20,10 @@ model = whisper.load_model("small")
 #model = whisper.load_model("medium")
 
 while (filename := input("输入音频(.exit 退出): ")) != ".exit":
+    if not filename:
+        print("需要输入音频文件...")
+        continue
+
     f = Path(filename)
     if f.exists():
         start = time.time()
