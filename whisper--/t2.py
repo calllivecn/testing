@@ -11,9 +11,13 @@ except Exception:
 
 import whisper
 
+"""
+里会自动下载模型
+"""
+
 # model = whisper.load_model("base")
-# model = whisper.load_model("small")
-model = whisper.load_model("medium")
+model = whisper.load_model("small")
+#model = whisper.load_model("medium")
 
 while (filename := input("输入音频(.exit 退出): ")) != ".exit":
     f = Path(filename)
@@ -25,3 +29,4 @@ while (filename := input("输入音频(.exit 退出): ")) != ".exit":
         print(f"转录文本：{result['text']}")
     else:
         print(f"给出的音频文件不存在: {f}")
+
