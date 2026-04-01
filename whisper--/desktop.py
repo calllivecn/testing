@@ -62,7 +62,8 @@ def whisper(audio: bytes) -> str:
             response.raise_for_status()  # 检查 HTTP 错误
             
             # 解析返回的 JSON (根据文档返回的是字符串)
-            result = response.json()
+            # result = response.json()
+            result = response.text
             
             print(f"[后台] API 返回：{result}")
             return result
@@ -97,7 +98,8 @@ class AudioRecorderApp:
         self.processing = False  # 新增：防止重复处理
         
         # --- 界面组件 ---
-        self.status_label = tk.Label(root, text="🟢 准备就绪", font=("Arial", 14), fg="green")
+        # self.status_label = tk.Label(root, text="🟢 准备就绪", font=("Arial", 14), fg="green")
+        self.status_label = tk.Label(root, text="🟢 准备就绪", fg="green")
         self.status_label.pack(pady=10)
         
         self.instructions = tk.Label(root, text="【快捷键】\n按下 [空格键] : 开始/停止录音\n按下 [Esc 键] : 取消当前录音", justify="center")
@@ -198,8 +200,7 @@ class AudioRecorderApp:
 
             result_text = whisper(audio_bytes)
             print(f"[process_audio] 准备发送结果到队列")  # 调试
-            
-            # 关键修复：把结果放入队列，而不是直接调用 root.after()
+
             self.result_queue.put(("result", result_text, None))
             
         except Exception as e:

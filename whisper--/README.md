@@ -11,3 +11,7 @@ pip install openai-whisper
 pip install sounddevice soundfile numpy httpx[http2]
 ``
 
+
+# 当前使用先使用这个项目。自己开发先停止。
+
+- https://github.com/xifan2333/fcitx5-vinput
