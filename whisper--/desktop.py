@@ -85,7 +85,7 @@ class AudioRecorderApp:
     def __init__(self, root):
         self.root = root
         self.root.title("PipeWire 快捷录音助手")
-        self.root.geometry("400x300")
+        self.root.geometry("800x600")
         
         # --- 音频相关参数 ---
         self.samplerate = 16000
