@@ -54,7 +54,7 @@ def get_current_weather(arguments):
 
 class QwenChat:
 
-    def __init__(self, context_json: Path = "default.json"):
+    def __init__(self, context_json: Path = Path("default.json")):
 
         self._debug = False
 
@@ -83,7 +83,7 @@ class QwenChat:
         completion = client.chat.completions.create(**kwargs)
         return completion
 
-    def chat(self, prompt, model="qwen-plus"):
+    def chat(self, prompt, model="qwen3.5-flash"):
         """处理用户输入并获取回复，支持工具调用"""
 
         self.messages.append({"role": "user", "content": prompt})
