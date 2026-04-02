@@ -1,2 +1,4 @@
 openai==2.30.0
-tiktoken
+opuslib==3.0.1
+sounddevice==0.5.5
+soundfile==0.13.1
