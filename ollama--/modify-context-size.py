@@ -9,7 +9,6 @@ messages = [
     {
         'role': 'user',
         'content': '讲解下等差数列和等比数列',
-        'num_ctx': 8192,
     }
 ]
 
