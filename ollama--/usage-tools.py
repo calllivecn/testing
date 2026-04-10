@@ -4,6 +4,7 @@ import base64
 import ollama
 
 MODEL_NAME="qwen3.5:9b"
+MODEL_NAME="gemma4:e4b"
 
 # --- 第一步：定义工具 (Tools) ---
 # 格式必须遵循 JSON Schema 标准
