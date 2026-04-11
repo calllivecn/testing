@@ -18,14 +18,18 @@ opt = {
         "num_ctx": 8192
         }
 
-response = client.chat(
+stream = client.chat(
     model=MODEL_NAME,  # 替换为你的多模态模型
     messages=messages,
     #tools=tools,              # <--- 关键点：在这里传入工具列表
     options=opt,
-    stream=False
+    stream=True
 )
 
-message = response['message']
-print("💬", message['content'])
+
+for chunk in stream:
+    print(chunk['message']['content'], end='', flush=True)
+
+print()
+print("💬...done")
 

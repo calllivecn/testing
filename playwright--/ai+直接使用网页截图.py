@@ -1,5 +1,6 @@
 
 import asyncio
+import datetime
 
 from playwright.async_api import async_playwright
 import ollama
@@ -21,7 +22,25 @@ def chat(content: str):
     
     # 3. 输出结果
     print("AI 提取结果:", response['message']['content'])
-        
+
+
+def chat2(images: list[bytes]):
+    # 2. 调用 Ollama 进行分析
+    # 注意：这里使用 ollama.chat，不再需要 API Key
+    # model 参数填你本地已经拉取好的模型名称（例如 'llama3', 'mistral' 等）
+    response = client.chat(
+        model='gemma4:e4b', 
+        messages=[{
+            'role': 'user',
+            'content': "请从网页截图中提取内容整理后，以 JSON 格式返回。",
+            'images': images
+        }],
+        options={"num_ctx": 8192},
+    )
+    
+    # 3. 输出结果
+    print("AI 提取结果:", response['message']['content'])
+
 
 async def smart_scrape(url: str):
     async with async_playwright() as p:
@@ -50,15 +69,21 @@ async def smart_scrape(url: str):
         # 1. 提取文本内容
         #content = await page.inner_text("body")
 
-        # 获取 body 元素
-        body_element = page.locator("body")
-        # 提取可见文本
-        all_text = await body_element.inner_text()
+        ## 获取 body 元素
+        #body_element = page.locator("body")
+        ## 提取可见文本
+        #all_text = await body_element.inner_text()
 
-        print(all_text)
+        #print(all_text)
 
-        content = chat(all_text)
+        # 2. 对当前可视区域截图
+        screenshot_bytes = await page.screenshot(type="png", full_page=True)
 
+        filename = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')[:-3]
+        with open(f"{filename}.png", "wb") as f:
+            f.write(screenshot_bytes)
+
+        content = chat2([screenshot_bytes])
         print(content)
         
         await browser.close()
