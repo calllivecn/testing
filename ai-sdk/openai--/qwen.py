@@ -101,28 +101,92 @@ class QwenChat:
             print(f"模型 '{model_name}' 不存在。可用模型：")
             self.list_models()
 
-    def get_response(self, messages, use_tools=False, model=None):
+    def get_response(self, messages, use_tools=False, model=None, stream=True):
         """调用阿里云百炼 API 获取响应"""
         use_model = model if model else self.current_model
         
         kwargs = {
             "model": use_model,
             "messages": messages,
-            "stream": True,
         }
         
         if use_tools:
             kwargs["tools"] = TOOLS
         
-        chunk = client.chat.completions.create(**kwargs)
-
-        delta = chunk.choices[0].delta
-
-        # 打印思考过程（如果模型支持并返回了该字段）
-        if hasattr(delta, 'reasoning_content') and delta.reasoning_content:
-            print(f"\033[90m{delta.reasoning_content}\033[0m", end="", flush=True)
-
-        return chunk
+        if stream:
+            kwargs["stream"] = True
+            completion = client.chat.completions.create(**kwargs)
+            
+            # 累积内容
+            accumulated_content = ""
+            accumulated_tool_calls = []
+            reasoning_content = ""
+            
+            for chunk in completion:
+                if not chunk.choices:
+                    continue
+                
+                delta = chunk.choices[0].delta
+                
+                # 提取推理内容
+                reasoning = getattr(delta, 'reasoning_content', None)
+                if reasoning:
+                    reasoning_content += reasoning
+                    if self._debug:
+                        print(f"\033[90m{reasoning}\033[0m", end="", flush=True)
+                
+                # 提取正式回答
+                content = getattr(delta, 'content', None)
+                if content:
+                    accumulated_content += content
+                    print(content, end="", flush=True)
+                
+                # 提取工具调用
+                if getattr(delta, 'tool_calls', None):
+                    for tc in delta.tool_calls:
+                        # 如果是新的工具调用
+                        if tc.index >= len(accumulated_tool_calls):
+                            accumulated_tool_calls.append({
+                                'id': tc.id,
+                                'type': tc.type,
+                                'function': {
+                                    'name': tc.function.name if hasattr(tc.function, 'name') else '',
+                                    'arguments': tc.function.arguments if hasattr(tc.function, 'arguments') else ''
+                                }
+                            })
+                        else:
+                            # 累积参数
+                            accumulated_tool_calls[tc.index]['function']['arguments'] += tc.function.arguments
+            
+            print()  # 换行
+            
+            # 构建完整的 message 对象
+            class Message:
+                def __init__(self, content, tool_calls):
+                    self.content = content if content else None
+                    self.tool_calls = tool_calls if tool_calls else None
+            
+            # 转换工具调用格式
+            final_tool_calls = None
+            if accumulated_tool_calls:
+                class ToolCall:
+                    def __init__(self, tc):
+                        self.id = tc['id']
+                        self.type = tc['type']
+                        class Function:
+                            def __init__(self, name, arguments):
+                                self.name = name
+                                self.arguments = arguments
+                        self.function = Function(tc['function']['name'], tc['function']['arguments'])
+                
+                final_tool_calls = [ToolCall(tc) for tc in accumulated_tool_calls]
+            
+            msg = Message(accumulated_content, final_tool_calls)
+            return msg
+        else:
+            kwargs["stream"] = False
+            completion = client.chat.completions.create(**kwargs)
+            return completion.choices[0].message
 
     def chat(self, prompt, model=None):
         """处理用户输入并获取回复，支持工具调用"""
@@ -132,9 +196,8 @@ class QwenChat:
 
         self.messages.append({"role": "user", "content": prompt})
 
-        # 第一次调用模型
-        completion = self.get_response(self.messages, use_tools=True, model=use_model)
-        msg = completion.choices[0].message
+        # 第一次调用模型（流式模式）
+        msg = self.get_response(self.messages, use_tools=True, model=use_model, stream=True)
 
         # 处理 tool_calls
         if msg.tool_calls is not None:
@@ -165,9 +228,8 @@ class QwenChat:
                 }
                 self.messages.append(tool_message)
                 
-                # 再次调用模型，获取总结后的自然语言回复
-                completion = self.get_response(self.messages, use_tools=False, model=use_model)
-                msg = completion.choices[0].message
+                # 再次调用模型，获取总结后的自然语言回复（非流式，因为工具调用后需要完整响应）
+                msg = self.get_response(self.messages, use_tools=False, model=use_model, stream=False)
                 
                 if msg.content is None:
                     msg.content = ""
@@ -177,11 +239,6 @@ class QwenChat:
 
         # 保存助手回复到上下文
         self.messages.append({"role": "assistant", "content": msg.content})
-
-        if self._debug:
-            print("-" * 20, "调试信息", "-" * 20)
-            pprint(completion)
-            print("-" * 20, "调试信息", "-" * 20)
 
         return msg.content
 
