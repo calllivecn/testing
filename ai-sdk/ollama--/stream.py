@@ -32,21 +32,40 @@ MODEL_NAME="gemma4:e4b"
 client = ollama.Client(host="http://10.1.3.20:11434")
 
 messages = [
-       {'role': 'user', 'content': '写一篇关于 Linux 内核的长文'},
+       {'role': 'user', 'content': '介绍下ollama项目'},
         ]
 
-opt = {'num_ctx': 8192}
+
+#opt = {'num_ctx': 8192}
+opt = {'num_ctx': 16384}
+
 
 stream = client.chat(
     model=MODEL_NAME,
     messages=messages,
     options=opt,
+    #think=True,  # 启用思考
     stream=True,
 )
 
+think = True
+
 for chunk in stream:
-    print(chunk['message']['content'], end='', flush=True)
+        # 检查是否存在思考内容 (Thinking)
+    if chunk.message.thinking:
+        #print(chunk.message.thinking, end='', flush=True)
+        print(f"\033[90m{chunk.message.thinking}\033[0m", end="", flush=True)
+        # 检查是否存在最终回复内容 (Content)
+
+    elif chunk.message.content:
+
+        if not chunk.message.thinking and think:
+            think = False
+            print("\n", "+"*20, "思考结束", "+"*20, "\n")
+
+        print(chunk['message']['content'], end='', flush=True)
 
 
+print("\n", "="*20, "token相关性能指标", "="*20, "\n")
 calculate_speed(chunk)
 

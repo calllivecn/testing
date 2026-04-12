@@ -108,13 +108,21 @@ class QwenChat:
         kwargs = {
             "model": use_model,
             "messages": messages,
+            "stream": True,
         }
         
         if use_tools:
             kwargs["tools"] = TOOLS
         
-        completion = client.chat.completions.create(**kwargs)
-        return completion
+        chunk = client.chat.completions.create(**kwargs)
+
+        delta = chunk.choices[0].delta
+
+        # 打印思考过程（如果模型支持并返回了该字段）
+        if hasattr(delta, 'reasoning_content') and delta.reasoning_content:
+            print(f"\033[90m{delta.reasoning_content}\033[0m", end="", flush=True)
+
+        return chunk
 
     def chat(self, prompt, model=None):
         """处理用户输入并获取回复，支持工具调用"""
