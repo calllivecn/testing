@@ -18,13 +18,15 @@ def calculate_speed(response):
     # 我们通常使用 eval_count / eval_duration 来衡量模型的推理性能
     tps = eval_tokens / eval_sec if eval_sec > 0 else 0
 
-    print(f"--- 性能统计 ---")
+    print("--- 性能统计 ---")
     print(f"Prompt Tokens: {prompt_tokens}")
     print(f"Output Tokens: {eval_tokens}")
     print(f"模型加载耗时: {load_sec:.4f} s")
     print(f"推理生成耗时: {eval_sec:.4f} s")
     print(f"总耗时 (含加载): {total_sec:.4f} s")
     print(f"👉 生成速度: {tps:.2f} tokens/s")
+
+
 
 MODEL_NAME="qwen3.5:9b"
 MODEL_NAME="gemma4:e4b"
@@ -49,9 +51,15 @@ stream = client.chat(
 )
 
 think = True
+last_chunk = None  # 保存最后一个 chunk 用于统计
 
 for chunk in stream:
-        # 检查是否存在思考内容 (Thinking)
+
+    # 检查是否包含统计信息（最后一个 chunk 的特征）
+    if 'eval_count' in chunk or 'total_duration' in chunk:
+        last_chunk = chunk  # 保存完整统计信息
+
+    # 检查是否存在思考内容 (Thinking)
     if chunk.message.thinking:
         #print(chunk.message.thinking, end='', flush=True)
         print(f"\033[90m{chunk.message.thinking}\033[0m", end="", flush=True)
@@ -66,6 +74,7 @@ for chunk in stream:
         print(chunk['message']['content'], end='', flush=True)
 
 
+
 print("\n", "="*20, "token相关性能指标", "="*20, "\n")
-calculate_speed(chunk)
+calculate_speed(last_chunk)
 
