@@ -1,4 +1,5 @@
 
+import sys
 import base64
 
 import ollama
@@ -27,14 +28,18 @@ def calculate_speed(response):
     print(f"👉 生成速度: {tps:.2f} tokens/s")
 
 
-
 MODEL_NAME="qwen3.5:9b"
 MODEL_NAME="gemma4:e4b"
 
 client = ollama.Client(host="http://10.1.3.20:11434")
 
+try:
+    q = sys.argv[1]
+except IndexError:
+    q = '介绍下ollama项目'
+
 messages = [
-       {'role': 'user', 'content': '介绍下ollama项目'},
+       {'role': 'user', 'content': q},
         ]
 
 
@@ -46,7 +51,7 @@ stream = client.chat(
     model=MODEL_NAME,
     messages=messages,
     options=opt,
-    #think=True,  # 启用思考
+    #think=True,  # ollama中如果模型支持think。默认就是启用的
     stream=True,
 )
 
@@ -59,19 +64,19 @@ for chunk in stream:
     if 'eval_count' in chunk or 'total_duration' in chunk:
         last_chunk = chunk  # 保存完整统计信息
 
+    message = chunk.message
+
     # 检查是否存在思考内容 (Thinking)
-    if chunk.message.thinking:
-        #print(chunk.message.thinking, end='', flush=True)
-        print(f"\033[90m{chunk.message.thinking}\033[0m", end="", flush=True)
-        # 检查是否存在最终回复内容 (Content)
+    if thinking := message.get('thinking'):
+        print(f"\033[90m{thinking}\033[0m", end="", flush=True)
 
-    elif chunk.message.content:
+    if content := message.get('content'):
 
-        if not chunk.message.thinking and think:
+        if not message.thinking and think:
             think = False
             print("\n", "+"*20, "思考结束", "+"*20, "\n")
 
-        print(chunk['message']['content'], end='', flush=True)
+        print(content, end='', flush=True)
 
 
 

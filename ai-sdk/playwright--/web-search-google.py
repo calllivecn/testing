@@ -1,8 +1,10 @@
-
 import sys
 import pprint
 import asyncio
 
+from typing import (
+    Iterator,
+)
 
 from playwright.async_api import (
     Response,
@@ -13,37 +15,12 @@ from playwright.async_api import (
 
 import ollama
 
-MODEL_NAME="gemma4:e4b"
 
-def calculate_speed(response):
-    # 提取字段
-    prompt_tokens = response.get('prompt_eval_count', 0)
-    eval_tokens = response.get('eval_count', 0)
-
-    # 纳秒转秒 (1s = 10^9 ns)
-    total_sec = response.get('total_duration', 0) / 1e9
-    load_sec = response.get('load_duration', 0) / 1e9
-    # eval_duration 是模型实际生成回答所用的时间
-    eval_sec = response.get('eval_duration', 0) / 1e9
-
-    # 计算生成速度 (Tokens Per Second)
-    # 我们通常使用 eval_count / eval_duration 来衡量模型的推理性能
-    tps = eval_tokens / eval_sec if eval_sec > 0 else 0
-
-    print("--- 性能统计 ---")
-    print(f"Prompt Tokens: {prompt_tokens}")
-    print(f"Output Tokens: {eval_tokens}")
-    print(f"模型加载耗时: {load_sec:.4f} s")
-    print(f"推理生成耗时: {eval_sec:.4f} s")
-    print(f"总耗时 (含加载): {total_sec:.4f} s")
-    print(f"👉 生成速度: {tps:.2f} tokens/s")
-
-
-tools = [
+TOOLS = [
     {
         'type': 'function',
         'function': {
-            'name': 'search_web',
+            'name': 'web_search',
             'description': '搜索互联网获取最新信息。当用户询问新闻、实时数据、未知事实或需要查证信息时使用。无法回答时效性问题或知识盲区时优先调用。',
             'parameters': {
                 'type': 'object',
@@ -90,29 +67,7 @@ tools = [
 # ]
 
 
-client = ollama.Client(host='http://10.1.3.20:11434')
-
-def chat(content: str):
-    # 2. 调用 Ollama 进行分析
-    # 注意：这里使用 ollama.chat，不再需要 API Key
-    # model 参数填你本地已经拉取好的模型名称（例如 'llama3', 'mistral' 等）
-    response = client.chat(
-        model=MODEL_NAME,
-        messages=[{
-            'role': 'user',
-            'content': f"请从以下内容中提取内容整理后，以 JSON 格式返回：\n\n{content}"
-        }],
-        options={"num_ctx": 8192}
-    )
-    
-    # 3. 输出结果
-    print("AI 提取结果:", response['message']['content'])
-
-    # 查看 Token 使用情况
-    calculate_speed(response)
-
-
-async def extract_links_fast(page: Page):
+async def extract_links_fast(page: Page) -> list[dict]:
     # 方法 2：使用 evaluate 一次性获取（性能更好）
     links = await page.evaluate('''() => {
     const rso = document.getElementById("rso")
@@ -154,58 +109,119 @@ async def extract_links_fast(page: Page):
     return links
 
 
+class BrowserSearch:
 
-async def fetch_page_content(page: Page, url: str):
-    """在单个页面上导航并获取内容"""
-    await page.goto(url, wait_until="domcontentloaded")
-    
-    # 并行获取多种内容
-    title = await page.title()
-    html = await page.content()
-    text = await page.inner_text("body")
-    
-    return {
-        "url": url,
-        "title": title,
-        "html_length": len(html),
-        "text_length": len(text)
-    }
+    def __init__(self, cdp: str, search_engine: str):
+        self.cdp = cdp
+        self.search_engine = search_engine
 
-async def open_tabs_and_fetch(urls: list[str]):
-    async with async_playwright() as p:
-        browser = await p.chromium.launch()
-        context = await browser.new_context()
-        
-        # 创建多个标签页
-        pages = [await context.new_page() for _ in urls]
-        
-        # 并行导航并获取内容
-        tasks = [fetch_page_content(page, url) for page, url in zip(pages, urls)]
-        results = await asyncio.gather(*tasks)
-        
-        # 打印结果
-        for result in results:
-            print(f"URL: {result['url']}")
-            print(f"  Title: {result['title']}")
-            print(f"  HTML Length: {result['html_length']}")
-            print(f"  Text Length: {result['text_length']}\n")
-        
-        await browser.close()
+        # self.headless = headless
+        # self._playwright = None
+        # self._browser: Browser = None
+        # self._context: BrowserContext = None
 
 
-async def web_search(url: str, query: str):
-    async with async_playwright() as p:
-
-        browser = await p.chromium.connect_over_cdp("http://localhost:9222")
+    async def start(self):
+        """手动启动"""
+        self._playwright = await async_playwright().start()
+        self._browser = await self._playwright.chromium.connect_over_cdp(self.cdp)
+        # self._context = await self._browser.new_context()
 
         # 在这个已经存在的上下文中打开新标签页
         # 这样它就会出现在你那个看得见的浏览器窗口里，并带有插件和代理
-        context = browser.contexts[0]
+        self._context = self._browser.contexts[0]
 
-        page = await context.new_page()
 
-        #await page.goto(url, wait_until="networkidle")
-        await page.goto(url)
+    async def stop(self):
+        """手动停止"""
+        if self._browser:
+            await self._browser.close()
+        if self._playwright:
+            await self._playwright.stop()
+
+    async def fetch_page_content(self, page: Page, url: str):
+        """在单个页面上导航并获取内容"""
+        try:
+            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            
+            # 并行获取多种内容
+            title = await page.title()
+            html = await page.content()
+            text = await page.inner_text("body")
+            
+            return {
+                "url": url,
+                "title": title,
+                "html_length": len(html),
+                "text_length": len(text),
+                "html": html,
+                "text": text,
+                "status": "success"
+            }
+        except Exception as e:
+            error_msg = str(e)
+            
+            # 给出友好的错误提示
+            if "ERR_EMPTY_RESPONSE" in error_msg:
+                print(f"\n⚠️  无法访问 {url}")
+                print(f"   原因：服务器没有响应，可能是反爬虫机制或网站暂时不可用")
+            elif "timeout" in error_msg.lower():
+                print(f"\n⚠️  访问超时 {url}")
+                print(f"   原因：页面加载超过 30 秒，可能是网络慢或页面复杂")
+            elif "ERR_NAME_NOT_RESOLVED" in error_msg:
+                print(f"\n⚠️  DNS 解析失败 {url}")
+                print(f"   原因：域名无法解析，检查网络连接")
+            else:
+                print(f"\n⚠️  访问失败 {url}")
+                print(f"   原因：{error_msg}")
+            
+            return {
+                "url": url,
+                "title": None,
+                "html_length": 0,
+                "text_length": 0,
+                "status": "failed",
+                "error": error_msg
+            }
+
+    async def open_tabs_and_fetch(self, urls: list[dict[str, str]]):
+            
+        # 创建多个标签页
+        pages = [await self._context.new_page() for _ in urls]
+        
+        # 并行导航并获取内容
+        tasks = [self.fetch_page_content(page, url["url"]) for page, url in zip(pages, urls)]
+        results = await asyncio.gather(*tasks)
+        
+        # 统计结果
+        success_count = sum(1 for r in results if r["status"] == "success")
+        failed_count = len(results) - success_count
+        
+        print(f"\n{'='*50}")
+        print(f"抓取完成：成功 {success_count}/{len(results)}，失败 {failed_count}")
+        print(f"{'='*50}\n")
+        
+        # 打印结果
+        for result in results:
+            if result["status"] == "success":
+                print(f"✅ URL: {result['url']}")
+                print(f"   Title: {result['title']}")
+                print(f"   Content Length: {result['text_length']}")
+                print(f"   Content: {result['text']}")
+            else:
+                print(f"❌ URL: {result['url']}")
+                print(f"   Error: {result.get('error', 'Unknown')}")
+            print()
+        
+        await self._browser.close()
+
+
+    async def web_search(self, query: str) -> list[dict]:
+
+        page = await self._context.new_page()
+
+        #await page.goto(self.search_engine, wait_until="networkidle")
+        await page.goto(self.search_engine)
 
         # === 新增：如果提供了搜索词，执行搜索 ===
         # 等待搜索框加载 (Google 搜索框的常见选择器)
@@ -223,25 +239,151 @@ async def web_search(url: str, query: str):
         # await page.wait_for_load_state("networkidle")
         await asyncio.sleep(5)  # 额外等待确保内容渲染
 
-
         # loc = page.locator('#center_col')
         loc = page.locator('#rso')
         await loc.wait_for(state="visible")
         all_text = await extract_links_fast(page)
 
-        pprint.pprint(all_text)
+        return all_text
 
-        # content = chat(all_text)
-        # print(content)
+
+class LLM:
+
+    def __init__(self, host: str='http://10.1.3.20:11434'):
+        self.client = ollama.Client(host=host)
         
-        await browser.close()
+        self.tools = TOOLS
+
+        self.messages: list[dict] = [{
+                'role': 'system',
+                'content': """这是从搜索引擎获取的查询结果摘要（标题+片段）。
+
+请按以下步骤处理：
+1. 先判断摘要信息是否足够回答问题
+2. 如果足够，直接整理信息回答用户
+3. 如果不足，调用 fetch_webpage 获取 3-5 个最相关网页的详细内容
+4. 基于完整内容给出准确回答
+
+注意：不要编造信息，不确定的内容要说明。"""
+            }]
+
+    def model(self, name: str):
+        self.modelname = name
+
+    def chat(self, content: str):
+        # 调用 Ollama 进行分析
+        # 注意：这里使用 ollama.chat，不再需要 API Key
+        # model 参数填你本地已经拉取好的模型名称（例如 'llama3', 'mistral' 等）
+        msg = {
+            "role": "user",
+            "content": content
+        }
+
+        self.messages.append(msg)
+
+        response = self.client.chat(
+            model=self.modelname,
+            messages=self.messages,
+            tools=TOOLS,
+            stream=True,
+            options={"num_ctx": 8192}
+        )
+
+        # 处理流式响应
+        full_response = ""
+        tool_calls = []
+        last_chunk = None  # 保存最后一个 chunk 用于统计
+        think = True
+        for chunk in response:
+
+            # 检查是否包含统计信息（最后一个 chunk 的特征）
+            if 'eval_count' in chunk or 'total_duration' in chunk:
+                last_chunk = chunk
+
+            msg = chunk.message
+
+            # 检查是否存在思考内容 (Thinking)
+            if thinking := msg.get('thinking'):
+                print(f"\033[90m{thinking}\033[0m", end="", flush=True)
 
 
-# 运行前请确保你已经在终端执行了 ollama run llama3
-try:
-    query = sys.argv[1]
-except Exception:
-    query = "什么是ollama"
+            if content := msg.get('content'):
 
-asyncio.run(web_search("https://www.google.com", query))
+                if not chunk.message.thinking and think:
+                    think = False
+                    print("\n", "+"*20, "思考结束", "+"*20, "\n")
 
+                print(content, end='', flush=True)
+
+
+            # 处理工具调用
+            if tool_calls := msg.get('tool_calls'):
+                for tool in tool_calls:
+                    func_name = tool['function']['name']
+                    args = tool['function']['arguments']
+                    print(f"\n[调用工具: {func_name}] 参数: {args}")
+
+                    # 执行TOOLS中的函数
+                    self.call_tools(func_name, args)
+
+        
+        # 3. 输出结果
+        # print("AI 提取结果:", response['message']['content'])
+
+        # 查看 Token 使用情况
+        self.calculate_speed(last_chunk)
+
+
+    def call_tools(self, func_name: str, args: dict):
+        if func_name == "web_search":
+            pass
+
+
+    # def calculate_speed(self, response: ollama.ChatResponse):
+    def calculate_speed(self, response):
+        # 提取字段
+        prompt_tokens = response.get('prompt_eval_count', 0)
+        eval_tokens = response.get('eval_count', 0)
+
+        # 纳秒转秒 (1s = 10^9 ns)
+        total_sec = response.get('total_duration', 0) / 1e9
+        load_sec = response.get('load_duration', 0) / 1e9
+        # eval_duration 是模型实际生成回答所用的时间
+        eval_sec = response.get('eval_duration', 0) / 1e9
+
+        # 计算生成速度 (Tokens Per Second)
+        # 我们通常使用 eval_count / eval_duration 来衡量模型的推理性能
+        tps = eval_tokens / eval_sec if eval_sec > 0 else 0
+
+        print("--- 性能统计 ---")
+        print(f"Prompt Tokens: {prompt_tokens}")
+        print(f"Output Tokens: {eval_tokens}")
+        print(f"模型加载耗时: {load_sec:.4f} s")
+        print(f"推理生成耗时: {eval_sec:.4f} s")
+        print(f"总耗时 (含加载): {total_sec:.4f} s")
+        print(f"👉 生成速度: {tps:.2f} tokens/s")
+
+
+async def main(query: str):
+
+    llm = LLM()
+    llm.model("gemma4:e4b")
+
+    bs = BrowserSearch("http://localhost:9222", "https://www.google.com")
+    await bs.start()
+
+    all_text = await bs.web_search(query)
+    pprint.pprint(all_text)
+    
+    await bs.open_tabs_and_fetch(all_text)
+
+    await bs.stop()
+
+
+if __name__ == "__main__":
+    try:
+        query = sys.argv[1]
+    except Exception:
+        query = "什么是ollama"
+
+    asyncio.run(main(query))
