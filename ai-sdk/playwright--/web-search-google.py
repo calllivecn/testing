@@ -252,7 +252,7 @@ class BrowserSearch:
 class LLM:
 
     def __init__(self, host: str='http://10.1.3.20:11434'):
-        self.client = ollama.Client(host=host)
+        self.client = ollama.AsyncClient(host=host)
         
         self.tools = TOOLS
 
@@ -268,10 +268,15 @@ class LLM:
 注意：不要编造信息，不确定的内容要说明。"""
             }]
 
+    @property
+    def model(self):
+        return self._model
+    
+    @model.setter
     def model(self, name: str):
-        self.modelname = name
+        self._model = name
 
-    def chat(self, content: str):
+    async def chat(self, content: str):
         # 调用 Ollama 进行分析
         # 注意：这里使用 ollama.chat，不再需要 API Key
         # model 参数填你本地已经拉取好的模型名称（例如 'llama3', 'mistral' 等）
@@ -282,8 +287,8 @@ class LLM:
 
         self.messages.append(msg)
 
-        response = self.client.chat(
-            model=self.modelname,
+        response = await self.client.chat(
+            model=self._model,
             messages=self.messages,
             tools=TOOLS,
             stream=True,
@@ -295,7 +300,7 @@ class LLM:
         tool_calls = []
         last_chunk = None  # 保存最后一个 chunk 用于统计
         think = True
-        for chunk in response:
+        async for chunk in response:
 
             # 检查是否包含统计信息（最后一个 chunk 的特征）
             if 'eval_count' in chunk or 'total_duration' in chunk:
@@ -325,23 +330,23 @@ class LLM:
                     print(f"\n[调用工具: {func_name}] 参数: {args}")
 
                     # 执行TOOLS中的函数
-                    self.call_tools(func_name, args)
+                    await self.call_tools(func_name, args)
 
         
         # 3. 输出结果
         # print("AI 提取结果:", response['message']['content'])
 
         # 查看 Token 使用情况
-        self.calculate_speed(last_chunk)
+        await self.calculate_speed(last_chunk)
 
 
-    def call_tools(self, func_name: str, args: dict):
+    async def call_tools(self, func_name: str, args: dict):
         if func_name == "web_search":
             pass
 
 
     # def calculate_speed(self, response: ollama.ChatResponse):
-    def calculate_speed(self, response):
+    async def calculate_speed(self, response):
         # 提取字段
         prompt_tokens = response.get('prompt_eval_count', 0)
         eval_tokens = response.get('eval_count', 0)
@@ -369,7 +374,7 @@ class LLM:
 async def main(query: str):
 
     llm = LLM()
-    llm.model("gemma4:e4b")
+    llm.model = "gemma4:e4b"
 
     bs = BrowserSearch("http://localhost:9222", "https://www.google.com")
     await bs.start()
