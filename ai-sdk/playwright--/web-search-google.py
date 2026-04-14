@@ -213,7 +213,9 @@ class BrowserSearch:
                 print(f"   Error: {result.get('error', 'Unknown')}")
             print()
         
-        await self._browser.close()
+        # 关闭pages
+        for page in pages:
+            await page.close()
 
 
     async def web_search(self, query: str) -> list[dict]:
@@ -257,7 +259,6 @@ class LLM:
         self.messages: list[dict] = [{
                 'role': 'system',
                 'content': """这是从搜索引擎获取的查询结果摘要（标题+片段）。
-
 请按以下步骤处理：
 1. 先判断摘要信息是否足够回答问题
 2. 如果足够，直接整理信息回答用户
@@ -358,6 +359,7 @@ class LLM:
         print("--- 性能统计 ---")
         print(f"Prompt Tokens: {prompt_tokens}")
         print(f"Output Tokens: {eval_tokens}")
+        print(f"Total Tokens: {prompt_tokens + eval_tokens}")
         print(f"模型加载耗时: {load_sec:.4f} s")
         print(f"推理生成耗时: {eval_sec:.4f} s")
         print(f"总耗时 (含加载): {total_sec:.4f} s")

@@ -1,10 +1,14 @@
 
+from typing import (
+    Iterator,
+)
+
 import sys
 import base64
 
 import ollama
 
-def calculate_speed(response):
+def calculate_speed(response: ollama.ChatResponse):
     # 提取字段
     prompt_tokens = response.get('prompt_eval_count', 0)
     eval_tokens = response.get('eval_count', 0)
@@ -22,6 +26,7 @@ def calculate_speed(response):
     print("--- 性能统计 ---")
     print(f"Prompt Tokens: {prompt_tokens}")
     print(f"Output Tokens: {eval_tokens}")
+    print(f"Total Tokens: {prompt_tokens + eval_tokens}")
     print(f"模型加载耗时: {load_sec:.4f} s")
     print(f"推理生成耗时: {eval_sec:.4f} s")
     print(f"总耗时 (含加载): {total_sec:.4f} s")
@@ -39,12 +44,14 @@ except IndexError:
     q = '介绍下ollama项目'
 
 messages = [
-       {'role': 'user', 'content': q},
-        ]
+        {'role': 'system', 'content': '请确保你的 <think> 标签内的思考过程使用中文。'},
+        {'role': 'user', 'content': q},
+    ]
 
 
-#opt = {'num_ctx': 8192}
-opt = {'num_ctx': 16384}
+opt = {}
+# opt = {'num_ctx': 8192}
+# opt = {'num_ctx': 16384}
 
 
 stream = client.chat(
@@ -56,7 +63,7 @@ stream = client.chat(
 )
 
 think = True
-last_chunk = None  # 保存最后一个 chunk 用于统计
+last_chunk: ollama.ChatResponse = None # 保存最后一个 chunk 用于统计
 
 for chunk in stream:
 
@@ -72,7 +79,7 @@ for chunk in stream:
 
     if content := message.get('content'):
 
-        if not message.thinking and think:
+        if think and not (thinking := message.get('thinking')):
             think = False
             print("\n", "+"*20, "思考结束", "+"*20, "\n")
 
