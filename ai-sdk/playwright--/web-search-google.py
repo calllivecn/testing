@@ -4,6 +4,7 @@ import sys
 import json
 import pprint
 import asyncio
+import traceback
 
 from typing import (
     Iterator,
@@ -24,7 +25,7 @@ TOOLS = [
         'type': 'function',
         'function': {
             'name': 'web_search',
-            'description': '搜索互联网获取最新信息。当用户询问新闻、实时数据、未知事实或需要查证信息时使用。无法回答时效性问题或知识盲区时优先调用。',
+            'description': '搜索互联网获取最新信息。当用户询问新闻、实时数据、未知事实或需要查证信息时使用。无法回答时效性问题或知识盲区时优先调用。这个工具只是返回了搜索的摘要信息。当你觉得需要获取详细网页结果时，调用"fetch_webpage"工具',
             'parameters': {
                 'type': 'object',
                 'properties': {
@@ -39,14 +40,14 @@ TOOLS = [
     },
     {
         "name": "fetch_webpage",
-        "description": "获取指定网页的完整内容。当搜索结果摘要不足时调用，选择最相关的网页获取详情。",
+        "description": "获取指定网页的完整内容。当搜索结果的摘要不足时调用，选择最相关的网页获取详情。",
         "parameters": {
             "type": "object",
             "properties": {
-            "urls": {
+            "url": {
                 "type": "array",
                 "items": {"type": "string"},
-                "description": "候选网页URL列表（来自搜索结果）"
+                "description": "候选网页URL列表，必须是一个包含 URL 的字符串数组。示例格式：['https://example.com']"
             },
             # "max_fetch": {
             #     "type": "number",
@@ -54,7 +55,7 @@ TOOLS = [
             #     "default": 3
             # }
             },
-            "required": ["urls"]
+            "required": ["url"]
         }
     }
 ]
@@ -155,9 +156,9 @@ class BrowserSearch:
             return {
                 "url": url,
                 "title": title,
-                "html_length": len(html),
+                # "html_length": len(html),
                 "text_length": len(text),
-                "html": html,
+                # "html": html,
                 "text": text,
                 "status": "success"
             }
@@ -167,13 +168,13 @@ class BrowserSearch:
             # 给出友好的错误提示
             if "ERR_EMPTY_RESPONSE" in error_msg:
                 print(f"\n⚠️  无法访问 {url}")
-                print(f"   原因：服务器没有响应，可能是反爬虫机制或网站暂时不可用")
+                print("   原因：服务器没有响应，可能是反爬虫机制或网站暂时不可用")
             elif "timeout" in error_msg.lower():
                 print(f"\n⚠️  访问超时 {url}")
-                print(f"   原因：页面加载超过 30 秒，可能是网络慢或页面复杂")
+                print("   原因：页面加载超过 30 秒，可能是网络慢或页面复杂")
             elif "ERR_NAME_NOT_RESOLVED" in error_msg:
                 print(f"\n⚠️  DNS 解析失败 {url}")
-                print(f"   原因：域名无法解析，检查网络连接")
+                print("   原因：域名无法解析，检查网络连接")
             else:
                 print(f"\n⚠️  访问失败 {url}")
                 print(f"   原因：{error_msg}")
@@ -181,7 +182,7 @@ class BrowserSearch:
             return {
                 "url": url,
                 "title": None,
-                "html_length": 0,
+                # "html_length": 0,
                 "text_length": 0,
                 "status": "failed",
                 "error": error_msg
@@ -259,17 +260,18 @@ class LLM:
         
         self.tools = TOOLS
 
-        self.messages: list[dict] = [{
-                'role': 'system',
-                'content': """这是从搜索引擎获取的查询结果摘要: json格式的: {"url": str, "title": str, "text": str}（url+标题+片段）。
-请按以下步骤处理：
-1. 先判断摘要信息是否足够回答问题
-2. 如果足够，直接整理信息回答用户
-3. 如果不足，调用 fetch_webpage 获取 3-5 个最相关网页的详细内容
-4. 基于完整内容给出准确回答
+#         self.messages: list[dict] = [{
+#                 'role': 'system',
+#                 'content': """这是从搜索引擎获取的查询结果摘要: json格式的: {"url": str, "title": str, "text": str}（url+标题+片段）。
+# 请按以下步骤处理：
+# 1. 先判断摘要信息是否足够回答问题
+# 2. 如果足够，直接整理信息回答用户
+# 3. 如果不足，调用 fetch_webpage 获取 3-5 个最相关网页的详细内容
+# 4. 基于完整内容给出准确回答
 
-注意：不要编造信息，不确定的内容要说明。"""
-            }]
+# 注意：不要编造信息，不确定的内容要说明。"""
+#             }]
+        self.messages: list[dict] = []
 
     @property
     def model(self):
@@ -295,88 +297,9 @@ class LLM:
 
         self.messages.append(message)
 
-        response = await self.client.chat(
-            model=self._model,
-            messages=self.messages,
-            tools=TOOLS,
-            stream=True,
-            options={"num_ctx": 8192}
-        )
+        max_turns = 5  # 防止死循环
+        for _ in range(max_turns):
 
-        # 处理流式响应
-        full_response = []
-        tool_calls = []
-        last_chunk = None  # 保存最后一个 chunk 用于统计
-        think = True
-
-        full_tool_calls = []
-
-        async for chunk in response:
-
-            # 检查是否包含统计信息（最后一个 chunk 的特征）
-            if 'eval_count' in chunk or 'total_duration' in chunk:
-                last_chunk = chunk
-
-            msg = chunk.message
-
-            # 检查是否存在思考内容 (Thinking)
-            if thinking := msg.get('thinking'):
-                print(f"\033[90m{thinking}\033[0m", end="", flush=True)
-
-
-            if content := msg.get('content'):
-
-                if not chunk.message.thinking and think:
-                    think = False
-                    print("\n", "+"*20, "思考结束", "+"*20, "\n")
-
-                print(content, end='', flush=True)
-                
-                # 把流式回复收集起来
-                full_response.append(content)
-
-
-            # 记录LLM要调用的工具，之后一直执行。
-            if tool_calls := msg.get('tool_calls'):
-                full_tool_calls.extend(tool_calls)
-
-        print("流式输出结束")
-        
-        # 模型的回复也要添加到上下文
-        self.messages.append({
-            "role": "assistant",
-            "content": "".join(full_response)
-        })
-
-        # 流式输出处理完后，在处理tool调用
-        # 2. 处理工具调用
-        if full_tool_calls:
-            # 将原始消息加入上下文
-            self.messages.append({'role': 'assistant', 'tool_calls': full_tool_calls})
-
-            for tool in full_tool_calls:
-                func_name = tool['function']['name']
-                args = tool['function'].get('arguments', {}) # 函数可以是没有参数的
-                print(f"\n[调用工具: {func_name}] 参数: {args}")
-
-
-                # 执行TOOLS中的函数
-                func_result = await self.call_tools(func_name, args)
-                
-                # 第一个工具调用
-                msg_tool_result = {
-                    "role": "tool",
-                    "content": json.dumps(func_result),
-                    "name": func_name
-                }
-
-                self.messages.append(msg_tool_result)
-
-        # 查看 Token 使用情况
-        await self.calculate_speed(last_chunk)
-
-        # 如果LLM调用了tool 把调用的结果在次在上下文中给LLM
-        if full_tool_calls:
             response = await self.client.chat(
                 model=self._model,
                 messages=self.messages,
@@ -392,7 +315,7 @@ class LLM:
             last_chunk = None  # 保存最后一个 chunk 用于统计
             think = True
 
-            full_tool_calls = []    
+            full_tool_calls = []
 
             async for chunk in response:
 
@@ -416,9 +339,52 @@ class LLM:
                     print(content, end='', flush=True)
                     
                     # 把流式回复收集起来
-                    full_response.append(msg)
+                    full_response.append(content)
 
+
+                # 记录LLM要调用的工具，之后一直执行。
+                if tool_calls := msg.get('tool_calls'):
+                    full_tool_calls.extend(tool_calls)
+
+            
+            # 模型的回复也要添加到上下文
+            self.messages.append({
+                "role": "assistant",
+                "content": "".join(full_response)
+            })
+
+            # 查看 Token 使用情况
             await self.calculate_speed(last_chunk)
+
+            # 流式输出处理完后，在处理tool调用
+            # 2. 处理工具调用
+            if full_tool_calls:
+                # 将原始消息加入上下文
+                self.messages.append({'role': 'assistant', 'tool_calls': full_tool_calls})
+
+                for tool in full_tool_calls:
+                    func_name = tool['function']['name']
+                    args = tool['function'].get('arguments', {}) # 函数可以是没有参数的
+                    print(f"\n[调用工具: {func_name}] 参数: {args}")
+
+                    try:
+                        # 执行TOOLS中的函数
+                        func_result = await self.call_tools(func_name, args)
+                    except Exception:
+                        func_result = traceback.format_exc(3)
+                        print(f"调用函数: {func_name} 异常：{func_result}")
+
+                    # 第一个工具调用
+                    msg_tool_result = {
+                        "role": "tool",
+                        "name": func_name,
+                        "content": json.dumps(func_result),
+                    }
+
+                    self.messages.append(msg_tool_result)
+            else:
+                # 如果没有工具调用，说明对话已完成
+                break
 
 
     async def call_tools(self, func_name: str, args: dict):
@@ -426,17 +392,19 @@ class LLM:
             result = await self.bs.web_search(args["query"])
         
         elif func_name == "fetch_webpage":
-            result = await self.bs.open_tabs_and_fetch(args["urls"])
+
+            if isinstance(args["url"], str):
+                a = [args["url"]]
+            elif isinstance(args["url"], list):
+                a = args["url"]
+            else:
+                raise ValueError("参数类型不对，应该是：str:url 或者 list[str:url]")
+            result = await self.bs.open_tabs_and_fetch(a)
         
         else:
-            raise ValueError(f"没有找到tool 函数：{func_name}")
-        
-        # 构建message
-        self.messages.append({
-            "role": "tool",
-            "name": func_name,
-            "content": json.dumps(result)
-        })
+            raise ValueError(f"没有找到 tool 函数：{func_name}")
+
+        return result
 
 
     # def calculate_speed(self, response: ollama.ChatResponse):
@@ -455,7 +423,7 @@ class LLM:
         # 我们通常使用 eval_count / eval_duration 来衡量模型的推理性能
         tps = eval_tokens / eval_sec if eval_sec > 0 else 0
 
-        print("--- 性能统计 ---")
+        print("\n--- 性能统计 ---")
         print(f"Prompt Tokens: {prompt_tokens}")
         print(f"Output Tokens: {eval_tokens}")
         print(f"Total Tokens: {prompt_tokens + eval_tokens}")
