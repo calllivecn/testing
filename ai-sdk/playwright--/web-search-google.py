@@ -1,4 +1,7 @@
+
+
 import sys
+import json
 import pprint
 import asyncio
 
@@ -45,11 +48,11 @@ TOOLS = [
                 "items": {"type": "string"},
                 "description": "候选网页URL列表（来自搜索结果）"
             },
-            "max_fetch": {
-                "type": "number",
-                "description": "最多抓取几个网页，默认 3，复杂问题可设 5",
-                "default": 3
-            }
+            # "max_fetch": {
+            #     "type": "number",
+            #     "description": "最多抓取几个网页，默认 3，复杂问题可设 5",
+            #     "default": 3
+            # }
             },
             "required": ["urls"]
         }
@@ -184,13 +187,13 @@ class BrowserSearch:
                 "error": error_msg
             }
 
-    async def open_tabs_and_fetch(self, urls: list[dict[str, str]]):
+    async def open_tabs_and_fetch(self, urls: list[str]):
             
         # 创建多个标签页
         pages = [await self._context.new_page() for _ in urls]
         
         # 并行导航并获取内容
-        tasks = [self.fetch_page_content(page, url["url"]) for page, url in zip(pages, urls)]
+        tasks = [self.fetch_page_content(page, url) for page, url in zip(pages, urls)]
         results = await asyncio.gather(*tasks)
         
         # 统计结果
@@ -258,7 +261,7 @@ class LLM:
 
         self.messages: list[dict] = [{
                 'role': 'system',
-                'content': """这是从搜索引擎获取的查询结果摘要（标题+片段）。
+                'content': """这是从搜索引擎获取的查询结果摘要: json格式的: {"url": str, "title": str, "text": str}（url+标题+片段）。
 请按以下步骤处理：
 1. 先判断摘要信息是否足够回答问题
 2. 如果足够，直接整理信息回答用户
@@ -276,16 +279,21 @@ class LLM:
     def model(self, name: str):
         self._model = name
 
+    @property
+    def bs(self):
+        return self._bs
+    
+    @bs.setter
+    def bs(self, bs: BrowserSearch):
+        self._bs = bs
+
     async def chat(self, content: str):
-        # 调用 Ollama 进行分析
-        # 注意：这里使用 ollama.chat，不再需要 API Key
-        # model 参数填你本地已经拉取好的模型名称（例如 'llama3', 'mistral' 等）
-        msg = {
+        message = {
             "role": "user",
             "content": content
         }
 
-        self.messages.append(msg)
+        self.messages.append(message)
 
         response = await self.client.chat(
             model=self._model,
@@ -296,10 +304,13 @@ class LLM:
         )
 
         # 处理流式响应
-        full_response = ""
+        full_response = []
         tool_calls = []
         last_chunk = None  # 保存最后一个 chunk 用于统计
         think = True
+
+        full_tool_calls = []
+
         async for chunk in response:
 
             # 检查是否包含统计信息（最后一个 chunk 的特征）
@@ -320,29 +331,112 @@ class LLM:
                     print("\n", "+"*20, "思考结束", "+"*20, "\n")
 
                 print(content, end='', flush=True)
+                
+                # 把流式回复收集起来
+                full_response.append(content)
 
 
-            # 处理工具调用
+            # 记录LLM要调用的工具，之后一直执行。
             if tool_calls := msg.get('tool_calls'):
-                for tool in tool_calls:
-                    func_name = tool['function']['name']
-                    args = tool['function']['arguments']
-                    print(f"\n[调用工具: {func_name}] 参数: {args}")
+                full_tool_calls.extend(tool_calls)
 
-                    # 执行TOOLS中的函数
-                    await self.call_tools(func_name, args)
-
+        print("流式输出结束")
         
-        # 3. 输出结果
-        # print("AI 提取结果:", response['message']['content'])
+        # 模型的回复也要添加到上下文
+        self.messages.append({
+            "role": "assistant",
+            "content": "".join(full_response)
+        })
+
+        # 流式输出处理完后，在处理tool调用
+        # 2. 处理工具调用
+        if full_tool_calls:
+            # 将原始消息加入上下文
+            self.messages.append({'role': 'assistant', 'tool_calls': full_tool_calls})
+
+            for tool in full_tool_calls:
+                func_name = tool['function']['name']
+                args = tool['function'].get('arguments', {}) # 函数可以是没有参数的
+                print(f"\n[调用工具: {func_name}] 参数: {args}")
+
+
+                # 执行TOOLS中的函数
+                func_result = await self.call_tools(func_name, args)
+                
+                # 第一个工具调用
+                msg_tool_result = {
+                    "role": "tool",
+                    "content": json.dumps(func_result),
+                    "name": func_name
+                }
+
+                self.messages.append(msg_tool_result)
 
         # 查看 Token 使用情况
         await self.calculate_speed(last_chunk)
 
+        # 如果LLM调用了tool 把调用的结果在次在上下文中给LLM
+        if full_tool_calls:
+            response = await self.client.chat(
+                model=self._model,
+                messages=self.messages,
+                tools=TOOLS,
+                stream=True,
+                options={"num_ctx": 8192}
+            )
+
+
+            # 处理流式响应
+            full_response = []
+            tool_calls = []
+            last_chunk = None  # 保存最后一个 chunk 用于统计
+            think = True
+
+            full_tool_calls = []    
+
+            async for chunk in response:
+
+                # 检查是否包含统计信息（最后一个 chunk 的特征）
+                if 'eval_count' in chunk or 'total_duration' in chunk:
+                    last_chunk = chunk
+
+                msg = chunk.message
+
+                # 检查是否存在思考内容 (Thinking)
+                if thinking := msg.get('thinking'):
+                    print(f"\033[90m{thinking}\033[0m", end="", flush=True)
+
+
+                if content := msg.get('content'):
+
+                    if not chunk.message.thinking and think:
+                        think = False
+                        print("\n", "+"*20, "思考结束", "+"*20, "\n")
+
+                    print(content, end='', flush=True)
+                    
+                    # 把流式回复收集起来
+                    full_response.append(msg)
+
+            await self.calculate_speed(last_chunk)
+
 
     async def call_tools(self, func_name: str, args: dict):
         if func_name == "web_search":
-            pass
+            result = await self.bs.web_search(args["query"])
+        
+        elif func_name == "fetch_webpage":
+            result = await self.bs.open_tabs_and_fetch(args["urls"])
+        
+        else:
+            raise ValueError(f"没有找到tool 函数：{func_name}")
+        
+        # 构建message
+        self.messages.append({
+            "role": "tool",
+            "name": func_name,
+            "content": json.dumps(result)
+        })
 
 
     # def calculate_speed(self, response: ollama.ChatResponse):
@@ -375,14 +469,17 @@ async def main(query: str):
 
     llm = LLM()
     llm.model = "gemma4:e4b"
+    # llm.model = "gemma4:31b"
 
     bs = BrowserSearch("http://localhost:9222", "https://www.google.com")
     await bs.start()
 
-    all_text = await bs.web_search(query)
-    pprint.pprint(all_text)
-    
-    await bs.open_tabs_and_fetch(all_text)
+    llm.bs = bs
+
+    # all_text = await bs.web_search(query)
+    # pprint.pprint(all_text)
+
+    await llm.chat(query)
 
     await bs.stop()
 
