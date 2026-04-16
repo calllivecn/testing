@@ -6,6 +6,8 @@ import pprint
 import asyncio
 import traceback
 
+from datetime import datetime
+
 from typing import (
     Iterator,
 )
@@ -21,6 +23,17 @@ import ollama
 
 
 TOOLS = [
+    {
+        'type': 'function',
+        'function': {
+            'name': 'get_current_time',
+            'description': '查询当前世界日期和时间',
+            'parameters': {
+                'type': 'object',
+                'properties': {}
+            }
+        }
+    },
     {
         'type': 'function',
         'function': {
@@ -74,41 +87,39 @@ TOOLS = [
 async def extract_links_fast(page: Page) -> list[dict]:
     # 方法 2：使用 evaluate 一次性获取（性能更好）
     links = await page.evaluate('''() => {
-    const rso = document.getElementById("rso")
-    if (!rso) return []
+        const rso = document.getElementById("rso")
+        if (!rso) return []
 
-    const result_div = rso.querySelectorAll("[data-snc]")
+        const links = []
 
-    const links = []
+        const result_div = rso.querySelectorAll("[data-snc]")
 
-    for(const a_data_snc of result_div){
+        for(const a_data_snc of result_div){
 
-        const a = a_data_snc.querySelector("a")
-        if (!a) continue
+            const a = a_data_snc.querySelector("a")
+            if (!a) continue
 
-        const url = a.href
+            const url = a.href
+            const title = a.querySelector("h3").innerText.trim()
 
-        const title = a.querySelector("h3").innerText.trim()
-
-        
-        const data_sncf = a_data_snc.querySelector("div[data-sncf]")
-        
-        let text = ""
-        if (data_sncf) {
-            for (const span of data_sncf.querySelectorAll("span")) {
-                text += span.innerText.trim()
+            
+            const data_sncf = a_data_snc.querySelector("div[data-sncf]")
+            
+            let text = ""
+            if (data_sncf) {
+                for (const span of data_sncf.querySelectorAll("span")) {
+                    text += span.innerText.trim()
+                }
             }
+            
+            links.push({
+                "url": url,
+                "title": title,
+                "text": text,
+            })
         }
 
-        links.push({
-            "url": url,
-            "title": title,
-            "text": text,
-        })
-    }
-
-    return links
-
+        return links
     }''')
     return links
 
@@ -231,9 +242,11 @@ class BrowserSearch:
 
         # === 新增：如果提供了搜索词，执行搜索 ===
         # 等待搜索框加载 (Google 搜索框的常见选择器)
-        search_box = page.locator('textarea[name="q"], input[name="q"]').first
-        await search_box.wait_for(state="visible")
+        # search_box = page.locator('textarea[name="q"], input[name="q"]').first
+        # await search_box.wait_for(state="visible")
         
+        search_box = page.get_by_role("combobox", name="搜索")
+
         # 清空并输入搜索内容
         await search_box.fill("")
         await search_box.fill(query)
@@ -242,12 +255,20 @@ class BrowserSearch:
         await search_box.press("Enter")
         
         # 等待搜索结果加载
+        
         # await page.wait_for_load_state("networkidle")
-        await asyncio.sleep(5)  # 额外等待确保内容渲染
+        # await asyncio.sleep(5)  # 额外等待确保内容渲染
 
-        # loc = page.locator('#center_col')
-        loc = page.locator('#rso')
-        await loc.wait_for(state="visible")
+        # 策略 B: 使用 get_by_role 等待第一个标题出现（更具鲁棒性）
+        # Google 的搜索结果通常是 level=3 的 heading
+        await page.get_by_role("heading", level=3).first.wait_for()
+
+        # try:
+        #     # 等待 <section> 标签出现在页面中，最多等待 30 秒
+        #     await page.get_by_role("heading", name="AI 概览").first.wait_for(timeout=3000)
+        # except Exception as e:
+        #     print(f"等待 AI摘要超时: {e}")
+
         all_text = await extract_links_fast(page)
 
         return all_text
@@ -348,10 +369,11 @@ class LLM:
 
             
             # 模型的回复也要添加到上下文
-            self.messages.append({
-                "role": "assistant",
-                "content": "".join(full_response)
-            })
+            if full_response:
+                self.messages.append({
+                    "role": "assistant",
+                    "content": "".join(full_response)
+                })
 
             # 查看 Token 使用情况
             await self.calculate_speed(last_chunk)
@@ -378,7 +400,7 @@ class LLM:
                     msg_tool_result = {
                         "role": "tool",
                         "name": func_name,
-                        "content": json.dumps(func_result),
+                        "content": json.dumps(func_result, ensure_ascii=False),
                     }
 
                     self.messages.append(msg_tool_result)
@@ -386,6 +408,7 @@ class LLM:
                 # 如果没有工具调用，说明对话已完成
                 break
 
+        pprint.pprint(self.messages)
 
     async def call_tools(self, func_name: str, args: dict):
         if func_name == "web_search":
@@ -401,6 +424,9 @@ class LLM:
                 raise ValueError("参数类型不对，应该是：str:url 或者 list[str:url]")
             result = await self.bs.open_tabs_and_fetch(a)
         
+        elif func_name == "get_current_time":
+            result = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         else:
             raise ValueError(f"没有找到 tool 函数：{func_name}")
 
@@ -423,14 +449,8 @@ class LLM:
         # 我们通常使用 eval_count / eval_duration 来衡量模型的推理性能
         tps = eval_tokens / eval_sec if eval_sec > 0 else 0
 
-        print("\n--- 性能统计 ---")
-        print(f"Prompt Tokens: {prompt_tokens}")
-        print(f"Output Tokens: {eval_tokens}")
-        print(f"Total Tokens: {prompt_tokens + eval_tokens}")
-        print(f"模型加载耗时: {load_sec:.4f} s")
-        print(f"推理生成耗时: {eval_sec:.4f} s")
-        print(f"总耗时 (含加载): {total_sec:.4f} s")
-        print(f"👉 生成速度: {tps:.2f} tokens/s")
+        print(f"\n--- 性能统计 ---\nPrompt/Output/Total Tokens : {prompt_tokens}/{eval_tokens}/{prompt_tokens + eval_tokens} 👉 生成速度: {tps:.2f} tokens/s ")
+        print(f"模型加载耗时: {load_sec:.4f} s 推理生成耗时: {eval_sec:.4f} s 总耗时 (含加载): {total_sec:.4f} s")
 
 
 async def main(query: str):
