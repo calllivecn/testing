@@ -20,6 +20,7 @@ from playwright.async_api import (
 )
 
 import ollama
+from pydantic import BaseModel
 
 
 TOOLS = [
@@ -52,23 +53,48 @@ TOOLS = [
         }
     },
     {
-        "name": "fetch_webpage",
-        "description": "获取指定网页的完整内容。当搜索结果的摘要不足时调用，选择最相关的网页获取详情。",
-        "parameters": {
-            "type": "object",
-            "properties": {
-            "url": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "候选网页URL列表，必须是一个包含 URL 的字符串数组。示例格式：['https://example.com']"
-            },
-            # "max_fetch": {
-            #     "type": "number",
-            #     "description": "最多抓取几个网页，默认 3，复杂问题可设 5",
-            #     "default": 3
-            # }
-            },
-            "required": ["url"]
+        "type": "function",
+        "function":{
+            "name": "fetch_webpage",
+            "description": "获取给定一个 url 的页面内容",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "URL示例格式：['https://example.com']"
+                },
+                # "max_fetch": {
+                #     "type": "number",
+                #     "description": "最多抓取几个网页，默认 3，复杂问题可设 5",
+                #     "default": 3
+                # }
+                },
+                "required": ["url"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function":{
+            "name": "fetch_webpage_list",
+            "description": "获取多个 list[str:url] 的网页内容",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                "urls": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "URL列表，必须是一个包含 URL 的字符串数组。示例格式：['https://example.com']"
+                },
+                # "max_fetch": {
+                #     "type": "number",
+                #     "description": "最多抓取几个网页，默认 3，复杂问题可设 5",
+                #     "default": 3
+                # }
+                },
+                "required": ["urls"]
+            }
         }
     }
 ]
@@ -140,7 +166,6 @@ class BrowserSearch:
         """手动启动"""
         self._playwright = await async_playwright().start()
         self._browser = await self._playwright.chromium.connect_over_cdp(self.cdp)
-        # self._context = await self._browser.new_context()
 
         # 在这个已经存在的上下文中打开新标签页
         # 这样它就会出现在你那个看得见的浏览器窗口里，并带有插件和代理
@@ -154,10 +179,11 @@ class BrowserSearch:
         if self._playwright:
             await self._playwright.stop()
 
-    async def fetch_page_content(self, page: Page, url: str):
+    async def fetch_page_content(self, page: Page, url: str) -> dict:
         """在单个页面上导航并获取内容"""
         try:
             await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            await asyncio.sleep(3)
             
             # 并行获取多种内容
             title = await page.title()
@@ -198,6 +224,9 @@ class BrowserSearch:
                 "status": "failed",
                 "error": error_msg
             }
+
+        finally:
+            await page.close()
 
     async def open_tabs_and_fetch(self, urls: list[str]):
             
@@ -332,11 +361,10 @@ class LLM:
 
             # 处理流式响应
             full_response = []
-            tool_calls = []
             last_chunk = None  # 保存最后一个 chunk 用于统计
             think = True
 
-            full_tool_calls = []
+            full_tool_calls: list[BaseModel] = []
 
             async for chunk in response:
 
@@ -381,8 +409,13 @@ class LLM:
             # 流式输出处理完后，在处理tool调用
             # 2. 处理工具调用
             if full_tool_calls:
+                tool_calls = [t.model_dump() for t in full_tool_calls]
+
                 # 将原始消息加入上下文
-                self.messages.append({'role': 'assistant', 'tool_calls': full_tool_calls})
+                self.messages.append({
+                    'role': 'assistant',
+                    'tool_calls': tool_calls
+                    })
 
                 for tool in full_tool_calls:
                     func_name = tool['function']['name']
@@ -408,24 +441,25 @@ class LLM:
                 # 如果没有工具调用，说明对话已完成
                 break
 
-        pprint.pprint(self.messages)
+        content_json = f"{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.json"
+        print(f"当前上下文保存到：{content_json}")
+        # 上下文保存到文件
+        with open(content_json, "w") as f:
+            json.dump(self.messages, f, ensure_ascii=False, indent=4)
 
     async def call_tools(self, func_name: str, args: dict):
-        if func_name == "web_search":
+
+        if func_name == "get_current_time":
+            result = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        elif func_name == "web_search":
             result = await self.bs.web_search(args["query"])
         
         elif func_name == "fetch_webpage":
-
-            if isinstance(args["url"], str):
-                a = [args["url"]]
-            elif isinstance(args["url"], list):
-                a = args["url"]
-            else:
-                raise ValueError("参数类型不对，应该是：str:url 或者 list[str:url]")
-            result = await self.bs.open_tabs_and_fetch(a)
+            result = await self.bs.fetch_page_content(await self.bs._context.new_page(), args["url"])
         
-        elif func_name == "get_current_time":
-            result = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        elif func_name == "fetch_webpage_list":
+            result = await self.bs.open_tabs_and_fetch(args["urls"])
 
         else:
             raise ValueError(f"没有找到 tool 函数：{func_name}")
