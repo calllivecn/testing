@@ -7,35 +7,24 @@ MODEL_NAME="qwen3.5:9b"
 MODEL_NAME="gemma4:e4b"
 
 # --- 第一步：定义工具 (Tools) ---
-# 格式必须遵循 JSON Schema 标准
-tools = [
-    {
-        'type': 'function',
-        'function': {
-            'name': 'calculate_discount',
-            'description': '计算商品打折后的最终价格。当用户询问总价或折扣时使用。',
-            'parameters': {
-                'type': 'object',
-                'properties': {
-                    'original_price': {
-                        'type': 'number',
-                        'description': '商品的原始价格'
-                    },
-                    'discount_rate': {
-                        'type': 'number',
-                        'description': '折扣率 (例如 0.8 代表八折)'
-                    }
-                },
-                'required': ['original_price', 'discount_rate']
-            }
-        }
-    }
+def calculate_discount(original_price: int, discount_rate: int) -> int:
+    """
+    计算商品打折后的最终价格。当用户询问总价或折扣时使用。
+    args:
+        original_price: 商品的原始价格
+        discount_rate: 折扣率 (例如 0.8 代表八折)
+    """
+    return original_price * discount_rate
+
+
+TOOLS=[
+    calculate_discount,
 ]
 
 # --- 第二步：准备图片 ---
 # 方法 A: 直接传本地路径 (Ollama Python 库 0.2.0+ 支持)
 image_path = 'product_price.jpg'
-image_path = '2026-03-14 17-35-01.png'
+image_path = '2026-05-08_18-12-58.png'
 
 # 方法 B: 内存中图片转成Base64
 # with open(image_path, 'rb') as f:
@@ -58,7 +47,7 @@ client = ollama.Client(host="http://10.1.3.20:11434")
 response = client.chat(
     model=MODEL_NAME,  # 替换为你的多模态模型
     messages=messages,
-    tools=tools,              # <--- 关键点：在这里传入工具列表
+    tools=TOOLS,              # <--- 关键点：在这里传入工具列表
     stream=False
 )
 
@@ -123,7 +112,7 @@ if 'tool_calls' in message:
     final_response = client.chat(
         model=MODEL_NAME,
         messages=messages,
-        tools=tools
+        tools=TOOLS
     )
     
     print("💬 最终回答:", final_response['message']['content'])
