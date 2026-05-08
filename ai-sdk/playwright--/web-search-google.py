@@ -9,6 +9,7 @@ import traceback
 from datetime import datetime
 
 from typing import (
+    Callable,
     Iterator,
 )
 
@@ -21,93 +22,6 @@ from playwright.async_api import (
 
 import ollama
 from pydantic import BaseModel
-
-
-TOOLS = [
-    {
-        'type': 'function',
-        'function': {
-            'name': 'get_current_time',
-            'description': '查询当前世界日期和时间',
-            'parameters': {
-                'type': 'object',
-                'properties': {}
-            }
-        }
-    },
-    {
-        'type': 'function',
-        'function': {
-            'name': 'web_search',
-            'description': '搜索互联网获取最新信息。当用户询问新闻、实时数据、未知事实或需要查证信息时使用。无法回答时效性问题或知识盲区时优先调用。这个工具只是返回了搜索的摘要信息。当你觉得需要获取详细网页结果时，调用"fetch_webpage"工具',
-            'parameters': {
-                'type': 'object',
-                'properties': {
-                    'query': {
-                        'type': 'string',
-                        'description': '搜索关键词或问题'
-                    },
-                },
-                'required': ['query']
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function":{
-            "name": "fetch_webpage",
-            "description": "获取给定一个 url 的页面内容",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                "url": {
-                    "type": "string",
-                    "description": "URL示例格式：['https://example.com']"
-                },
-                # "max_fetch": {
-                #     "type": "number",
-                #     "description": "最多抓取几个网页，默认 3，复杂问题可设 5",
-                #     "default": 3
-                # }
-                },
-                "required": ["url"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function":{
-            "name": "fetch_webpage_list",
-            "description": "获取多个 list[str:url] 的网页内容",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                "urls": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "URL列表，必须是一个包含 URL 的字符串数组。示例格式：['https://example.com']"
-                },
-                # "max_fetch": {
-                #     "type": "number",
-                #     "description": "最多抓取几个网页，默认 3，复杂问题可设 5",
-                #     "default": 3
-                # }
-                },
-                "required": ["urls"]
-            }
-        }
-    }
-]
-
-
-# fetch_webpage 返回
-# [
-#     {
-#         "url": "https://...",
-#         "content": "完整网页内容...",
-#         "title": "网页标题"
-#     }
-# ]
 
 
 async def extract_links_fast(page: Page) -> list[dict]:
@@ -161,6 +75,14 @@ class BrowserSearch:
         # self._browser: Browser = None
         # self._context: BrowserContext = None
 
+        # 工具列表
+        self.tools: list[Callable] = [
+            self.web_search,
+            self.fetch_webpage,
+            self.fetch_webpage_list,
+
+            ]
+
 
     async def start(self):
         """手动启动"""
@@ -179,15 +101,26 @@ class BrowserSearch:
         if self._playwright:
             await self._playwright.stop()
 
-    async def fetch_page_content(self, page: Page, url: str) -> dict:
-        """在单个页面上导航并获取内容"""
+
+    async def fetch_webpage(self, url: str) -> dict:
+        """
+        获取给定一个 url 的页面内容
+        args:
+            url: URL示例格式：'https://example.com'
+        """
+        return await self.fetch_webpage_of_page(await self._context.new_page(), url)
+
+
+    async def fetch_webpage_of_page(self, page: Page, url: str) -> dict:
+
         try:
             await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            await page.goto(url, wait_until="networkidle", timeout=30000)
             await asyncio.sleep(3)
             
             # 并行获取多种内容
             title = await page.title()
-            html = await page.content()
+            # html = await page.content()
             text = await page.inner_text("body")
             
             return {
@@ -215,7 +148,7 @@ class BrowserSearch:
             else:
                 print(f"\n⚠️  访问失败 {url}")
                 print(f"   原因：{error_msg}")
-            
+
             return {
                 "url": url,
                 "title": None,
@@ -228,13 +161,18 @@ class BrowserSearch:
         finally:
             await page.close()
 
-    async def open_tabs_and_fetch(self, urls: list[str]):
-            
+
+    async def fetch_webpage_list(self, urls: list[str]):
+        """
+        获取多个 list[str:url] 的网页内容
+        args:
+            urls: URL列表，必须是一个包含 URL 的字符串数组。示例格式：['https://example.com']
+        """
         # 创建多个标签页
         pages = [await self._context.new_page() for _ in urls]
         
         # 并行导航并获取内容
-        tasks = [self.fetch_page_content(page, url) for page, url in zip(pages, urls)]
+        tasks = [self.fetch_webpage_of_page(page, url) for page, url in zip(pages, urls)]
         results = await asyncio.gather(*tasks)
         
         # 统计结果
@@ -263,6 +201,11 @@ class BrowserSearch:
 
 
     async def web_search(self, query: str) -> list[dict]:
+        """
+        搜索互联网获取最新信息。当用户询问新闻、实时数据、未知事实或需要查证信息时使用。无法回答时效性问题或知识盲区时优先调用。这个工具只是返回了搜索的摘要信息。当你觉得需要获取详细网页结果时，调用"fetch_webpage"工具'
+        args:
+            query: 搜索关键词或问题
+        """
 
         page = await self._context.new_page()
 
@@ -303,24 +246,23 @@ class BrowserSearch:
         return all_text
 
 
+def get_current_time():
+    """
+    询当前世界日期和时查间
+    """
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+TOOLS = [
+    get_current_time,
+]
+
 class LLM:
 
     def __init__(self, host: str='http://10.1.3.20:11434'):
         self.client = ollama.AsyncClient(host=host)
         
-        self.tools = TOOLS
+        self.tools: list[Callable] = []
 
-#         self.messages: list[dict] = [{
-#                 'role': 'system',
-#                 'content': """这是从搜索引擎获取的查询结果摘要: json格式的: {"url": str, "title": str, "text": str}（url+标题+片段）。
-# 请按以下步骤处理：
-# 1. 先判断摘要信息是否足够回答问题
-# 2. 如果足够，直接整理信息回答用户
-# 3. 如果不足，调用 fetch_webpage 获取 3-5 个最相关网页的详细内容
-# 4. 基于完整内容给出准确回答
-
-# 注意：不要编造信息，不确定的内容要说明。"""
-#             }]
         self.messages: list[dict] = []
 
     @property
@@ -353,7 +295,7 @@ class LLM:
             response = await self.client.chat(
                 model=self._model,
                 messages=self.messages,
-                tools=TOOLS,
+                tools=self.tools,
                 stream=True,
                 options={"num_ctx": 8192}
             )
@@ -361,7 +303,7 @@ class LLM:
 
             # 处理流式响应
             full_response = []
-            last_chunk = None  # 保存最后一个 chunk 用于统计
+            last_chunk: ollama.ChatResponse|None = None  # 保存最后一个 chunk 用于统计
             think = True
 
             full_tool_calls: list[BaseModel] = []
@@ -404,7 +346,7 @@ class LLM:
                 })
 
             # 查看 Token 使用情况
-            await self.calculate_speed(last_chunk)
+            self.calculate_speed(last_chunk)
 
             # 流式输出处理完后，在处理tool调用
             # 2. 处理工具调用
@@ -430,11 +372,13 @@ class LLM:
                         print(f"调用函数: {func_name} 异常：{func_result}")
 
                     # 第一个工具调用
+                    func_result_json = json.dumps(func_result, ensure_ascii=False)
                     msg_tool_result = {
                         "role": "tool",
                         "name": func_name,
-                        "content": json.dumps(func_result, ensure_ascii=False),
+                        "content": func_result_json,
                     }
+                    print(f"\n调用结果: {pprint.pformat(func_result_json)}")
 
                     self.messages.append(msg_tool_result)
             else:
@@ -447,19 +391,20 @@ class LLM:
         with open(content_json, "w") as f:
             json.dump(self.messages, f, ensure_ascii=False, indent=4)
 
+
     async def call_tools(self, func_name: str, args: dict):
 
         if func_name == "get_current_time":
-            result = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            result = get_current_time()
 
         elif func_name == "web_search":
-            result = await self.bs.web_search(args["query"])
+            result = await self.bs.web_search(**args)
         
         elif func_name == "fetch_webpage":
-            result = await self.bs.fetch_page_content(await self.bs._context.new_page(), args["url"])
+            result = await self.bs.fetch_webpage(args["url"])
         
         elif func_name == "fetch_webpage_list":
-            result = await self.bs.open_tabs_and_fetch(args["urls"])
+            result = await self.bs.fetch_webpage_list(args["urls"])
 
         else:
             raise ValueError(f"没有找到 tool 函数：{func_name}")
@@ -467,8 +412,11 @@ class LLM:
         return result
 
 
-    # def calculate_speed(self, response: ollama.ChatResponse):
-    async def calculate_speed(self, response):
+    def calculate_speed(self, response: ollama.ChatResponse|None = None):
+        if response is None:
+            return
+        
+    # async def calculate_speed(self, response):
         # 提取字段
         prompt_tokens = response.get('prompt_eval_count', 0)
         eval_tokens = response.get('eval_count', 0)
@@ -495,6 +443,8 @@ async def main(query: str):
 
     bs = BrowserSearch("http://localhost:9222", "https://www.google.com")
     await bs.start()
+
+    llm.tools = TOOLS + bs.tools
 
     llm.bs = bs
 
