@@ -245,8 +245,7 @@ class BrowserSearch:
 
         return all_text
 
-
-def get_current_time():
+async def get_current_time():
     """
     询当前世界日期和时查间
     """
@@ -263,6 +262,8 @@ class LLM:
         
         self.tools: list[Callable] = []
 
+        self.tools_map: dict[str, Callable] = {}
+
         self.messages: list[dict] = []
 
     @property
@@ -273,13 +274,19 @@ class LLM:
     def model(self, name: str):
         self._model = name
 
-    @property
-    def bs(self):
-        return self._bs
+    # @property
+    # def bs(self):
+    #     return self._bs
     
-    @bs.setter
-    def bs(self, bs: BrowserSearch):
-        self._bs = bs
+    # @bs.setter
+    # def bs(self, bs: BrowserSearch):
+    #     self._bs = bs
+
+    def register_tools(self):
+        for func in self.tools:
+            self.tools_map.update(
+                {func.__name__: func}
+            )
 
     async def chat(self, content: str):
         message = {
@@ -393,18 +400,11 @@ class LLM:
 
 
     async def call_tools(self, func_name: str, args: dict):
+        if func_name in self.tools_map:
 
-        if func_name == "get_current_time":
-            result = get_current_time()
-
-        elif func_name == "web_search":
-            result = await self.bs.web_search(**args)
-        
-        elif func_name == "fetch_webpage":
-            result = await self.bs.fetch_webpage(args["url"])
-        
-        elif func_name == "fetch_webpage_list":
-            result = await self.bs.fetch_webpage_list(args["urls"])
+            func = self.tools_map[func_name]
+            # print(f"执函数：{func} {args=}")
+            result = await func(**args)
 
         else:
             raise ValueError(f"没有找到 tool 函数：{func_name}")
@@ -445,8 +445,11 @@ async def main(query: str):
     await bs.start()
 
     llm.tools = TOOLS + bs.tools
+    llm.register_tools()
 
-    llm.bs = bs
+    pprint.pprint(llm.tools_map)
+
+    # llm.bs = bs
 
     # all_text = await bs.web_search(query)
     # pprint.pprint(all_text)
