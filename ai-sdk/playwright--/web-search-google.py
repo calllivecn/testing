@@ -314,6 +314,7 @@ class LLM:
             think = True
 
             full_tool_calls: list[BaseModel] = []
+            # full_tool_calls: list[dict] = []
 
             async for chunk in response:
 
@@ -342,6 +343,7 @@ class LLM:
 
                 # 记录LLM要调用的工具，之后一直执行。
                 if tool_calls := msg.get('tool_calls'):
+                    # print(f"{tool_calls[0]=} {type(tool_calls[0])=}")
                     full_tool_calls.extend(tool_calls)
 
             
@@ -366,9 +368,10 @@ class LLM:
                     'tool_calls': tool_calls
                     })
 
-                for tool in full_tool_calls:
-                    func_name = tool['function']['name']
-                    args = tool['function'].get('arguments', {}) # 函数可以是没有参数的
+                for tool in tool_calls:
+                    f = tool["function"]
+                    func_name = f['name']
+                    args = f.get('arguments', {}) # 函数可以是没有参数的
                     print(f"\n[调用工具: {func_name}] 参数: {args}")
 
                     try:
@@ -447,7 +450,7 @@ async def main(query: str):
     llm.tools = TOOLS + bs.tools
     llm.register_tools()
 
-    pprint.pprint(llm.tools_map)
+    # pprint.pprint(llm.tools_map)
 
     # llm.bs = bs
 
