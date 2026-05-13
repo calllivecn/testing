@@ -79,8 +79,7 @@ class BrowserSearch:
         self.tools: list[Callable] = [
             self.web_search,
             self.fetch_webpage,
-            self.fetch_webpage_list,
-
+            # self.fetch_webpage_list,
             ]
 
 
@@ -260,7 +259,7 @@ class LLM:
     def __init__(self, host: str='http://10.1.3.20:11434'):
         self.client = ollama.AsyncClient(host=host)
         
-        self.tools: list[Callable] = []
+        self._tools: list[Callable] = []
 
         self.tools_map: dict[str, Callable] = {}
 
@@ -273,16 +272,14 @@ class LLM:
     @model.setter
     def model(self, name: str):
         self._model = name
-
-    # @property
-    # def bs(self):
-    #     return self._bs
     
-    # @bs.setter
-    # def bs(self, bs: BrowserSearch):
-    #     self._bs = bs
-
-    def register_tools(self):
+    @property
+    def tools(self):
+        return self._tools
+    
+    @tools.setter
+    def tools(self, v: list[Callable]):
+        self._tools = v
         for func in self.tools:
             self.tools_map.update(
                 {func.__name__: func}
@@ -448,7 +445,6 @@ async def main(query: str):
     await bs.start()
 
     llm.tools = TOOLS + bs.tools
-    llm.register_tools()
 
     # pprint.pprint(llm.tools_map)
 

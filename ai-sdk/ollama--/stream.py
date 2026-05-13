@@ -63,7 +63,7 @@ stream = client.chat(
 )
 
 think = True
-last_chunk: ollama.ChatResponse = None # 保存最后一个 chunk 用于统计
+last_chunk: ollama.ChatResponse|None = None # 保存最后一个 chunk 用于统计
 
 for chunk in stream:
 
@@ -88,5 +88,6 @@ for chunk in stream:
 
 
 print("\n", "="*20, "token相关性能指标", "="*20, "\n")
-calculate_speed(last_chunk)
+if last_chunk:
+    calculate_speed(last_chunk)
 
