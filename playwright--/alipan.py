@@ -19,7 +19,7 @@ from playwright.async_api import (
 )
 
 
-async def start_chrome(user_data_dir: Path) -> int:
+async def start_chrome(user_data_dir: Path, headless: bool = False) -> int:
     args = [
         "google-chrome-stable",
         "--remote-debugging-port=9222",
@@ -28,6 +28,8 @@ async def start_chrome(user_data_dir: Path) -> int:
         "--disable-gpu",
         "--window-size=1200,800",
     ]
+    if headless:
+        args.append("--headless")
 
     print(f"chrome启动参数：{args}")
     p = await asyncio.subprocess.create_subprocess_exec(*args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
@@ -99,16 +101,20 @@ async def find_by_wheel(page: Page, text: str, timeout_ms: int=30000) -> Locator
 
         # 向下滚动一段距离
         # mouse.wheel 是模拟真实物理滚动最稳健的方法
-        await page.mouse.wheel(0, 500)
+        await page.mouse.wheel(0, 200)
         
         # 等待数据加载的短暂间隔
-        await page.wait_for_timeout(500)
+        # await page.wait_for_timeout(500)
+
+        # 等待网络请求空闲（适用于懒加载）
+        await page.wait_for_load_state("networkidle")
+
 
 
 try:
     filename = Path(sys.argv[1])
-except Exception:
-    filename = Path("/home/zx/500MB.dd")
+except Exception as e:
+    raise e
 
 
 async def run(p: Playwright) -> None:
@@ -244,7 +250,7 @@ async def run(p: Playwright) -> None:
     while True:
         # is_visible 不会报错，它会立即返回 True 或 False
         # 配合 timeout=500 确保检查过程极快
-        if await page.get_by_text("已上传至", exact=False).is_visible(timeout=1000):
+        if await page.get_by_text("已上传至", exact=False).is_visible(timeout=500):
             print("上传成功！")
             break
             
