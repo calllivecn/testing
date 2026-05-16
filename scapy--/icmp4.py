@@ -1,3 +1,6 @@
+
+import sys
+
 # 使用 scapy 构造一个简单的 ICMP 包 (Ping)
 from scapy.all import IP, ICMP, sr1
 
@@ -16,4 +19,4 @@ def send_ping(target_ip):
         print("请求超时。")
 
 #send_ping("8.8.8.8")
-send_ping("192.168.1.1")
+send_ping(sys.argv[1])
