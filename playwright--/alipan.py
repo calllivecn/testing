@@ -292,7 +292,7 @@ class Alipan:
 
         status_bar_wrapper = self.page.locator('div[class^="status-bar-wrapper--"]')
         # 上传小窗口的状态栏
-        upload_status_bar = status_bar_wrapper.locator('span[class^=status-bar-title--]')
+        upload_status_bar = status_bar_wrapper.locator('span[class^="status-bar-title--"]')
 
         i = 1
         while True:
