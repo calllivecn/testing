@@ -13,7 +13,7 @@ from playwright.async_api import (
     Playwright,
     async_playwright,
     TimeoutError as PlaywrightTimeoutError,
-    expect,
+    # expect,
     Page,
     Locator,
 )
@@ -33,8 +33,7 @@ class Alipan:
     async def task_entry(self):
 
         print("chrome 进程启动了")
-        task_chrome = asyncio.create_task(self.start_chrome(Path("/home/zx/chromium-user-dir")))
-        await asyncio.sleep(5)
+        task_chrome = asyncio.create_task(self.start_chrome(self.user_dir))
 
         async with async_playwright() as p:
             await self.connect_chrom_cdp(p)
@@ -162,11 +161,38 @@ class Alipan:
 
 
     # 检测是否向下到底了
-    def is_page_scrolled_to_bottom(self):
-        return self.page.evaluate("""() => {
-            const { scrollY, innerHeight, scrollHeight } = window;
-            return scrollY + innerHeight >= scrollHeight - 5;
+    async def is_page_scrolled_to_bottom(self) -> bool:
+        # 精确重定位到这个带滚动条的 div
+        # 可以通过它的独有 class，或者结合 style 特征定位
+        scroll_container = self.page.locator('div[class^="grid-scroll--"][style*="overflow"]')
+
+        try:
+            await scroll_container.wait_for(state="visible", timeout=5000)
+        except PlaywrightTimeoutError:
+            return True
+
+        # 1. 核心判断：先看它到底有没有滚动条
+        has_scrollbar = await scroll_container.evaluate(
+            "(el) => el.scrollHeight > el.clientHeight"
+        )
+
+        if not has_scrollbar:
+            return True
+
+
+        # 这里的 window; 是整个document的滚动条。但是这里需要的时一个div的滚动条。
+        # bottom = await scroll_container.evaluate("""() => {
+        #     const { scrollY, innerHeight, scrollHeight } = window;
+        #     return scrollY + innerHeight >= scrollHeight - 5;
+        # }""")
+
+
+        bottom = await scroll_container.evaluate("""(el) => {
+            const { scrollTop, clientHeight, scrollHeight } = el;
+            return scrollTop + clientHeight >= scrollHeight - 5;
         }""")
+
+        return bottom
 
 
     # 在当前页面查找指定文本，找不到就向下滚动页面
@@ -175,10 +201,17 @@ class Alipan:
         loop = asyncio.get_event_loop()
         start_time = loop.time()
 
-        while True:
+        # 先定位到文件的div
+        self.node_list = self.page.locator('div[class^="node-list--"]')
+
+        bool_ = False
+        
+        for _ in range(3):
+
             # 检查元素是否已出现且可见
-            locator = self.page.get_by_text(text)
-            if await locator.is_visible():
+            # locator = self.page.get_by_text(text)
+            locator = self.node_list.get_by_text(text)
+            if await locator.is_visible(timeout=500):
                 await locator.scroll_into_view_if_needed()
                 return locator
             
@@ -189,28 +222,37 @@ class Alipan:
             # 向下滚动一段距离
             # mouse.wheel 是模拟真实物理滚动最稳健的方法
             await self.page.mouse.wheel(0, 200)
-            
             # 等待数据加载的短暂间隔
-            # await page.wait_for_timeout(500)
-
+            await self.page.wait_for_timeout(500)
             # 等待网络请求空闲（适用于懒加载）
             await self.page.wait_for_load_state("networkidle")
 
-            if await self.is_page_scrolled_to_bottom():
-                raise ValueError("已经到网页底了，说明没有找到当前路径：{text}")
+
+            bool_ = await self.is_page_scrolled_to_bottom()
+            print(f"检测是否已经找完了当前路径：{bool_=}")
+
+        if bool_:
+            raise ValueError(f"已经到网页底了，说明没有找到当前路径点：{text}")
+        
+        raise ValueError(f"没有找到目录节点：{text}")
 
 
     async def goto_path(self, p: Path):
         """
         按路径一层层找
         """
-
         for part in p.parts:
             
-            if part == Path("/"):
+            if part == "/":
                 continue
+            print(f"进入下一级目录：{part}")
 
-            loc = await self.find_by_wheel(part)
+            try:
+                loc = await self.find_by_wheel(part)
+            except ValueError as e:
+                print(f"{e}\n没有找到目录: {p}")
+                sys.exit(1)
+
             await loc.click()
 
 
@@ -237,7 +279,9 @@ class Alipan:
         # 注意：阿里网盘上传后通常会弹出一个进度框，建议增加等待
         # await expect(page.get_by_text("正在上传")).to_be_visible()
         # await page.get_by_text("正在上传").click()
-        await self.page.locator('div[class^="status-bar-wrapper--"]').click()
+        
+        status_bar_wrapper = self.page.locator('div[class^="status-bar-wrapper--"]')
+        await status_bar_wrapper.click()
         
         print(f"正在上传: {filenames}")
         
@@ -245,11 +289,18 @@ class Alipan:
     async def wait_upload_done(self):
 
         print("开始轮询上传状态...")
+
+        status_bar_wrapper = self.page.locator('div[class^="status-bar-wrapper--"]')
+        # 上传小窗口的状态栏
+        upload_status_bar = status_bar_wrapper.locator('span[class^=status-bar-title--]')
+
         i = 1
         while True:
             # is_visible 不会报错，它会立即返回 True 或 False
             # 配合 timeout=500 确保检查过程极快
-            if await self.page.get_by_text("已上传至", exact=False).is_visible(timeout=500):
+
+            # if await self.page.get_by_text("已上传至", exact=False).is_visible(timeout=500):
+            if await upload_status_bar.get_by_text("上传完成").is_visible(timeout=500):
                 print("上传成功！")
                 break
                 
@@ -272,14 +323,16 @@ def main():
         )
     
     parse.add_argument("--headless", action="store_true", default=False, help="使用chrome时，是否开启无头模式。")
-    parse.add_argument("--user-data-dir", help="指定chrome实例的数据目录。")
-    parse.add_argument("--netdisk-path", default="autoupload", help="需要上传到阿里网盘的那个目录，默认值：autoupload")
-    parse.add_argument("files", args="+", type=Path, help="要上传的文件")
+    parse.add_argument("--user-data-dir", required=True, help="指定chrome实例的数据目录。")
+    parse.add_argument("--netdisk-path", type=Path, default=Path("autoupload"), help="需要上传到阿里网盘的那个目录，默认值：autoupload")
+    parse.add_argument("files", nargs="+", type=Path, help="要上传的文件")
+
+    parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
 
     args = parse.parse_args()
 
     if args.parse:
-        parse.print_usage()
+        print(args)
         sys.exit(0)
 
     alipan = Alipan(args.user_data_dir, args.netdisk_path, args.files)
