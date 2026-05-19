@@ -24,10 +24,12 @@ class Alipan:
     使用playwright的方式操作阿里去盘网页版本自动上传文件
     """
 
-    def __init__(self, user_dir: Path, netdisk_path: Path, files: list[Path]):
+    def __init__(self, user_dir: Path, netdisk_path: Path, files: list[Path], no_close: bool = False):
         self.user_dir = user_dir
         self.netdisk_path = netdisk_path
         self.files = files
+
+        self.no_close = no_close
 
 
     async def task_entry(self):
@@ -70,6 +72,10 @@ class Alipan:
         try:
             return await p.wait()
         except asyncio.CancelledError:
+
+            if self.no_close:
+                return 0
+            
             # 1. 先发送 SIGTERM（优雅终止）
             p.terminate()
             try:
@@ -215,7 +221,7 @@ class Alipan:
             # 2. 前端框架已更新 DOM 树并将元素挂载上去（Attached）
             # 3. 浏览器已完成重绘，元素在屏幕上可见（Visible）
             try:
-                await locator.wait_for(state="visible", timeout=500)
+                await locator.wait_for(state="visible", timeout=3000)
             except PlaywrightTimeoutError:
                 print(f"没找到：{text}，看看是否需要滚动。")
 
@@ -245,10 +251,13 @@ class Alipan:
 
                     bool_ = await self.is_page_scrolled_to_bottom()
                     if bool_:
-                        # 说明已经找完当前已经加载的内容，没有找到。可以结束
+                        print("说明已经找完当前已经加载的内容，没有找到。可以结束")
                         break
-
+                    else:
+                        print("没有找到，也没到底，断续翻页。")
+                        continue
                 else:
+                    print("没有滚动条")
                     break
 
             # 当前名称不能是一个文件名
@@ -274,7 +283,6 @@ class Alipan:
 
             print(f"进入下一级目录：{part}")
             p2 = p2 / part
-
 
             await self.page.wait_for_load_state(state="networkidle", timeout=15000)
 
@@ -383,10 +391,10 @@ class Alipan:
 
                 if outer_element := outer_handle.as_element():
                     if await outer_element.is_visible():
-                        print("成功定位到指定外层元素为 文件类型")
+                        print("成功定位到指定外层元素表明当前为 文件类型")
                         return False
 
-                raise ValueError("没找到区分当前名称是 文件 还是 文件夹 的class: div[class^='folder-cover--']")
+                raise ValueError("没找到区分当前路径是 文件 还是 文件夹 的class: div[class^='folder-cover--']")
         
         else:
             raise ValueError("没有找到上级div[class^='node-card--']")
@@ -460,6 +468,8 @@ def main():
     parse.add_argument("--netdisk-path", type=Path, default=Path("autoupload"), help="需要上传到阿里网盘的那个目录，默认值：autoupload")
     parse.add_argument("files", nargs="+", type=Path, help="要上传的文件")
 
+    parse.add_argument("--no-close", action="store_true", default=False, help="结束后不关闭浏览器，方便调试。")
+
     parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
 
     args = parse.parse_args()
@@ -468,7 +478,7 @@ def main():
         print(args)
         sys.exit(0)
 
-    alipan = Alipan(args.user_data_dir, args.netdisk_path, args.files)
+    alipan = Alipan(args.user_data_dir, args.netdisk_path, args.files, args.no_close)
 
     asyncio.run(alipan.task_entry())
 
