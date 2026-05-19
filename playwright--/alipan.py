@@ -284,7 +284,10 @@ class Alipan:
             print(f"进入下一级目录：{part}")
             p2 = p2 / part
 
-            await self.page.wait_for_load_state(state="networkidle", timeout=15000)
+            try:
+                await self.page.wait_for_load_state(state="networkidle", timeout=5000)
+            except PlaywrightTimeoutError:
+                pass
 
             # 先定位到文件的div, 如果当前目录为空，可以会没有node-list--容器。就说明没之后的目录了直接创建目录+进入+continue
             self.node_list = self.page.locator('div[class^="node-list--"]')
