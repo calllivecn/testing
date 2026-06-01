@@ -51,7 +51,7 @@ async def extract_links_fast(page: Page) -> list[dict]:
                     text += span.innerText.trim()
                 }
             }
-            
+
             links.push({
                 "url": url,
                 "title": title,
@@ -443,6 +443,7 @@ async def main(query: str):
     llm = LLM()
     llm.model = "gemma4:e4b"
     # llm.model = "gemma4:31b"
+    llm.model = "gemma4-e4b-uncensored:Q8_K_P"
 
     bs = BrowserSearch("http://localhost:9222", "https://www.google.com")
     await bs.start()
