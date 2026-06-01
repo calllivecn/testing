@@ -26,6 +26,9 @@ pip3 config --global set global.index-url https://pypi.tuna.tsinghua.edu.cn/simp
 
 pip install --break-system-packages ipython cryptography
 pip install --break-system-packages av==${AV_VERSION} --no-binary av
+
+find ~/.cache/pip/ -type f -iname "*av*.whl" -exec cp -v {} /build/ \;
+
 pip cache purge
 
 apt clean

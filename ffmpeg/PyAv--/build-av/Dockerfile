@@ -1,4 +1,4 @@
-FROM ubuntu-devel:25.10
+FROM ubuntu-devel:26.04
 
 ARG AV_VERSION
 
