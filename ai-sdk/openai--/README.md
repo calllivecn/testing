@@ -2,6 +2,7 @@
 
 
 - 设置API_KEY
+- pip install -U openai
 
 ```
 export OPENAI_API_KEY='your-api-key-here'
