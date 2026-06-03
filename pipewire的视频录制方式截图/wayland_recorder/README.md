@@ -40,4 +40,25 @@
 
 ---
 
-### 🛠️ 3. 终极修复方案
+# PipeWire 框架捕获 GNOME 桌面屏幕 的完整流程（特别是零拷贝、低延迟的数据流）
+
+```text
+Python进程       C适配层          PipeWire守护进程       Mutter(合成器)
+   |               |                    |                     |
+   |--pw_init...-->|                    |                     |
+   |--pw_stream_new>|                    |                     |
+   |--add_listener->|                    |                     |
+   |               |--pw_stream_connect->|                     |
+   |               |                    |--绑定ScreenCast源--->|
+   |               |<--param_changed----|                     |
+   |<--param_changed(路由到Python)       |                     |
+   |               |                    |                     |
+   |               |                    |<---写入共享内存------|
+   |               |<--process事件------|                     |
+   |<--on_stream_process(回调)           |                     |
+   |--dequeue_buffer-------------------->|                     |
+   |<--返回内存指针+stride                |                     |
+   |[Python用memoryview零拷贝处理]        |                     |
+   |--queue_buffer---------------------->|                     |
+   |               |                    |--继续下一帧-------->|
+```
