@@ -7,6 +7,8 @@ import shutil
 import secrets
 from datetime import datetime
 from urllib.parse import urlparse, unquote  # 引入 unquote 用于解码中文路径
+
+# pip install dbus-next
 from dbus_next.aio import MessageBus
 from dbus_next import Message, MessageType, Variant
 
