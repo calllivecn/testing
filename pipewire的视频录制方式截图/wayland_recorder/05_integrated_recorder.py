@@ -26,6 +26,7 @@ class IntegratedRecorder:
 
     def _setup_pw_callbacks(self):
         """绑定 C 层回调到 Python"""
+        
         @ffi.callback("void(void*, int, int)")
         def on_state(userdata, old, new):
             states = ["UNCONNECTED", "CONNECTING", "PAUSED", "STREAMING", "ERROR"]
@@ -57,17 +58,36 @@ class IntegratedRecorder:
                 # 3. 颜色空间转换 (BGRx -> BGR)
                 img_bgr = img_array[:, :, :3]
 
+                # ================= 🎯 核心新增：自动裁剪窗口多余边框 =================
+                # 安全获取 portal 中的裁剪属性 (兼容未修改 portal_screencast.py 的情况)
+                is_window = getattr(self.portal, 'is_window', False)
+                crop_w = getattr(self.portal, 'crop_w', 0)
+                crop_h = getattr(self.portal, 'crop_h', 0)
+                
+                # 如果是窗口共享模式，且获取到了有效的裁剪尺寸
+                if is_window and crop_w > 0 and crop_h > 0:
+                    crop_x = getattr(self.portal, 'crop_x', 0)
+                    crop_y = getattr(self.portal, 'crop_y', 0)
+                    
+                    # 保护性计算：确保裁剪区域不会超出原始图像的物理边界
+                    y_end = min(crop_y + crop_h, img_bgr.shape[0])
+                    x_end = min(crop_x + crop_w, img_bgr.shape[1])
+                    
+                    # 执行 Numpy 切片裁剪 (底层是 C 语言内存视图操作，耗时几乎为 0)
+                    img_bgr = img_bgr[crop_y:y_end, crop_x:x_end]
+                # ====================================================================
+
                 # 4. 使用 OpenCV 保存帧
                 self.frame_count += 1
                 filename = f"frame_{self.frame_count:04d}.png"
                 cv2.imwrite(filename, img_bgr)
-                print(f"✅ [帧 #{self.frame_count:04d}] 成功保存: {filename}")
+                print(f"✅ [帧 #{self.frame_count:04d}] 成功保存: {filename} (尺寸: {img_bgr.shape[1]}x{img_bgr.shape[0]})")
                 
                 # 测试：截取 5 帧后触发停止信号
                 if self.frame_count >= 5:
                     print("🎉 达到测试帧数，准备停止...")
                     self.stop_event.set()
-
+                    
             except Exception as e:
                 print(f"❌ 帧处理异常: {e}")
 
