@@ -78,13 +78,7 @@ ffi.cdef("""
     void pw_stream_destroy(struct pw_stream *stream);
 
     // --- 自定义 C 包装函数 ---
-    const struct spa_pod *build_video_format_pod(
-        uint32_t format_id, 
-        uint32_t width, 
-        uint32_t height, 
-        uint32_t min_fps, 
-        uint32_t max_fps
-    );
+    const struct spa_pod *build_video_format_pod(uint32_t format_id, uint32_t width, uint32_t height);
     
     void free_format_pod(const struct spa_pod *pod);
 """)
@@ -100,13 +94,7 @@ ffi.set_source("_pipewire_cffi", """
     #include <stdlib.h>
     #include <string.h>
 
-    const struct spa_pod *build_video_format_pod(
-        uint32_t format_id, 
-        uint32_t width, 
-        uint32_t height, 
-        uint32_t min_fps, 
-        uint32_t max_fps
-    ) {
+    const struct spa_pod *build_video_format_pod(uint32_t format_id, uint32_t width, uint32_t height) {
         uint8_t *buffer = (uint8_t *)calloc(1, 1024);
         if (!buffer) return NULL;
 
@@ -115,26 +103,28 @@ ffi.set_source("_pipewire_cffi", """
 
         spa_pod_builder_init(builder, buffer, 1024);
 
-        // ✅ 修复：去掉未使用的 pod 变量，直接调用
-        spa_pod_builder_add_object(builder,
+        // ✅ 修复：移除 framerate 限制，让 Wayland 合成器自由决定帧率
+        // ✅ 修复：同时提供 BGRx 和 RGBA 两种格式供服务端选择
+        const struct spa_pod *pod = (const struct spa_pod *)spa_pod_builder_add_object(builder,
             SPA_TYPE_OBJECT_Format, SPA_PARAM_EnumFormat,
             SPA_FORMAT_mediaType,      SPA_POD_Id(SPA_MEDIA_TYPE_video),
             SPA_FORMAT_mediaSubtype,   SPA_POD_Id(SPA_MEDIA_SUBTYPE_raw),
-            SPA_FORMAT_VIDEO_format,   SPA_POD_Id(format_id),
+            // 提供多种格式选择，增加协商成功率
+            SPA_FORMAT_VIDEO_format,   SPA_POD_CHOICE_ENUM_Id(3,
+                &SPA_POD_Id(SPA_VIDEO_FORMAT_BGRx),
+                &SPA_POD_Id(SPA_VIDEO_FORMAT_RGBA),
+                &SPA_POD_Id(SPA_VIDEO_FORMAT_BGRA)
+            ),
             SPA_FORMAT_VIDEO_size,     SPA_POD_CHOICE_RANGE_Rectangle(
                 &SPA_RECTANGLE(width, height),    
                 &SPA_RECTANGLE(1, 1),             
                 &SPA_RECTANGLE(7680, 4320)        
-            ),
-            SPA_FORMAT_VIDEO_framerate, SPA_POD_CHOICE_RANGE_Fraction(
-                &SPA_FRACTION(min_fps, 1),        
-                &SPA_FRACTION(1, 1),              
-                &SPA_FRACTION(max_fps, 1)         
             )
+            // 注意：这里故意不写 SPA_FORMAT_VIDEO_framerate，让服务端自由推送
         );
 
         free(builder);
-        return (const struct spa_pod *)buffer;
+        return pod;
     }
 
     void free_format_pod(const struct spa_pod *pod) {

@@ -64,13 +64,23 @@ class IntegratedRecorder:
         self.pw_stream = C.pw_stream_new_simple(loop, b"recorder", ffi.NULL, events, ffi.NULL)
         
         # 构建格式
-        pod = C.build_video_format_pod(0x42475278, 1920, 1080, 30, 60)
+        pod = C.build_video_format_pod(0, 1920, 1080)
         params = ffi.new("const struct spa_pod *[1]")
         params[0] = pod
         self._keep_alive.extend([params, pod])
         
+        # ✅ 核心修复：修改连接 Flags
+        # 0x0004 = PW_STREAM_FLAG_AUTOCONNECT (自动连接)
+        # 0x0008 = PW_STREAM_FLAG_MAP_BUFFERS (自动映射内存到 CPU)
+        # 0x0010 = PW_STREAM_FLAG_DRIVER (某些合成器需要)
+        # 0x0020 = PW_STREAM_FLAG_RT_PROCESS (实时处理)
+        flags = 0x0004 | 0x0008
+
         # 连接 (0x0004=AUTOCONNECT, 0x0008=MAP_BUFFERS)
-        C.pw_stream_connect(self.pw_stream, 1, node_id, 0x0004 | 0x0008, params, 1)
+        res = C.pw_stream_connect(self.pw_stream, 1, node_id, flags, params, 1)
+        if res < 0:
+            print(f"❌ PipeWire 连接失败，错误码: {res}")
+
         
         print("▶ [PipeWire] 线程启动，等待数据...")
         C.pw_main_loop_run(self.pw_loop)
