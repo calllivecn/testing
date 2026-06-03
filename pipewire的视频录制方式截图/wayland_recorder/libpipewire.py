@@ -26,7 +26,6 @@ class PipeWireStream:
         # ✅ 修复：onerror 函数必须接收 3 个参数 (exc_type, exc_value, exc_tb)
         def _handle_callback_error(exc_type, exc_value, exc_tb):
             print(f"[Py-Debug] ⚠️ 回调函数内部发生异常: {exc_value}")
-            import traceback
             traceback.print_exception(exc_type, exc_value, exc_tb)
 
         @ffi.callback("void(void*, int, int)", onerror=_handle_callback_error)

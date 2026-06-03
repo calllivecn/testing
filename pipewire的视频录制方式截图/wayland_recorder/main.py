@@ -1,7 +1,9 @@
+
 import asyncio
 import threading
 import signal
 import sys
+
 import cv2
 import numpy as np
 
@@ -10,7 +12,7 @@ from portal_screencast import PortalScreenCast
 # 导入我们编译好的 CFFI 模块
 from _pipewire_cffi import ffi, lib
 
-class IntegratedRecorder:
+class PipewireRecorder:
     def __init__(self):
         self.portal = PortalScreenCast()
         self.node_id = None
@@ -24,12 +26,15 @@ class IntegratedRecorder:
         # 线程同步信号
         self.stop_event = threading.Event()
         
-        # 裁剪参数配置 (可根据需要修改)
-        self.crop_x = 0
-        self.crop_y = 0
-        self.crop_w = 1920  # 裁剪宽度
-        self.crop_h = 1080  # 裁剪高度
         self.enable_crop = False  # 是否启用裁剪开关
+
+    def set_crop_frame(self, x: int, y: int, w: int, h: int):
+        # 裁剪参数配置 (可根据需要修改)
+        self.crop_x = x
+        self.crop_y = y
+        self.crop_w = w  # 裁剪宽度
+        self.crop_h = h  # 裁剪高度
+        self.enable_crop = True
 
     def crop_frame(self, img, x, y, w, h):
         """从图像中裁剪出指定位置和大小的区域"""
@@ -164,15 +169,12 @@ class IntegratedRecorder:
         print("🧹 所有资源已清理，再见！")
 
 def main():
-    recorder = IntegratedRecorder()
+
+    recorder = PipewireRecorder()
     
     # ================= 配置裁剪参数 =================
     # 如果您需要裁剪，请取消下方注释并修改参数
-    # recorder.enable_crop = True
-    # recorder.crop_x = 100   # 起始 X
-    # recorder.crop_y = 100   # 起始 Y
-    # recorder.crop_w = 800   # 宽度
-    # recorder.crop_h = 600   # 高度
+    recorder.set_crop_frame(100, 100, 800, 600)
     # ================================================
     
     # 处理 Ctrl+C 优雅退出
