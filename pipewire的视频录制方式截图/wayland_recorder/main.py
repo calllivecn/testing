@@ -4,6 +4,7 @@ import signal
 import sys
 import cv2
 import numpy as np
+
 # 导入你的 Portal 异步库
 from portal_screencast import PortalScreenCast
 # 导入我们编译好的 CFFI 模块
@@ -22,10 +23,30 @@ class IntegratedRecorder:
         
         # 线程同步信号
         self.stop_event = threading.Event()
+        
+        # 裁剪参数配置 (可根据需要修改)
+        self.crop_x = 0
+        self.crop_y = 0
+        self.crop_w = 1920  # 裁剪宽度
+        self.crop_h = 1080  # 裁剪高度
+        self.enable_crop = False  # 是否启用裁剪开关
+
+    def crop_frame(self, img, x, y, w, h):
+        """从图像中裁剪出指定位置和大小的区域"""
+        img_h, img_w = img.shape[:2]
+        
+        x1 = max(0, x)
+        y1 = max(0, y)
+        x2 = min(img_w, x + w)
+        y2 = min(img_h, y + h)
+        
+        if x1 >= x2 or y1 >= y2:
+            raise ValueError(f"裁剪区域无效或超出范围: 请求({x},{y},{w},{h}), 原图({img_w}x{img_h})")
+            
+        return img[y1:y2, x1:x2]
 
     def _setup_pw_callbacks(self):
         """绑定 C 层回调到 Python"""
-        
         @ffi.callback("void(void*, int, int)")
         def on_state(userdata, old, new):
             states = ["UNCONNECTED", "CONNECTING", "PAUSED", "STREAMING", "ERROR"]
@@ -53,32 +74,23 @@ class IntegratedRecorder:
                     img_array = raw_bytes.reshape((h, w, 4))
                 else:
                     img_array = raw_bytes.reshape((h, stride // 4, 4))[:, :w, :]
-
-                # 3. 颜色空间转换 (取前3通道)
+                    
+                # 3. 颜色空间转换 (BGRx -> BGR)
                 img_bgr = img_array[:, :, :3]
-
-                # ================= 🎯 核心：自动裁剪窗口多余边框 =================
-                is_window = getattr(self.portal, 'is_window', False)
-                crop_w = getattr(self.portal, 'crop_w', 0)
-                crop_h = getattr(self.portal, 'crop_h', 0)
                 
-                if is_window and crop_w > 0 and crop_h > 0:
-                    crop_x = getattr(self.portal, 'crop_x', 0)
-                    crop_y = getattr(self.portal, 'crop_y', 0)
-                    
-                    # 保护性计算：确保裁剪区域不超出原始图像物理边界
-                    y_end = min(crop_y + crop_h, img_bgr.shape[0])
-                    x_end = min(crop_x + crop_w, img_bgr.shape[1])
-                    
-                    # 执行 Numpy 切片裁剪
-                    img_bgr = img_bgr[crop_y:y_end, crop_x:x_end]
-                # ====================================================================
+                # 4. 执行裁剪 (如果启用)
+                final_img = img_bgr
+                if self.enable_crop:
+                    try:
+                        final_img = self.crop_frame(img_bgr, self.crop_x, self.crop_y, self.crop_w, self.crop_h)
+                    except ValueError as e:
+                        print(f"⚠️ 裁剪警告: {e}")
 
-                # 4. 使用 OpenCV 保存帧
+                # 5. 使用 OpenCV 保存帧
                 self.frame_count += 1
                 filename = f"frame_{self.frame_count:04d}.png"
-                cv2.imwrite(filename, img_bgr)
-                print(f"✅ [帧 #{self.frame_count:04d}] 成功保存: {filename} (尺寸: {img_bgr.shape[1]}x{img_bgr.shape[0]})")
+                cv2.imwrite(filename, final_img)
+                print(f"✅ [帧 #{self.frame_count:04d}] 成功保存: {filename}")
                 
                 # 测试：截取 5 帧后触发停止信号
                 if self.frame_count >= 5:
@@ -102,18 +114,8 @@ class IntegratedRecorder:
                 return
             
             self._setup_pw_callbacks()
-
-            # ✅ 核心修改：从 Portal 获取窗口目标尺寸，传递给 PipeWire 流
-            target_w = getattr(self.portal, 'crop_w', 0)
-            target_h = getattr(self.portal, 'crop_h', 0)
-
-            if target_w > 0 and target_h > 0:
-                print(f"🎯 [PipeWire] 使用窗口精确分辨率: {target_w}x{target_h}")
-            else:
-                print(f"🎯 [PipeWire] 全屏模式，使用默认分辨率协商")
-
-            # ✅ 调用修改后的 connect_stream，传入目标宽高
-            if lib.connect_stream(self.pw_ctx, self.node_id, target_w, target_h) < 0:
+            
+            if lib.connect_stream(self.pw_ctx, self.node_id) < 0:
                 print("❌ 连接 PipeWire 流失败！")
                 self.stop_event.set()
                 return
@@ -144,7 +146,7 @@ class IntegratedRecorder:
         pw_thread = threading.Thread(target=self._pw_thread_worker, daemon=True)
         pw_thread.start()
 
-        # 3. 主线程等待停止信号
+        # 3. 主线程在此等待停止信号
         try:
             while not self.stop_event.is_set():
                 await asyncio.sleep(0.1)
@@ -164,11 +166,22 @@ class IntegratedRecorder:
 def main():
     recorder = IntegratedRecorder()
     
+    # ================= 配置裁剪参数 =================
+    # 如果您需要裁剪，请取消下方注释并修改参数
+    # recorder.enable_crop = True
+    # recorder.crop_x = 100   # 起始 X
+    # recorder.crop_y = 100   # 起始 Y
+    # recorder.crop_w = 800   # 宽度
+    # recorder.crop_h = 600   # 高度
+    # ================================================
+    
+    # 处理 Ctrl+C 优雅退出
     def signal_handler(sig, frame):
         print("\n⚠️ 收到中断信号，正在停止...")
         recorder.stop_event.set()
         
     signal.signal(signal.SIGINT, signal_handler)
+
     try:
         asyncio.run(recorder.run())
     except KeyboardInterrupt:
