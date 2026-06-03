@@ -70,6 +70,8 @@ ffi.cdef("""
     struct pw_stream *pw_stream_new_simple(struct pw_loop *loop, const char *name, void *props, const struct pw_stream_events *events, void *data);
     
     int pw_stream_connect(struct pw_stream *stream, uint32_t direction, uint32_t target_id, uint32_t flags, const struct spa_pod **params, uint32_t n_params);
+
+    int pw_stream_set_active(struct pw_stream *stream, bool active);
     
     struct pw_buffer *pw_stream_dequeue_buffer(struct pw_stream *stream);
     int pw_stream_queue_buffer(struct pw_stream *stream, struct pw_buffer *buf);

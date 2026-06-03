@@ -6,7 +6,7 @@ import argparse
 import shutil
 import secrets
 from datetime import datetime
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote  # 引入 unquote 用于解码中文路径
 from dbus_next.aio import MessageBus
 from dbus_next import Message, MessageType, Variant
 
@@ -37,7 +37,7 @@ class WaylandPortalScreenshotTool:
                 message.interface == "org.freedesktop.portal.Request" and 
                 message.member == "Response"):
                 
-                # 严格匹配当前脚本发起的请求路径，避免多进程干扰
+                # 严格匹配当前脚本发起的请求路径
                 if expected_request_path and message.path == expected_request_path:
                     response_future.set_result(message.body)
                     self.bus.remove_message_handler(signal_handler)
@@ -46,17 +46,13 @@ class WaylandPortalScreenshotTool:
         self.bus.add_message_handler(signal_handler)
 
         # 2. 准备 Portal 配置参数
-        # 生成一个随机 Token 用于构建唯一的请求路径
         token = f"gscreenshot_{secrets.token_hex(4)}"
         options = {
-            # True: 弹出系统完整的截图选择界面（全屏/窗口/选区）
-            # False: 立即抓取当前全屏，弹窗仅让用户确认授权
             "interactive": Variant("b", interactive),
             "handle_token": Variant("s", token)
         }
 
         # 3. 构造并发送 DBus 裸消息
-        # 接口签名: sa{sv} -> (parent_window: 字符串, options: 键值字典)
         message = Message(
             destination=PORTAL_BUS,
             path=PORTAL_PATH,
@@ -66,7 +62,7 @@ class WaylandPortalScreenshotTool:
             body=["", options]
         )
 
-        # 发起调用，返回值是负责本次交互的 Request 对象的 DBus 路径
+        # 发起调用
         reply = await self.bus.call(message)
         expected_request_path = reply.body[0]
         
@@ -75,11 +71,10 @@ class WaylandPortalScreenshotTool:
         else:
             print("提示: 已发起即时全屏捕获，请在系统弹窗中允许访问...")
 
-        # 4. 挂起等待，直到用户在系统弹窗中点击“允许/确定”或“取消”
+        # 4. 挂起等待用户操作
         response_code, results = await response_future
 
         # 5. 处理响应状态码
-        # 0: 成功, 1: 用户取消/拒绝, 2: 发生未知错误
         if response_code == 1:
             print("错误: 用户拒绝了截图请求或取消了操作。", file=sys.stderr)
             sys.exit(1)
@@ -90,9 +85,11 @@ class WaylandPortalScreenshotTool:
         # 6. 解析 Portal 返回的临时安全沙盒文件路径并转移
         if "uri" in results:
             uri_str = results["uri"].value
-            # Portal 返回的是 file:// 协议的 URI，需要解析为本地绝对路径
             parsed_url = urlparse(uri_str)
-            src_path = os.path.abspath(parsed_url.path)
+            
+            # 【修复核心】使用 unquote 将 %E5%9B%BE%E7%89%87 还原为真实的 “图片” 字样
+            decoded_path = unquote(parsed_url.path)
+            src_path = os.path.abspath(decoded_path)
             
             if os.path.exists(src_path):
                 # 创建目标目录（如果不存在）
