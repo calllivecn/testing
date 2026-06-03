@@ -1,0 +1,6 @@
+av==v17.0.1
+cffi==v2.0.0
+dbus-next==v0.2.3
+mss==v10.2.0
+opencv-python==v4.13.0.92
+setuptools==v82.0.1
