@@ -28,9 +28,7 @@ class PortalScreenCast:
         def signal_handler(msg):
             if msg.message_type != MessageType.SIGNAL:
                 return False
-            if (msg.interface == 'org.freedesktop.portal.Request' and 
-                msg.member == 'Response' and 
-                msg.path == expected_path):
+            if (msg.interface == 'org.freedesktop.portal.Request' and msg.member == 'Response' and msg.path == expected_path):
                 response_code = msg.body[0]
                 if response_code == 0:
                     response_data.update({k: v.value for k, v in msg.body[1].items()})
@@ -68,9 +66,7 @@ class PortalScreenCast:
         
         print("🔹 [Portal] 1/3 创建会话...")
         session_token = f"pysession{self._token_counter}"
-        res = await self._call_and_wait('CreateSession', 'a{sv}', [
-            {'session_handle_token': Variant('s', session_token)}
-        ])
+        res = await self._call_and_wait('CreateSession', 'a{sv}', [{'session_handle_token': Variant('s', session_token)}])
         self.session_handle = res['session_handle']
         
         print("🔹 [Portal] 2/3 选择捕获源 (窗口)...")

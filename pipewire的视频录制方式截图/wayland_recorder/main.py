@@ -98,9 +98,9 @@ class PipewireRecorder:
                 print(f"✅ [帧 #{self.frame_count:04d}] 成功保存: {filename}")
                 
                 # 测试：截取 5 帧后触发停止信号
-                if self.frame_count >= 5:
-                    print("🎉 达到测试帧数，准备停止...")
-                    self.stop_event.set()
+                #if self.frame_count >= 5:
+                #    print("🎉 达到测试帧数，准备停止...")
+                #    self.stop_event.set()
                     
             except Exception as e:
                 print(f"❌ 帧处理异常: {e}")

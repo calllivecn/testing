@@ -1,0 +1,18 @@
+graph TD
+    subgraph 用户空间
+        A[捕获应用] -- 1. D-Bus请求授权 --> B[XDG Desktop Portal]
+        A -- 4. 设置PipeWire Stream --> C[PipeWire Client]
+    end
+    
+    subgraph 核心空间
+        B -- 2. 弹出授权对话框 --> D[(用户操作)]
+        D -- 3. 用户同意授权 --> B
+        B -- 5. 通知授予权限 --> E[Wayland 合成器<br>如GNOME, KDE]
+        E -- 6. 创建/提供PipeWire Node --> C
+    end
+
+    style A fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style B fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style E fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    style C fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+
