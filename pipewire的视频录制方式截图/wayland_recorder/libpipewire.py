@@ -77,6 +77,13 @@ class PipeWireStream:
         if self._thread:
             self._thread.join(timeout=2.0)
         C.destroy_recorder_context(self._ctx)
+    
+
+    def set_target_fps(self, fps: int):
+        C.set_target_fps(self._ctx, fps)
+
+    def set_crop_region(self, enabled: bool, x: int, y: int, w: int, h: int):
+        C.set_crop_region(self._ctx, enabled, x, y, w, h)
 
     def __del__(self):
         self.stop()
