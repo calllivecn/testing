@@ -27,6 +27,10 @@ class PipewireRecorder:
         self.stop_event = threading.Event()
         
         self.enable_crop = False  # 是否启用裁剪开关
+        # 新增：保存裁剪和 FPS 参数
+        self.target_fps = 5
+        self.crop_x, self.crop_y, self.crop_w, self.crop_h = 0, 0, 0, 0
+
 
     def set_crop_frame(self, x: int, y: int, w: int, h: int):
         # 裁剪参数配置 (可根据需要修改)
@@ -35,6 +39,9 @@ class PipewireRecorder:
         self.crop_w = w  # 裁剪宽度
         self.crop_h = h  # 裁剪高度
         self.enable_crop = True
+
+    def set_target_fps(self, fps: int):
+        self.target_fps = fps
 
     def crop_frame(self, img, x, y, w, h):
         """从图像中裁剪出指定位置和大小的区域"""
@@ -83,6 +90,7 @@ class PipewireRecorder:
                 # 3. 颜色空间转换 (BGRx -> BGR)
                 img_bgr = img_array[:, :, :3]
                 
+                """
                 # 4. 执行裁剪 (如果启用)
                 final_img = img_bgr
                 if self.enable_crop:
@@ -90,11 +98,12 @@ class PipewireRecorder:
                         final_img = self.crop_frame(img_bgr, self.crop_x, self.crop_y, self.crop_w, self.crop_h)
                     except ValueError as e:
                         print(f"⚠️ 裁剪警告: {e}")
+                """
 
                 # 5. 使用 OpenCV 保存帧
                 self.frame_count += 1
                 filename = f"frame_{self.frame_count:04d}.png"
-                cv2.imwrite(filename, final_img)
+                cv2.imwrite(filename, img_bgr)
                 print(f"✅ [帧 #{self.frame_count:04d}] 成功保存: {filename}")
                 
                 # 测试：截取 5 帧后触发停止信号
@@ -119,6 +128,18 @@ class PipewireRecorder:
                 return
             
             self._setup_pw_callbacks()
+
+
+            # ================= 新增：在 connect 之前配置 C 层参数 =================
+            # 1. 设置目标 FPS
+            lib.set_target_fps(self.pw_ctx, self.target_fps)
+            
+            # 2. 设置裁剪区域 (如果启用了裁剪)
+            if self.enable_crop:
+                lib.set_crop_region(self.pw_ctx, 1, self.crop_x, self.crop_y, self.crop_w, self.crop_h)
+            else:
+                lib.set_crop_region(self.pw_ctx, 0, 0, 0, 0, 0) # 禁用裁剪
+            # =====================================================================
             
             if lib.connect_stream(self.pw_ctx, self.node_id) < 0:
                 print("❌ 连接 PipeWire 流失败！")
@@ -174,7 +195,8 @@ def main():
     
     # ================= 配置裁剪参数 =================
     # 如果您需要裁剪，请取消下方注释并修改参数
-    recorder.set_crop_frame(100, 100, 800, 600)
+    recorder.set_target_fps(5)                       # 限制 15 FPS
+    recorder.set_crop_frame(100, 100, 800, 600)       # 裁剪区域: x=100, y=100, 宽800, 高600
     # ================================================
     
     # 处理 Ctrl+C 优雅退出
