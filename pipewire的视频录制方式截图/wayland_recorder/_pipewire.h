@@ -7,6 +7,9 @@
     
     void set_callbacks(void* ctx, void* userdata, py_state_cb on_state, py_format_cb on_format, py_frame_cb on_frame);
     
+    void set_target_fps(void* ctx, uint32_t fps);
+    void set_crop_region(void* ctx, int enabled, uint32_t x, uint32_t y, uint32_t w, uint32_t h);
+
     int connect_stream(void* ctx, uint32_t node_id);
     void run_loop(void* ctx);
     void stop_loop(void* ctx);

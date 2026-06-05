@@ -17,6 +17,19 @@ struct RecorderContext {
     uint32_t stride;
     int is_valid_format; // 标记格式是否协商成功
 
+    // ========== ✅ FPS 控制 ==========
+    uint32_t target_fps;         // 目标 FPS (0 = 不限制)
+    uint32_t frame_interval_ns;  // 帧间隔 (纳秒)
+    struct timespec last_frame_time;  // 上一帧时间
+
+    // ========== ✅ 裁剪区域 ==========
+    int crop_enabled;
+    uint32_t crop_x, crop_y, crop_w, crop_h;
+
+    // ========== ✅ 裁剪缓冲区 ==========
+    void *crop_buffer;           // 裁剪后的帧数据缓冲区
+    uint32_t crop_buffer_size;   // 缓冲区大小
+
     // Python 回调
     void *py_userdata;
     void (*py_on_state)(void*, int, int);
@@ -38,7 +51,7 @@ static void on_param_changed(void *userdata, uint32_t id, const struct spa_pod *
     struct spa_video_info_raw info;
     // 尝试解析 Raw 视频格式
     if (spa_format_video_raw_parse(param, &info) < 0) {
-        fprintf(stderr, "[C-Error] 无法解析视频格式 (可能是 DMA-BUF)，拒绝此流！\\n");
+        fprintf(stderr, "[C-Error] 无法解析视频格式 (可能是 DMA-BUF)，拒绝此流！\n");
         ctx->is_valid_format = 0;
         // 如果格式不支持，直接断开流，防止后续 process 崩溃
         pw_stream_set_active(ctx->stream, false); 
@@ -50,7 +63,7 @@ static void on_param_changed(void *userdata, uint32_t id, const struct spa_pod *
         info.format != SPA_VIDEO_FORMAT_RGBx &&
         info.format != SPA_VIDEO_FORMAT_BGRA && 
         info.format != SPA_VIDEO_FORMAT_RGBA) {
-        fprintf(stderr, "[C-Error] 不支持的像素格式: %d\\n", info.format);
+        fprintf(stderr, "[C-Error] 不支持的像素格式: %d\n", info.format);
         ctx->is_valid_format = 0;
         pw_stream_set_active(ctx->stream, false);
         return;
@@ -62,7 +75,34 @@ static void on_param_changed(void *userdata, uint32_t id, const struct spa_pod *
     ctx->stride = SPA_ROUND_UP_N(info.size.width * 4, 4); // 确保 4 字节对齐
     ctx->is_valid_format = 1;
 
-    printf("[C-Info] 格式协商成功: %ux%u, format=%u, stride=%u\\n", ctx->width, ctx->height, ctx->format, ctx->stride);
+    // 如果启用了裁剪，验证并分配裁剪缓冲区
+    if (ctx->crop_enabled) {
+        // 裁剪区域边界检查
+        if (ctx->crop_x + ctx->crop_w > ctx->width) {
+            fprintf(stderr, "[C-Warn] 裁剪区域超出宽度, 自动修正: %u -> %u\n",
+                    ctx->crop_w, ctx->width - ctx->crop_x);
+            ctx->crop_w = ctx->width - ctx->crop_x;
+        }
+        if (ctx->crop_y + ctx->crop_h > ctx->height) {
+            fprintf(stderr, "[C-Warn] 裁剪区域超出高度, 自动修正: %u -> %u\n",
+                    ctx->crop_h, ctx->height - ctx->crop_y);
+            ctx->crop_h = ctx->height - ctx->crop_y;
+        }
+        if (ctx->crop_x >= ctx->width || ctx->crop_y >= ctx->height ||
+            ctx->crop_w == 0 || ctx->crop_h == 0) {
+            fprintf(stderr, "[C-Error] 裁剪区域完全无效! 禁用裁剪\n");
+            ctx->crop_enabled = 0;
+        } else {
+            // 分配裁剪缓冲区 (只在格式变更时分配一次)
+            uint32_t crop_stride = SPA_ROUND_UP_N(ctx->crop_w * 4, 4);
+            ctx->crop_buffer_size = crop_stride * ctx->crop_h;
+            ctx->crop_buffer = realloc(ctx->crop_buffer, ctx->crop_buffer_size);
+            printf("[C-Info] 裁剪缓冲区已分配: %ux%u, stride=%u, size=%u\n",
+                   ctx->crop_w, ctx->crop_h, crop_stride, ctx->crop_buffer_size);
+        }
+    }
+
+    printf("[C-Info] 格式协商成功: %ux%u, format=%u, stride=%u\n", ctx->width, ctx->height, ctx->format, ctx->stride);
     if (ctx->py_on_format) {
         ctx->py_on_format(ctx->py_userdata, ctx->width, ctx->height, ctx->format);
     }
@@ -94,7 +134,7 @@ static void on_process(void *userdata) {
         }
     } else {
         // 调试输出：如果还是没收到，可以取消注释看看 type 到底是什么
-        // fprintf(stdout, "[C-Debug] 忽略无效缓冲区 (type=%d, data=%p, size=%u)\\n", d->type, d->data, d->chunk->size);
+        // fprintf(stdout, "[C-Debug] 忽略无效缓冲区 (type=%d, data=%p, size=%u)\n", d->type, d->data, d->chunk->size);
     }
 
 finish:
@@ -124,7 +164,7 @@ void* create_recorder() {
     );
 
     if (!ctx->stream) {
-        fprintf(stderr, "[C-Error] 无法创建 PipeWire 流！\\n");
+        fprintf(stderr, "[C-Error] 无法创建 PipeWire 流！\n");
         free(ctx);
         return NULL;
     }
