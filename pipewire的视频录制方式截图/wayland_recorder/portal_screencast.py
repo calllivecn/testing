@@ -1,5 +1,6 @@
 """Portal ScreenCast 异步模块 (保持会话存活)"""
 import asyncio
+
 from dbus_next.aio import MessageBus
 from dbus_next import Message, MessageType, Variant, BusType
 
