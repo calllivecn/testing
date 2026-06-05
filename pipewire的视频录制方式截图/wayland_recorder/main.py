@@ -23,7 +23,7 @@ class ScreenCaptureApp:
         self.frame_count += 1
         filename = f"frame_{self.frame_count:04d}.png"
         cv2.imwrite(filename, img_bgr)
-        print(f"✅ [帧 #{self.frame_count:04d}] 成功保存: {filename}")
+        print(f"✅ [帧 #{self.frame_count:04d}] [大小: {w}x{h}] 成功保存: {filename}")
         
         # 测试：截取 5 帧后触发停止信号
         # if self.frame_count >= 5:
