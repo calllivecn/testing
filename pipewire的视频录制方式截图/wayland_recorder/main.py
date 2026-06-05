@@ -73,8 +73,8 @@ def main():
     app = ScreenCaptureApp()
     
     # ================= 配置录制参数 =================
-    app.recorder.set_target_fps(10)                       # 限制 10 FPS
-    app.recorder.set_crop_region(100, 100, 800, 600)      # C层裁剪: x=100, y=100, 宽800, 高600
+    app.recorder.set_target_fps(1)                       # 限制 10 FPS
+    app.recorder.set_crop_region(800, 600, 800, 600)      # C层裁剪: x=100, y=100, 宽800, 高600
     # app.recorder.disable_crop()                         # 如果需要全屏，调用此方法
     # =================================================
     
