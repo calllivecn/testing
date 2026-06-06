@@ -35,9 +35,7 @@ class WaylandPortalScreenshotTool:
 
         # 1. 定义信号监听器，捕获 Portal 异步返回的用户操作结果
         def signal_handler(message: Message):
-            if (message.message_type == MessageType.SIGNAL and 
-                message.interface == "org.freedesktop.portal.Request" and 
-                message.member == "Response"):
+            if (message.message_type == MessageType.SIGNAL and message.interface == "org.freedesktop.portal.Request" and message.member == "Response"):
                 
                 # 严格匹配当前脚本发起的请求路径
                 if expected_request_path and message.path == expected_request_path:
@@ -80,6 +78,7 @@ class WaylandPortalScreenshotTool:
         if response_code == 1:
             print("错误: 用户拒绝了截图请求或取消了操作。", file=sys.stderr)
             sys.exit(1)
+
         elif response_code != 0:
             print(f"错误: Portal 异常返回，状态码: {response_code}", file=sys.stderr)
             sys.exit(1)
