@@ -3,8 +3,8 @@ import base64
 
 import ollama
 
-MODEL_NAME="gemma4:e4b"
 MODEL_NAME="gemma4:12b-it-q8_0"
+MODEL_NAME="gemma4:e4b"
 
 # --- 第一步：定义工具 (Tools) ---
 def calculate_discount(original_price: int, discount_rate: int) -> int:
@@ -40,7 +40,7 @@ system_prompt="""
 # --- 第二步：准备图片 ---
 # 方法 A: 直接传本地路径 (Ollama Python 库 0.2.0+ 支持)
 #image_path = 'product_price.jpg'
-image_path = '20260606_232559.png'
+image_path = "2026-06-07_00:13:22.png"
 
 # 方法 B: 内存中图片转成Base64
 with open(image_path, 'rb') as f:
@@ -52,7 +52,8 @@ with open(image_path, 'rb') as f:
 messages = [
     {
         'role': 'user',
-        'content': system_prompt + "\n这是截图文件名，也是时间点：{image_path}" ,
+        #'content': system_prompt + "\n这是截图文件名，也是时间点：{image_path}" ,
+        'content': f'详细描述下截图中用户在干什么: 这是截图时间：{image_path}',
         'images': [image_path]  # <--- 关键点：在这里传入图片列表
     }
 ]

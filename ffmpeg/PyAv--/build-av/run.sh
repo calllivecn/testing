@@ -22,7 +22,7 @@ locale-gen
 # 设置时区
 ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 
-#pip config --global set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+pip config --global set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
 pip install --break-system-packages ipython cryptography
 pip install --break-system-packages av==${AV_VERSION} --no-binary av
