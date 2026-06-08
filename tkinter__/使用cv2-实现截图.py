@@ -1,13 +1,10 @@
 
+import sys
 import tkinter as tk
 
 import cv2
 
 import imagepath
-
-# 读取原始图像
-# img = cv2.imread('image.jpg')
-img = cv2.imread(imagepath.IMG_PATH)
 
 
 def image_screenshot(image, x, y, w, h):
@@ -32,8 +29,14 @@ def image_screenshot(image, x, y, w, h):
   return screenshot
 
 
-new_img = image_screenshot(img, 100, 100, 300, 300)
+# 读取原始图像
+# img = cv2.imread('image.jpg')
+#img = cv2.imread(imagepath.IMG_PATH)
+img = cv2.imread(sys.argv[1])
 
+print(f"从路径：{imagepath.IMG_PATH} 读取到的图片: {img=}")
+
+new_img = image_screenshot(img, 100, 100, 300, 300)
 
 
 # 将图像转换为 PNG 格式

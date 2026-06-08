@@ -20,8 +20,7 @@ def get_info():
 def get_mouse_pos():
     while True:
         print("="*40)
-        print("x:", root.winfo_pointerx())
-        print("y:", root.winfo_pointery())
+        print(f"x: {root.winfo_pointerx()} y: {root.winfo_pointery()}")
         time.sleep(3)
 
 

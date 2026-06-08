@@ -11,4 +11,4 @@ p = Path(sys.argv[0]).parent
 
 
 with open(p / "imagepath.conf") as f:
-    IMG_PATH = f.read()
+    IMG_PATH = Path(f.read())
