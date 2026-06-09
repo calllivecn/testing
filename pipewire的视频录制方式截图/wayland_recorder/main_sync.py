@@ -135,8 +135,6 @@ def main():
     
     # 停止 PipeWire
     recorder.stop()
-    if pw_thread.is_alive():
-        pw_thread.join(timeout=2.0)
         
     print("👋 程序已优雅退出。再见！")
 
