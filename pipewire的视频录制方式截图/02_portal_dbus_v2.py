@@ -87,6 +87,11 @@ class PortalScreenCast:
         print("🔹 [Portal] 2/3 选择捕获源 (窗口)...")
 
         # --- 步骤 2：在 SelectSources 阶段传入 persist_mode 和 restore_token ---
+        # 定义选择源的选项
+        # persist_mode 选项定义授权的持久化级别:
+        #   0: 不持久化 (默认行为，不返回 restore_token)
+        #   1: 会话/应用级别持久化
+        #   2: 永久持久化 (直到用户明确在系统设置中撤销)
         select_options = {
             'types': Variant('u', 1),
             'cursor_mode': Variant('u', 1),
