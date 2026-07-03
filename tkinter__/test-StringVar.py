@@ -13,8 +13,8 @@ class ClockApp:
         #self.root = root
         self.root = tk.Tk()
         self.root.title("动态时钟")
-        self.root.geometry("420x200")
-        self.root.resizable(False, False)
+        #self.root.geometry("420x200")
+        #self.root.resizable(False, False)
 
         # ---------- StringVar 用于存储时间字符串 ----------
         self.time_var = tk.StringVar()
@@ -46,7 +46,7 @@ class ClockApp:
         """每 200ms 刷新一次时间"""
         now = datetime.now()
         self.time_var.set(now.strftime("%H:%M:%S"))
-        self.date_var.set(now.strftime("%Y年%m月%d日  %A"))
+        self.date_var.set(now.strftime("%Y年%m月%d日 周%w"))
         # 每 200 毫秒调用一次自身，实现动态更新
         self.root.after(200, self._update_clock)
 

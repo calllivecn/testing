@@ -9,22 +9,20 @@ import tkinter
 # 1米 = 39.3700787英寸
 IN_METER = 39.3700787
 
-def get_display_resolvtion():
+def get_display_resolvtion(win):
     """
     return: width, wicth
     """
-    win = tkinter.Tk()
     height = win.winfo_screenheight()
     width  = win.winfo_screenwidth()
 
     return width, height
 
 
-def get_display_realsize():
+def get_display_realsize(win):
     """
     return: width, wicth
     """
-    win = tkinter.Tk()
     height = win.winfo_screenmmheight()
     width  = win.winfo_screenmmwidth()
 
@@ -49,12 +47,22 @@ def get_ppi(w, h, rw, rh):
     return l/in_
 
 
+def get_scaling_factor(window):
+    """获取当前显示器的缩放比例（Wayland/X11 通用）"""
+    # 通过 Tkinter 内置方法计算逻辑 DPI
+    logical_dpi = window.winfo_fpixels('1i')
+    # 基准 DPI 通常为 96（Windows/macOS/Linux 通用）
+    base_dpi = 96.0
+    return logical_dpi / base_dpi
+
 if __name__ == "__main__":
 
-    w, h = get_display_resolvtion()
+    root = tkinter.Tk()
+
+    w, h = get_display_resolvtion(root)
     print("分辨率宽：{} 高：{}".format(w, h))
 
-    rw, rh = get_display_realsize()
+    rw, rh = get_display_realsize(root)
     print("物理宽：{}mm 高：{}mm".format(rw, rh))
 
     display_in = get_size_IN(rw, rh)
@@ -63,3 +71,5 @@ if __name__ == "__main__":
     ppi = get_ppi(w, h, rw, rh)
     print("PPI(每英寸像素)：", round(ppi, 3))
 
+    factor = get_scaling_factor(root)
+    print("缩放比例", round(factor, 3))

@@ -16,10 +16,9 @@ root.title("text")
 def get_info():
     print(root.winfo_geometry())
 
-
 def get_mouse_pos():
     while True:
-        print("="*40)
+        print("="*10, "鼠标位置", "="*10)
         print(f"x: {root.winfo_pointerx()} y: {root.winfo_pointery()}")
         time.sleep(3)
 

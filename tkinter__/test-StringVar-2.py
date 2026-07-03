@@ -8,8 +8,8 @@ class ClockApp:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("动态时钟")
-        self.root.geometry("420x200")
-        self.root.resizable(False, False)
+        #self.root.geometry("420x200")
+        #self.root.resizable(False, False)
 
         self.time_var = tk.StringVar()
         self.date_var = tk.StringVar()
@@ -37,7 +37,7 @@ class ClockApp:
         while True:
             now = datetime.now()
             self._time_str = now.strftime("%H:%M:%S")
-            self._date_str = now.strftime("%Y年%m月%d日  %A")
+            self._date_str = now.strftime("%Y年%m月%d日 周%w")
             time.sleep(0.2)
 
     # -------- 主线程：定时从共享数据读取并更新 UI --------
