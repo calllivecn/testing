@@ -350,8 +350,8 @@ ffmpeg -i input.mp4 -c:v hevc_nvenc -preset p6 -rc vbr -b:v 5M -maxrate 10M -pro
 # 使用intel 核显编码
 
 ```shell
-ffmpeg -init_hw_device vaapi=va:/dev/dri/renderD128 \
-	-hwaccel vaapi -hwaccel_output_format vaapi \
+# 这一段实测可以不写 -init_hw_device vaapi=va:/dev/dri/renderD128 \
+ffmpeg -hwaccel vaapi -hwaccel_output_format vaapi \
 	-i <input.mp4> -vcodec hevc_vaapi -global_quality 24 \
 	-acodec copy <output.mkv>
 ```
