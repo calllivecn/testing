@@ -8,7 +8,7 @@
 # apt install ocl-icd-libopencl1 intel-opencl-icd
 apt -y update
 apt -y install python3 python3-pip python3-venv pkg-config build-essential \
-	ca-certificates vim locales \
+	ca-certificates vim locales	libgl1 \
 	ffmpeg vainfo \
 	intel-media-va-driver-non-free \
 	libavformat-dev libavcodec-dev libavdevice-dev \
