@@ -57,8 +57,16 @@ file '02.mp4'
 
 - 3
 # 生成1s黑色视频
-
 ffmpeg -f lavfi -i color=black:s=1280x710 -t 1 empty.mkv
+
+# 生成测试彩条视频
+ffmpeg -f lavfi -i smptebars=size=1920x1080 -t 10 -c:v libx264 smptebars.mkv
+
+# 生成测试彩条图片
+ffmpeg -f lavfi -i smptebars=size=1920x1080 -frames:v 1 smptebars.png
+
+# 生成圆形的彩条带计时的。
+ffplay -f lavfi -i testsrc=size=1920x1080
 
 # 测试当前系统是否支持一种编码
 ffmpeg -f lavfi -i testsrc -c:v hevc_qsv -f null -
