@@ -1,5 +1,12 @@
 # Dockerfile: 编译一个av-xxx.whl包
 
+
+## 先构建一个\*-base 镜像
+
+- podman build -f Dockerfile-base -t ffmpeg-pyav-base .
+
+## 在构建av-\*.whl 包和 ffmpeg-pyav 镜像
+
 - 需要挂载一个目录，把编码好的av-xxxx.whl包输出到主机上：
 - TMPDIR=$(pwd) podman build -v $(pwd):/build --build-arg AV_VERSION=14.4.0 -t ffmpeg-pyav .
 

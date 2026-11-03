@@ -1,0 +1,16 @@
+
+ARG UBUNTU_VERSION=latest
+
+FROM ubuntu-devel:${UBUNTU_VERSION}
+
+ARG AV_VERSION
+
+COPY run-base.sh /tmp/
+
+ENV LANG=zh_CN.UTF-8 LC_ALL=zh_CN.UTF-8
+
+RUN bash /tmp/run-base.sh \
+&& rm -f /tmp/run-base.sh
+
+CMD ["bash"]
+
