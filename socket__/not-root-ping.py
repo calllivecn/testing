@@ -13,6 +13,43 @@ import sys
 import random
 import argparse
 import signal
+import errno
+
+
+# Linux 的扩展错误队列；部分 Python 版本没有暴露这些常量。
+IP_RECVERR = getattr(socket, 'IP_RECVERR', 11)
+IPV6_RECVERR = getattr(socket, 'IPV6_RECVERR', 25)
+
+
+def read_socket_errors(sock, af):
+    """读取内核上报的 ICMP 错误，包括 ICMPv6 Packet Too Big 的 MTU。"""
+    messages = []
+    while True:
+        try:
+            _, ancillary, _, _ = sock.recvmsg(65535, 1024, socket.MSG_ERRQUEUE | socket.MSG_DONTWAIT)
+        except (BlockingIOError, socket.timeout):
+            break
+        except OSError:
+            break
+        for level, kind, data in ancillary:
+            expected = (socket.IPPROTO_IPV6, IPV6_RECVERR) if af == socket.AF_INET6 else (socket.IPPROTO_IP, IP_RECVERR)
+            if (level, kind) != expected or len(data) < 16:
+                continue
+            err, origin, icmp_type, code, _, info, _ = struct.unpack('=IBBBBII', data[:16])
+            if af == socket.AF_INET6 and origin == 3:
+                names = {1: '目标不可达', 2: '报文过大', 3: '超时', 4: '参数错误'}
+            elif af == socket.AF_INET and origin == 2:
+                names = {3: '目标不可达', 11: '超时', 12: '参数错误'}
+            else:
+                names = {}
+            message = names.get(icmp_type, '网络错误') if origin in (2, 3) else '本地网络错误'
+            if err == errno.EMSGSIZE:
+                message = '报文过大'
+            details = f'{message} (type={icmp_type}, code={code}' if origin in (2, 3) else f'{message} ({os.strerror(err)}'
+            if err == errno.EMSGSIZE and info:
+                details += f', MTU={info}'
+            messages.append(details + ')')
+    return messages
 
 
 def checksum(data: bytes) -> int:
@@ -55,7 +92,6 @@ def build_icmpv6_echo(seq: int, payload: bytes = b'') -> bytes:
     icmp_seq = seq   # 占位
 
     header = struct.pack('!BBHHH', icmp_type, icmp_code, icmp_checksum, icmp_id, icmp_seq)
-    header = struct.pack('!BBHHH', icmp_type, icmp_code, icmp_checksum, icmp_id, icmp_seq)
     return header + payload
 
 
@@ -77,6 +113,9 @@ def ping(host: str, count: int = None, timeout: float = 2.0, interval: float = 1
     使用 SOCK_DGRAM IPPROTO_ICMP 发送 ICMP Echo Request
     count=None 表示无限 ping（直到 Ctrl+C）
     """
+    if payload_size < 0 or payload_size > 65527:
+        print('载荷大小必须在 0 到 65527 字节之间')
+        return
     # 1. 域名解析
     try:
         addrinfo = socket.getaddrinfo(host, None, socket.AF_UNSPEC, 0, 0)
@@ -106,9 +145,8 @@ def ping(host: str, count: int = None, timeout: float = 2.0, interval: float = 1
     elif force_v4:
         targets = [(socket.AF_INET, socket.IPPROTO_ICMP, addr) for addr in ipv4_addrs]
     else:
-        # 默认 IPv4 优先
-        targets = [(socket.AF_INET, socket.IPPROTO_ICMP, addr) for addr in ipv4_addrs] + \
-                  [(socket.AF_INET6, socket.IPPROTO_ICMPV6, addr) for addr in ipv6_addrs]
+        # 默认 IPv6 优先
+        targets = [(socket.AF_INET6, socket.IPPROTO_ICMPV6, addr) for addr in ipv6_addrs] + [(socket.AF_INET, socket.IPPROTO_ICMP, addr) for addr in ipv4_addrs]
 
     if not targets:
         print("未找到可用地址")
@@ -133,6 +171,18 @@ def ping(host: str, count: int = None, timeout: float = 2.0, interval: float = 1
             print(f"创建 socket 失败: {e}")
             continue
 
+        try:
+            level, option = (socket.IPPROTO_IPV6, IPV6_RECVERR) if af == socket.AF_INET6 else (socket.IPPROTO_IP, IP_RECVERR)
+            sock.setsockopt(level, option, 1)
+        except OSError as e:
+            if verbose: print(f'无法启用 ICMP 错误队列: {e}')
+
+        # IPv4 总长度包含 20 字节 IP 头和 8 字节 ICMP 头。
+        if af == socket.AF_INET and payload_size > 65507:
+            print('IPv4 载荷不能超过 65507 字节')
+            sock.close()
+            continue
+
         sock.settimeout(timeout)
         payload = bytes(random.getrandbits(8) for _ in range(payload_size))
         print(f"PING {host} ({dst_addr[0]}) {payload_size} data bytes")
@@ -144,8 +194,8 @@ def ping(host: str, count: int = None, timeout: float = 2.0, interval: float = 1
         interrupted = False
 
         def handle_interrupt(signum, frame):
-            nonlocal interrupted
-            interrupted = True
+            # 抛出异常以立即中断 recvfrom、sendto 或 sleep。
+            raise KeyboardInterrupt
 
         old_handler = signal.signal(signal.SIGINT, handle_interrupt)
 
@@ -156,35 +206,42 @@ def ping(host: str, count: int = None, timeout: float = 2.0, interval: float = 1
                 if count is not None and seq > count:
                     break
 
-                pkt = build_icmp_echo(seq, payload) if af == socket.AF_INET else build_icmpv6_echo(seq, payload)
+                wire_seq = seq & 0xffff
+                pkt = build_icmp_echo(wire_seq, payload) if af == socket.AF_INET else build_icmpv6_echo(wire_seq, payload)
                 try:
                     t0 = time.monotonic()
-                    sock.sendto(pkt, (dst_addr[0], 0))
+                    sock.sendto(pkt, dst_addr)
                     sent += 1
                     if verbose: print(f"  seq={seq} 已发送 ({len(pkt)} bytes)")
                 except OSError as e:
                     print(f"seq={seq} 发送失败: {e}")
-                    time.sleep(interval)
+                    for message in read_socket_errors(sock, af):
+                        print(f'  {message}')
+                    if interrupted:
+                        print('\n^C')
+                        break
                     seq += 1
+                    if count is None or seq <= count:
+                        time.sleep(interval)
                     continue
 
                 try:
                     while True:
-                        data, addr = sock.recvfrom(4096)
+                        data, addr = sock.recvfrom(65535)
                         t1 = time.monotonic()
                         rtt_ms = (t1 - t0) * 1000
 
                         if len(data) < 8: continue
                         r_type, r_code, r_cksum, r_id, r_seq = struct.unpack('!BBHHH', data[:8])
 
-                        if actual_id is None:
-                            actual_id = r_id
-                            if verbose: print(f"  [内核分配 id={actual_id}]")
-
                         is_echo_reply = (r_type == 0 and af == socket.AF_INET) or \
                                         (r_type == 129 and af == socket.AF_INET6)
 
-                        if is_echo_reply and r_id == actual_id and r_seq == seq:
+                        if is_echo_reply and r_code == 0 and r_seq == wire_seq and actual_id is None:
+                            actual_id = r_id
+                            if verbose: print(f"  [内核分配 id={actual_id}]")
+
+                        if is_echo_reply and r_code == 0 and r_id == actual_id and r_seq == wire_seq:
                             received += 1
                             rtts.append(rtt_ms)
                             print(f"{len(data)} bytes from {dst_addr[0]}: icmp_seq={r_seq} ttl=64 time={rtt_ms:.1f} ms")
@@ -193,6 +250,13 @@ def ping(host: str, count: int = None, timeout: float = 2.0, interval: float = 1
                             print(f"  [recv] 忽略: type={r_type} id={r_id} seq={r_seq} (期望 id={actual_id} seq={seq})")
                 except socket.timeout:
                     print(f"seq={seq} 超时")
+                except OSError as e:
+                    messages = read_socket_errors(sock, af)
+                    if messages:
+                        for message in messages:
+                            print(f'seq={seq} {message}')
+                    else:
+                        print(f'seq={seq} 接收失败: {e}')
 
                 if interrupted:
                     print("\n^C")
@@ -202,6 +266,9 @@ def ping(host: str, count: int = None, timeout: float = 2.0, interval: float = 1
                 if count is None or seq <= count:
                     time.sleep(interval)
 
+        except KeyboardInterrupt:
+            interrupted = True
+            print("\n^C")
         finally:
             signal.signal(signal.SIGINT, old_handler)
             sock.close()
