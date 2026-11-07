@@ -372,16 +372,40 @@ def main():
     parser = argparse.ArgumentParser(
         description="使用 Linux inotify 监控文件或目录，并输出事件和路径。",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""事件名称使用 E 中的名称，例如 IN_OPEN、IN_CLOSE_WRITE、
-IN_CREATE、IN_DELETE、IN_MOVED_FROM 和 IN_MOVED_TO。
-IN_CLOSE 包含两种关闭事件，IN_MOVE 包含移入和移出事件。
+        epilog="""可通过 -e 指定的事件：
+  IN_ACCESS         文件被读取
+  IN_MODIFY         文件内容被修改
+  IN_ATTRIB         元数据改变（例如权限、时间戳或链接数）
+  IN_OPEN           文件或目录被打开
+  IN_CLOSE_WRITE    以写入方式打开的文件被关闭
+  IN_CLOSE_NOWRITE  未以写入方式打开的文件或目录被关闭
+  IN_CLOSE          包含 IN_CLOSE_WRITE 和 IN_CLOSE_NOWRITE
+  IN_CREATE         监控目录中创建文件或子目录
+  IN_DELETE         监控目录中的文件或子目录被删除
+  IN_DELETE_SELF    被监控的文件或目录自身被删除
+  IN_MOVED_FROM     文件或子目录从监控目录移出（包括重命名的旧名称）
+  IN_MOVED_TO       文件或子目录移入监控目录（包括重命名的新名称）
+  IN_MOVE           包含 IN_MOVED_FROM 和 IN_MOVED_TO
+  IN_MOVE_SELF      被监控的文件或目录自身被移动或重命名
+  IN_ALL_EVENTS     以上全部基本事件（默认）
+
 多个事件用 | 或逗号分隔；在 shell 中使用 | 时必须加引号。
+输出还可能包含 IN_ISDIR、IN_IGNORED 和 IN_Q_OVERFLOW 等内核标志，
+这些标志不能作为 -e 中的事件指定。
 
 示例：
+  # 监控一个目录的所有事件
   python inotify.py /tmp/data
+  # 同时监控多个目录
   python inotify.py /tmp/data /tmp/other
+  # 监控打开、关闭和移动
   python inotify.py -e 'IN_OPEN|IN_CLOSE|IN_MOVE' /tmp/data
+  # 递归监控内容修改和创建（递归维护事件也会输出）
   python inotify.py -r -e IN_MODIFY,IN_CREATE /tmp/data
+  # 监控单个文件的内容和元数据变化
+  python inotify.py -e IN_MODIFY,IN_ATTRIB /tmp/data/config.conf
+  # 监控目录中文件的创建、删除和移动
+  python inotify.py -e IN_CREATE,IN_DELETE,IN_MOVE /tmp/data
 
 递归监控注意事项：
   * inotify 不会自动递归，每个子目录都需要一个 watch；新增或移入

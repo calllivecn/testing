@@ -77,6 +77,10 @@ class CommandLineTests(unittest.TestCase):
         )
         self.assertIn("递归监控注意事项", result.stdout)
         self.assertIn("IN_OPEN|IN_CLOSE|IN_MOVE", result.stdout)
+        for name, event in E.__members__.items():
+            if event.value & inotify.IN_ALL_EVENTS == event.value:
+                self.assertIn(name, result.stdout)
+        self.assertIn("IN_ALL_EVENTS", result.stdout)
 
     def test_invalid_event(self):
         result = subprocess.run(
