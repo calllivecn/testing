@@ -16,9 +16,8 @@
      vim /etc/sysctl.conf
             添加　fs.inotify.max_user_watches=[max_watch_number]
 
-3. 这玩意个特性：mkdir -vp d1/d2/d3 一次创建多层目录时，只能监控到顶层目录: d1。
-    但是 rm -r d1 删除时，就都能监控到了。
-    (inotifywait 工具也是如此)
+3. inotify 不会递归监控。新目录先添加 watch，再扫描其已有子目录，
+   可以补上快速创建或移入的目录树；但无法恢复添加 watch 前的事件。
 """
 
 import os
@@ -152,6 +151,10 @@ class INotify:
 
         wd = self._add_watch(self.fd, path_ptr, mask)
 
+        if wd == -1:
+            err = ctypes.get_errno()
+            raise OSError(err, os.strerror(err), str(path))
+
         if wd in self.wd:
             return
 
@@ -203,15 +206,13 @@ class INotify:
             es.append((e_ones, pathname))
 
             # 如果是递归模式？
-            if self._recursive and e.mask & E.IN_ISDIR:
-                if e.mask & E.IN_CREATE:
-                    # print("是目录，是创建")
-                    
-                    # realpath = self.wd[e.wd] / pathname
-                    if not self.__path_in_wd(pathname):
-
-                        self.inotify_add_watch(pathname, self.mask)
-                        # print(f"添加{e.wd=} -> {self.wd=}")
+            if self._recursive and e.mask & E.IN_ISDIR and e.wd in self.wd:
+                if e.mask & (E.IN_CREATE | E.IN_MOVED_TO):
+                    try:
+                        self.__watch_tree(pathname)
+                    except FileNotFoundError:
+                        # 目录可能在事件处理之前就已被删除或移走。
+                        pass
 
                 elif e.mask & E.IN_DELETE:
 
@@ -220,7 +221,9 @@ class INotify:
                         self.inotify_rm_watch(wd)
                         self.__del_wd(wd)
                         # print(f"删除{wd=} -> {self.wd=}")
-                    
+
+            if e.mask & E.IN_IGNORED and e.wd in self.wd:
+                self.__del_wd(e.wd)
 
             i = i_e_size + e.len
 
@@ -230,15 +233,30 @@ class INotify:
     def inotify_add_watch_recursive(self, path: Path, mask: int):
 
         self._recursive = True
-        self.mask = mask
+        # 递归维护需要这些事件，即使调用者没有显式订阅。
+        self.mask = mask | E.IN_CREATE | E.IN_MOVED_TO | E.IN_DELETE
+        self.__watch_tree(Path(path))
 
-        if path.is_dir():
-            self.inotify_add_watch(path, mask)
+    def __watch_tree(self, path: Path):
+        # 每个目录先添加 watch，再枚举其子目录，缩小竞态窗口。
+        if not self.__path_in_wd(path):
+            self.inotify_add_watch(path, self.mask)
 
-        for dirpath, dirnames, filenames in os.walk(path):
-            for dir2 in dirnames:
-                path2 = Path(dirpath) / dir2
-                self.inotify_add_watch(path2, mask)
+        def onerror(error):
+            if not isinstance(error, FileNotFoundError):
+                raise error
+
+        for dirpath, dirnames, _ in os.walk(path, onerror=onerror, followlinks=False):
+            for dirname in dirnames[:]:
+                child = Path(dirpath) / dirname
+                if child.is_symlink():
+                    dirnames.remove(dirname)
+                    continue
+                try:
+                    if not self.__path_in_wd(child):
+                        self.inotify_add_watch(child, self.mask)
+                except FileNotFoundError:
+                    dirnames.remove(dirname)
 
 
     def close(self):
@@ -266,8 +284,8 @@ class INotify:
             self.wd.pop(wd)
 
         elif isinstance(wp, int):
-            wd = self.wd.pop(wp)
-            self.path2wd.pop(wd)
+            path = self.wd.pop(wp)
+            self.path2wd.pop(path)
 
     def __event_merge(self, mask) -> tuple[Event]:
         events = []
@@ -351,16 +369,70 @@ def test2():
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="inotify test")
-    parser.add_argument("-r", "--recursive", action="store_true", help="递归监控的目录")
-    parser.add_argument("-e", "--event", action="store", help="要监控的事件，多个事件用|分隔，默认监控所有事件", default="IN_ALL_EVENTS")
+    parser = argparse.ArgumentParser(
+        description="使用 Linux inotify 监控文件或目录，并输出事件和路径。",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""事件名称使用 E 中的名称，例如 IN_OPEN、IN_CLOSE_WRITE、
+IN_CREATE、IN_DELETE、IN_MOVED_FROM 和 IN_MOVED_TO。
+IN_CLOSE 包含两种关闭事件，IN_MOVE 包含移入和移出事件。
+多个事件用 | 或逗号分隔；在 shell 中使用 | 时必须加引号。
 
-    parser.add_argument("path", type=Path, help="监控的目录或文件")
+示例：
+  python inotify.py /tmp/data
+  python inotify.py /tmp/data /tmp/other
+  python inotify.py -e 'IN_OPEN|IN_CLOSE|IN_MOVE' /tmp/data
+  python inotify.py -r -e IN_MODIFY,IN_CREATE /tmp/data
+
+递归监控注意事项：
+  * inotify 不会自动递归，每个子目录都需要一个 watch；新增或移入
+    的目录会在处理事件时添加 watch 并扫描已有子目录。
+  * watch 建立前的事件可能丢失，扫描不能恢复已创建又删除的对象；
+    目录扫描只补充 watch，不会为已有文件或目录生成创建事件。
+  * 为维护目录树，递归模式还会订阅并输出 IN_CREATE、IN_MOVED_TO
+    和 IN_DELETE，即使没有在 -e 中指定。
+  * 大量目录可能达到 fs.inotify.max_user_watches 限制；事件队列
+    溢出（IN_Q_OVERFLOW）后，当前程序不会自动重建监控状态。
+  * 目录树内移动或重命名可能导致已记录的路径过期，需要重启监控。
+  * 不跟随扫描时遇到的目录符号链接。按 Ctrl-C 停止监控。""",
+    )
+    parser.add_argument("-r", "--recursive", action="store_true", help="递归监控目录及其子目录（所有 path 必须是目录）")
+    parser.add_argument("-e", "--event", default="IN_ALL_EVENTS", help="事件名称，多个用 | 或逗号分隔（默认：IN_ALL_EVENTS）")
+    parser.add_argument("path", type=Path, nargs="+", help="要监控的一个或多个文件或目录")
     args = parser.parse_args()
+
+    mask = 0
+    for name in args.event.replace(",", "|").split("|"):
+        name = name.strip()
+        if name == "IN_ALL_EVENTS":
+            mask |= IN_ALL_EVENTS
+        elif name in E.__members__ and E[name].value & IN_ALL_EVENTS == E[name].value:
+            mask |= E[name].value
+        else:
+            parser.error(f"无效的事件名称：{name!r}")
+
+    if args.recursive:
+        for path in args.path:
+            if not path.is_dir():
+                parser.error(f"递归监控要求 path 是已存在的目录：{path}")
+
+    try:
+        with INotify() as ni:
+            for path in args.path:
+                if args.recursive:
+                    ni.inotify_add_watch_recursive(path, mask)
+                else:
+                    ni.inotify_add_watch(path, mask)
+            while True:
+                for events, path in ni.read():
+                    print(f"{path}: {', '.join(event.name for event in events)}", flush=True)
+    except KeyboardInterrupt:
+        pass
+    except OSError as error:
+        parser.exit(1, f"监控失败：{error}\n")
 
 
 if __name__ == "__main__":
     # tail(sys.argv[1])
     # test1()
-    test2()
-    # main()
+    # test2()
+    main()
